@@ -78,6 +78,10 @@ class ValidationStage:
                 )
 
             scene_id = scene.get("id", "")
+            if not scene_id:
+                raise ValidationError(
+                    f"{scene_ref}: 'id' field is missing or empty."
+                )
             if scene_id in seen_ids:
                 raise ValidationError(
                     f"duplicate scene id '{scene_id}' found. All scene ids must be unique."

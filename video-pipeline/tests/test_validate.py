@@ -117,10 +117,24 @@ def test_empty_scene_id_fails():
     stage = ValidationStage(cfg, log)
     script = make_script(scenes=[
         {"id": "s01", "storyboard_prompt": "A mountain"},
-        {"id": "", "storyboard_prompt": "A river"},   # empty id — duplicate of next empty id
-        {"id": "", "storyboard_prompt": "A forest"},  # second empty id → duplicate
+        {"id": "", "storyboard_prompt": "A river"},   # empty id — fails on first encounter
+        {"id": "", "storyboard_prompt": "A forest"},
     ])
-    with pytest.raises(ValidationError, match="duplicate"):
+    with pytest.raises(ValidationError, match="empty"):
+        stage.run(script, script["scenes"], script["title"])
+
+
+def test_single_empty_scene_id_fails():
+    cfg = make_cfg()
+    import logging
+    log = logging.getLogger("test")
+    stage = ValidationStage(cfg, log)
+    script = make_script(scenes=[
+        {"id": "s01", "storyboard_prompt": "A mountain"},
+        {"id": "", "storyboard_prompt": "A river"},   # single empty id — must fail
+        {"id": "s03", "storyboard_prompt": "A forest"},
+    ])
+    with pytest.raises(ValidationError, match="empty"):
         stage.run(script, script["scenes"], script["title"])
 
 

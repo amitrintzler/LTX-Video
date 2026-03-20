@@ -115,6 +115,7 @@ class VideoStage:
                     fps=cfg.video_fps,
                     model=cfg.video_model or None,
                     refiner_model=cfg.video_refiner_model or None,
+                    tea_cache=cfg.use_tea_cache,
                 )
             except DrawThingsError as e:
                 self.log.warning(f"  [{label}] attempt {attempt} failed: {e}")

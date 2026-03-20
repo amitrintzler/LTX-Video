@@ -17,19 +17,17 @@ import re
 from config import PipelineConfig
 
 
-SAFETY_KEYWORDS_STRICT = [
-    # violence
-    "gore", "decapitation", "dismemberment", "torture", "mutilation",
-    # adult
-    "nude", "naked", "explicit", "pornographic", "sexual",
-    # hate
-    "slur", "genocide",
-    # self-harm
-    "suicide", "self-harm", "self harm",
-]
-
 SAFETY_KEYWORDS_MODERATE = [
     "gore", "explicit", "pornographic", "nude", "naked",
+]
+
+SAFETY_KEYWORDS_STRICT = SAFETY_KEYWORDS_MODERATE + [
+    # violence (strict only)
+    "decapitation", "dismemberment", "torture", "mutilation",
+    # hate (strict only)
+    "slur", "genocide",
+    # self-harm (strict only)
+    "suicide", "self-harm", "self harm",
 ]
 
 
@@ -70,23 +68,24 @@ class ValidationStage:
 
         seen_ids: set[str] = set()
         for i, scene in enumerate(scenes):
-            scene_ref = f"Scene {i + 1} (id={scene.get('id', '<missing>')})"
-
-            if not scene.get("storyboard_prompt", "").strip():
-                raise ValidationError(
-                    f"{scene_ref}: missing or empty 'storyboard_prompt'."
-                )
-
+            # Check id first
             scene_id = scene.get("id", "")
             if not scene_id:
                 raise ValidationError(
-                    f"{scene_ref}: 'id' field is missing or empty."
+                    f"Scene {i + 1}: 'id' field is missing or empty."
                 )
             if scene_id in seen_ids:
                 raise ValidationError(
                     f"duplicate scene id '{scene_id}' found. All scene ids must be unique."
                 )
             seen_ids.add(scene_id)
+
+            # Then check storyboard_prompt
+            scene_ref = f"Scene {i + 1} (id={scene_id})"
+            if not scene.get("storyboard_prompt", "").strip():
+                raise ValidationError(
+                    f"{scene_ref}: missing or empty 'storyboard_prompt'."
+                )
 
     # ── Check 2: Content Safety ───────────────────────────────────────
 
@@ -106,7 +105,7 @@ class ValidationStage:
             ]).lower()
 
             for kw in keywords:
-                if kw in text:
+                if re.search(r'\b' + re.escape(kw) + r'\b', text):
                     raise ValidationError(
                         f"Content safety violation in scene {i + 1}: "
                         f"keyword '{kw}' found. "
@@ -146,13 +145,24 @@ class ValidationStage:
         if not scenes:
             return
 
-        # Extract candidate character names from scene 1:
-        # capitalized words that are not at the start of a sentence
+        # Extract capitalized words (potential proper names) that are not sentence starters
+        # Split on sentence boundaries first, then find mid-sentence capitalized words
+        _exclude = {
+            "The", "A", "An", "In", "On", "At", "And", "But", "With", "From",
+            "His", "Her", "Its", "This", "That", "These", "Those", "Wide", "Close",
+            "Camera", "Aerial", "Two", "Three", "Four", "Five",
+        }
         first_prompt = scenes[0].get("storyboard_prompt", "")
-        candidates = re.findall(r"(?<![.!?]\s)(?<!\A)\b([A-Z][a-z]{2,})\b", first_prompt)
-        # Deduplicate, exclude common non-name capitalized words
-        _exclude = {"The", "A", "An", "In", "On", "At", "And", "But", "With", "From"}
-        characters = [c for c in dict.fromkeys(candidates) if c not in _exclude]
+        words = first_prompt.split()
+        candidates = [
+            w.strip(".,;:!?\"'")
+            for i, w in enumerate(words)
+            if i > 0  # skip first word (sentence start)
+            and w[0].isupper()
+            and len(w.rstrip(".,;:!?\"'")) >= 3
+            and w.rstrip(".,;:!?\"'") not in _exclude
+        ]
+        characters = list(dict.fromkeys(candidates))
 
         if not characters:
             return

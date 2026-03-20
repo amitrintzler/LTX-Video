@@ -1,0 +1,43 @@
+{
+  "api_host": "http://localhost:7859",
+  "api_timeout": 600,
+
+  "image_model": "flux_1_schnell_q8p.ckpt",
+  "image_width": 1024,
+  "image_height": 576,
+  "image_steps": 25,
+  "image_cfg": 7.0,
+  "image_negative": "blurry, low quality, watermark, text, ugly, deformed, extra limbs, disfigured",
+
+  "video_model": "wan_v2.2_a14b_hne_i2v_q6p_svd.ckpt",
+  "video_refiner_model": "wan_v2.2_a14b_lne_t2v_q6p_svd.ckpt",
+  "video_width": 1024,
+  "video_height": 576,
+  "video_fps": 16,
+  "video_frames": 81,
+  "video_steps": 30,
+  "video_cfg": 6.0,
+  "video_negative": "morphing, warping, distortion, flickering, jittering, blurry, face deformation, extra objects, watermark, text",
+  "use_tea_cache": true,
+
+  "crossfade_sec": 0.5,
+  "output_codec": "libx264",
+  "output_crf": 18,
+  "output_preset": "slow",
+  "add_music": false,
+  "music_path": "",
+  "music_volume": 0.3,
+
+  "work_dir": ".",
+  "frames_subdir": "frames",
+  "clips_subdir": "clips",
+  "output_subdir": "output",
+  "log_subdir": "logs",
+
+  "max_retries": 3,
+  "retry_delay": 10,
+
+  "content_safety": "strict",
+  "min_scenes": 3,
+  "max_scenes": 20
+}

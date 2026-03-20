@@ -1,0 +1,92 @@
+"""
+config.py — Pipeline configuration with sane defaults for M4 Pro + Draw Things
+"""
+
+from __future__ import annotations
+import json
+from dataclasses import dataclass, field, asdict
+from pathlib import Path
+
+
+@dataclass
+class PipelineConfig:
+    # ── Draw Things API ──────────────────────────────────────────────
+    api_host: str = "http://localhost:7860"
+    api_timeout: int = 600          # seconds per generation call
+
+    # ── Storyboard (Flux / SDXL image per scene) ─────────────────────
+    image_model: str = ""           # empty = use whatever is loaded in DT
+    image_width: int = 1024
+    image_height: int = 576
+    image_steps: int = 25
+    image_cfg: float = 7.0
+    image_negative: str = (
+        "blurry, low quality, watermark, text, ugly, deformed, extra limbs"
+    )
+
+    # ── Video (Wan 2.2 14B — I2V mode) ──────────────────────────────
+    video_model: str = ""
+    video_refiner_model: str = ""   # Low Noise Expert refiner
+    video_width: int = 1024
+    video_height: int = 576
+    video_fps: int = 16
+    video_frames: int = 81          # ~5 sec @ 16fps
+    video_steps: int = 30
+    video_cfg: float = 6.0
+    video_negative: str = (
+        "morphing, warping, distortion, flickering, jittering, blurry, "
+        "face deformation, extra objects, watermark"
+    )
+    use_tea_cache: bool = True      # faster generation via step caching
+
+    # ── Stitch (FFmpeg) ──────────────────────────────────────────────
+    crossfade_sec: float = 0.5      # dissolve duration between clips
+    output_codec: str = "libx264"   # libx264 | prores_ks (ProRes)
+    output_crf: int = 18            # quality (lower = better, 18–23 typical)
+    output_preset: str = "slow"     # encoding speed/quality tradeoff
+    add_music: bool = False         # set True + music_path to mix in audio
+    music_path: str = ""
+    music_volume: float = 0.3       # 0.0–1.0
+
+    # ── Paths ────────────────────────────────────────────────────────
+    work_dir: str = "."
+    frames_subdir: str = "frames"
+    clips_subdir: str = "clips"
+    output_subdir: str = "output"
+    log_subdir: str = "logs"
+
+    # ── Retry / resilience ───────────────────────────────────────────
+    max_retries: int = 3
+    retry_delay: int = 10           # seconds between retries
+
+    # ── Validation ───────────────────────────────────────────────────
+    content_safety: str = "strict"  # "strict" | "moderate" | "off"
+    min_scenes: int = 3
+    max_scenes: int = 20
+
+    # ────────────────────────────────────────────────────────────────
+    @property
+    def frames_dir(self) -> Path:
+        return Path(self.work_dir) / self.frames_subdir
+
+    @property
+    def clips_dir(self) -> Path:
+        return Path(self.work_dir) / self.clips_subdir
+
+    @property
+    def output_dir(self) -> Path:
+        return Path(self.work_dir) / self.output_subdir
+
+    @property
+    def log_dir(self) -> Path:
+        return Path(self.work_dir) / self.log_subdir
+
+    @classmethod
+    def from_file(cls, path: Path) -> "PipelineConfig":
+        with open(path) as f:
+            data = json.load(f)
+        return cls(**{k: v for k, v in data.items() if k in cls.__dataclass_fields__})
+
+    def save(self, path: Path):
+        with open(path, "w") as f:
+            json.dump(asdict(self), f, indent=2)

@@ -4,14 +4,14 @@ config.py — Pipeline configuration with sane defaults for M4 Pro + Draw Things
 
 from __future__ import annotations
 import json
-from dataclasses import dataclass, field, asdict
+from dataclasses import dataclass, asdict
 from pathlib import Path
 
 
 @dataclass
 class PipelineConfig:
     # ── Draw Things API ──────────────────────────────────────────────
-    api_host: str = "http://localhost:7860"
+    api_host: str = "http://localhost:7859"
     api_timeout: int = 600          # seconds per generation call
 
     # ── Storyboard (Flux / SDXL image per scene) ─────────────────────

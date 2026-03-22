@@ -14,6 +14,8 @@ Usage:
 from __future__ import annotations
 import logging
 import re
+import urllib.request
+import urllib.error
 from config import PipelineConfig
 
 
@@ -41,11 +43,31 @@ class ValidationStage:
         self.log = log.getChild("validate")
 
     def run(self, script: dict, scenes: list[dict], title: str):
+        self._check_api_reachable()
         self._check_technical(script, scenes)
         self._check_safety(scenes)
         self._check_coherence(script, scenes)
         self._check_characters(scenes)
+        self._check_content_relevance(script, scenes)
         self.log.info("  ✅ Validation passed")
+
+    # ── Check 0: API Reachability ─────────────────────────────────────
+
+    def _check_api_reachable(self):
+        url = self.cfg.api_host.rstrip("/") + "/"
+        try:
+            with urllib.request.urlopen(url, timeout=5) as resp:
+                if resp.status != 200:
+                    raise ValidationError(
+                        f"Draw Things API returned HTTP {resp.status}. "
+                        "Check that the app is running and HTTP API is enabled on port 7859."
+                    )
+        except urllib.error.URLError as e:
+            raise ValidationError(
+                f"Cannot reach Draw Things API at {url} — {e.reason}.\n"
+                "  → Open Draw Things → Settings → API Server → enable HTTP API on port 7859."
+            ) from e
+        self.log.info(f"  ✅ Draw Things API reachable at {url}")
 
     # ── Check 1: Technical Validity ──────────────────────────────────
 
@@ -186,3 +208,59 @@ class ValidationStage:
                     f"but not in scene {last_seen + 2}. "
                     "Verify character continuity."
                 )
+
+    # ── Check 5: Content Relevance ────────────────────────────────────
+
+    _STOPWORDS = {
+        "a", "an", "the", "and", "or", "but", "in", "on", "at", "to", "for",
+        "of", "with", "as", "is", "are", "was", "were", "be", "been", "being",
+        "that", "this", "these", "those", "it", "its", "by", "from", "about",
+        "into", "through", "during", "about", "above", "between", "out", "off",
+        "over", "under", "then", "than", "so", "if", "no", "not", "up", "do",
+        "can", "will", "which", "who", "how", "what", "when", "where", "video",
+        "scene", "cinematic", "camera", "show", "showing", "create", "make",
+    }
+
+    def _check_content_relevance(self, script: dict, scenes: list[dict]):
+        brief = script.get("brief", "").strip()
+        if not brief:
+            return  # No brief supplied — skip check
+
+        # Extract meaningful keywords from the brief
+        brief_words = {
+            w.lower().strip(".,;:!?\"'()")
+            for w in brief.split()
+            if len(w) > 3 and w.lower() not in self._STOPWORDS
+        }
+        if not brief_words:
+            return
+
+        # Build full text of all scene prompts
+        all_scene_text = " ".join(
+            " ".join([
+                s.get("storyboard_prompt", ""),
+                s.get("video_prompt", ""),
+                s.get("style", ""),
+            ])
+            for s in scenes
+        ).lower()
+
+        # Find which brief keywords appear nowhere in scenes
+        missing = {w for w in brief_words if w not in all_scene_text}
+        coverage = 1.0 - len(missing) / len(brief_words)
+
+        if coverage < 0.4:
+            raise ValidationError(
+                f"Scene content does not match the brief.\n"
+                f"  Brief: \"{brief}\"\n"
+                f"  Key concepts missing from scenes: {sorted(missing)}\n"
+                f"  Coverage: {coverage:.0%} — expected at least 40%.\n"
+                f"  Regenerate the scene script with content closer to the brief."
+            )
+        elif coverage < 0.7:
+            self.log.warning(
+                f"  Scene content partially matches brief ({coverage:.0%} coverage). "
+                f"Concepts not found in scenes: {sorted(missing)}"
+            )
+        else:
+            self.log.info(f"  ✅ Content relevance: {coverage:.0%} of brief concepts found in scenes")

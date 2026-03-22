@@ -1,5 +1,6 @@
 {
   "title": "trading-trailer",
+  "brief": "A cinematic trailer about options trading strategies including calls, puts, Greeks (delta, gamma, theta, vega), iron condor, straddle, VIX volatility, and the wheel strategy.",
   "global_style": "cinematic 35mm anamorphic lens, deep shadow contrast, cool blue and amber color grading, financial thriller atmosphere, sharp focus on subjects with bokeh backgrounds",
   "scenes": [
     {

@@ -4,83 +4,83 @@
   "scenes": [
     {
       "id": "s01",
-      "storyboard_prompt": "Aerial night shot of a vast financial district skyline, skyscrapers with lit windows reflecting in a dark river below, single helicopter searchlight cutting through fog, establishing the scale and power of the financial world",
-      "video_prompt": "slow cinematic drone pull-back revealing the full city skyline, lights twinkling, fog drifting between towers",
-      "camera": "aerial drone pull-back, wide anamorphic lens",
-      "motion": "slow backward drift revealing the immense scale of the city",
-      "style": "deep blue night, amber building lights, cinematic fog"
+      "storyboard_prompt": "Extreme close-up of a glowing options chain on a dark terminal screen, rows of strike prices in white, call premiums glowing green on the left, put premiums glowing red on the right, implied volatility percentages pulsing like a heartbeat, the entire screen reflected in the face of a focused trader in shadow",
+      "video_prompt": "options chain data scrolling and updating in real time, green and red values flickering, IV numbers pulsing, traders reflection watching intently",
+      "camera": "tight close-up on terminal screen, slight push in toward the data",
+      "motion": "strike prices scrolling, bid-ask spreads tightening and widening, numbers alive with market movement",
+      "style": "deep black background, neon green calls, crimson puts, high contrast data visualization"
     },
     {
       "id": "s02",
-      "storyboard_prompt": "Extreme close-up of a traders hands flying over a mechanical keyboard, multiple glowing monitors reflected in aviator sunglasses, stock tickers scrolling rapidly in background, high tension energy",
-      "video_prompt": "fingers typing rapidly on keyboard, reflections of scrolling market data in the lenses, urgent motion",
-      "camera": "tight close-up, rack focus from hands to glasses reflection",
-      "motion": "rapid hand movement, urgent typing, market data streaming",
-      "style": "cool blue monitor light, sharp focus, high contrast"
+      "storyboard_prompt": "A dramatic visualization of the four Greek letters Delta, Gamma, Theta, Vega as towering glowing symbols in a dark void, each Greek letter surrounded by pulsing equations and flowing data streams, Delta in electric blue showing directional arrows, Theta in deep red dissolving like sand through an hourglass, Gamma in bright white showing curve acceleration, Vega in purple showing volatility waves",
+      "video_prompt": "Greek letters rotating slowly in space, equations flowing around them like living data, each symbol radiating its meaning through light and motion",
+      "camera": "slow orbit around the floating Greek symbols, wide cinematic lens",
+      "motion": "letters rotating and pulsing, data streams flowing between them, light radiating outward",
+      "style": "deep space black, each Greek symbol in its own color, cosmic financial mythology"
     },
     {
       "id": "s03",
-      "storyboard_prompt": "A massive illuminated stock chart fills the frame like a mountain range, green and red candles towering like skyscrapers against a dark background, a lone silhouette of a trader stands before it dwarfed by the data",
-      "video_prompt": "chart candles rise and fall dramatically, silhouette figure gestures toward the screen, data cascading",
-      "camera": "low angle looking up at the chart display, wide lens",
-      "motion": "chart bars animating up and down, figure moving purposefully",
-      "style": "green and red neon chart glow, dark room, dramatic scale"
+      "storyboard_prompt": "A lone trader sits in a darkened war room surrounded by six monitors, one monitor shows a bull call spread profit and loss diagram with a clear profit zone highlighted in bright green, the trader points at the breakeven line with a focused expression, charts and options flow data fill every other screen",
+      "video_prompt": "trader analyzing the bull call spread diagram, PnL curve animating upward through the profit zone, screens flickering with live data",
+      "camera": "medium shot from behind the trader looking at the screens, slow push in",
+      "motion": "PnL diagram animating, cursor moving along the profit curve, screens updating with market data",
+      "style": "dark room, multiple screen glow, intense focused atmosphere, green profit highlight"
     },
     {
       "id": "s04",
-      "storyboard_prompt": "A golden bull and a dark bear face off on Wall Street in a dramatic wide shot, stylized like powerful animals frozen in confrontation, NYSE building in background, financial district street scene",
-      "video_prompt": "tension between the two figures, subtle movement, wind stirring dust on the empty street",
-      "camera": "low wide angle, street level perspective",
-      "motion": "animals breathing heavily, subtle shifting weight, ominous stillness",
-      "style": "golden amber light on bull, cold shadow on bear, epic wide"
+      "storyboard_prompt": "A massive glowing hourglass made entirely of stock tickers and option premium numbers, sand falling through it as time decay consumes the value, the word THETA burns in amber at the base, a trader watches helplessly as the premium erodes, cinematic metaphor for time decay destroying option value",
+      "video_prompt": "sand falling through the hourglass as ticker symbols, premium numbers decreasing with each grain, THETA glowing ominously below",
+      "camera": "medium wide shot, hourglass centered, trader silhouette to the side",
+      "motion": "sand falling in slow motion, numbers dissolving downward, amber glow intensifying",
+      "style": "dark amber lighting, ominous atmosphere, financial time pressure"
     },
     {
       "id": "s05",
-      "storyboard_prompt": "An options chain scrolling on a trading terminal transforms into a chess board, each option contract becomes a chess piece, calls are white knights puts are black rooks, the board is alive with possibility",
-      "video_prompt": "screen data morphs and transforms, chess pieces materialize from numbers, strategic arrangement forming",
-      "camera": "medium close-up on terminal screen, slight push in",
-      "motion": "numbers dissolving into chess pieces, board taking shape",
-      "style": "deep blue terminal glow, neon green data, surreal transformation"
+      "storyboard_prompt": "The VIX fear index spiking violently on a massive screen like a seismic earthquake graph, the number 40 flashing in blood red as implied volatility explodes, traders in the background running and shouting, option premiums shown as skyrocketing mountains on adjacent screens, the chaos of a volatility crush event",
+      "video_prompt": "VIX line spiking dramatically upward, screens flashing red alerts, background traders reacting with urgency, option premiums surging",
+      "camera": "low angle looking up at the VIX screen, wide anamorphic lens capturing the chaos",
+      "motion": "VIX line shooting upward violently, alert notifications cascading, frantic background activity",
+      "style": "blood red emergency lighting, urgent chaos, financial panic atmosphere"
     },
     {
       "id": "s06",
-      "storyboard_prompt": "Extreme close-up of a traders eye, enormous stock market data reflected in the iris, a storm visible in the reflection with lightning flashing through financial charts, the calm determined eye of someone who has seen everything",
-      "video_prompt": "lightning flashes within the eye reflection, data scrolling, the eye remains perfectly still and focused",
-      "camera": "macro extreme close-up of a single human eye",
-      "motion": "lightning reflections in iris, subtle eye movement, data streaming in reflection",
-      "style": "photorealistic macro, electric blue and amber tones, cinematic"
+      "storyboard_prompt": "An iron condor options strategy diagram glows in midair like a holographic fortress, four option legs visualized as glowing pillars forming a rectangular profit zone in the center, the profit corridor highlighted in gold between the two breakeven points, implied volatility bands shown as walls on either side, a trader stands inside the profit zone like a commander in a stronghold",
+      "video_prompt": "holographic iron condor diagram rotating slowly, profit zone glowing gold, breakeven walls pulsing, trader figure standing within the strategy",
+      "camera": "slow cinematic orbit around the holographic strategy diagram",
+      "motion": "diagram rotating in place, profit zone pulsing golden light, volatility walls shimmering",
+      "style": "deep blue holographic display, gold profit zone, fortress-like financial strategy visualization"
     },
     {
       "id": "s07",
-      "storyboard_prompt": "A glowing red sell button on a trading terminal, a hand hovers inches above it with sweat visible on the knuckles, six monitors showing crashing markets in background, the dramatic moment before a critical financial decision",
-      "video_prompt": "hand trembling slightly above the button, markets crashing on background screens, dramatic stillness before action",
-      "camera": "close-up on hand and button, deep focus on monitors behind",
-      "motion": "hand hovering with slight tremor, background screens flashing red",
-      "style": "red emergency light, high tension, deep shadow contrast"
+      "storyboard_prompt": "Extreme close-up of a trading screen moments before an earnings announcement, a straddle position shown with both a call and put highlighted in equal brightness, the countdown timer reads 00:03:00 in large digits, the implied volatility crush warning flashes, a hand poised over the mouse ready to execute, sweat on the knuckles visible under screen light",
+      "video_prompt": "countdown timer ticking down, straddle position showing both legs live, IV crush warning flashing, hand trembling slightly over the mouse",
+      "camera": "tight close-up alternating between countdown and traders hand",
+      "motion": "timer counting down with urgency, IV numbers pulsing, hand hovering with tension",
+      "style": "high tension blue light, sharp focus on details, dramatic pre-earnings atmosphere"
     },
     {
       "id": "s08",
-      "storyboard_prompt": "A cascade of golden coins and dollar bills raining down in slow motion inside a grand marble trading hall, traders frozen in celebration below, confetti of financial success filling the air with golden light",
-      "video_prompt": "currency raining down in slow motion, people reaching up, golden light catching each bill and coin",
-      "camera": "high angle looking down into the hall, wide establishing shot",
-      "motion": "slow motion currency cascade, arms raised in celebration",
-      "style": "golden warm light, marble grandeur, triumphant celebration"
+      "storyboard_prompt": "A breathtaking view from inside a glass skyscraper trading floor at night, floor-to-ceiling windows reveal the illuminated city below, a massive options flow dashboard covers one entire wall showing unusual call sweeps in bright green arrows, dark money moving through the market visualized as glowing rivers of capital flowing across a financial map of America",
+      "video_prompt": "options flow dashboard updating with unusual sweeps, green arrows cascading across the wall, capital flow rivers moving across the financial map",
+      "camera": "wide establishing shot of the trading floor with city backdrop",
+      "motion": "flow data updating dynamically, green sweep arrows appearing, capital rivers flowing across the map",
+      "style": "nighttime city glow, monumental trading floor, dark money visualization"
     },
     {
       "id": "s09",
-      "storyboard_prompt": "A stock chart line rockets upward like a space launch, the rising line breaks through the ceiling of the frame into a starfield, financial gains transformed into an interstellar trajectory, cinematic metaphor for limitless returns",
-      "video_prompt": "chart line accelerating upward with explosive velocity, breaking through frame edge into deep space stars",
-      "camera": "vertical pan following the rising chart line upward",
-      "motion": "chart line shooting upward with incredible speed, stars appearing at top of frame",
-      "style": "electric green chart line, deep space black background, cinematic scale"
+      "storyboard_prompt": "A profit and loss curve shoots upward like a rocket breaking through layers of cloud into clear sky, the y-axis shows dollar amounts climbing from thousands to millions, the expiration date marker approaches like a finish line in the distance, multiple winning options positions shown as ascending lines in green and gold trailing behind the main rocket curve",
+      "video_prompt": "PnL rocket curve accelerating upward through clouds, dollar amounts climbing, expiration finish line approaching, trailing winning positions in formation",
+      "camera": "vertical tracking shot following the ascending curve upward",
+      "motion": "curve shooting upward with explosive momentum, clouds parting, numbers climbing rapidly",
+      "style": "clear blue sky above storm clouds, electric green and gold curves, triumphant financial ascent"
     },
     {
       "id": "s10",
-      "storyboard_prompt": "Silhouette of a lone trader standing on the rooftop of a glass skyscraper at dawn, the entire city spread below, holding a coffee cup, watching the sunrise that signals the opening bell, master of their financial world",
-      "video_prompt": "slow sunrise over the city, golden light spreading across the skyline, figure standing in quiet contemplation",
-      "camera": "wide establishing shot at rooftop level, sunrise behind the skyline",
-      "motion": "sunrise light slowly spreading, gentle wind movement in clothing",
-      "style": "golden hour dawn, silhouette high contrast, epic cinematic resolution"
+      "storyboard_prompt": "A masterful trader stands at a floor-to-ceiling window at dawn, a tablet in hand showing a perfectly balanced options portfolio with positions in green, the rising sun behind the city skyline creates a golden silhouette, on the tablet screen a wheel strategy income dashboard shows consistent monthly premium income as a glowing green bar chart, the master of options strategy surveys their financial kingdom",
+      "video_prompt": "sunrise spreading golden light across the city, trader reviewing their options portfolio on the tablet, income bars glowing green, contemplative mastery",
+      "camera": "wide shot at window level, sunrise behind, slow zoom in on the tablet screen",
+      "motion": "sunrise light spreading, income bars updating with new premium collected, wind gently moving clothing",
+      "style": "golden hour dawn, silhouette mastery, green income visualization, triumphant resolution"
     }
   ]
 }

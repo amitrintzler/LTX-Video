@@ -57,6 +57,11 @@ def run(script_path: str, stage: str | None, cfg: PipelineConfig, skip_validatio
     scenes  = script["scenes"]
     log.info(f"Project: '{title}' — {len(scenes)} scenes")
 
+    # Propagate root-level global_style into scenes[0] so all stages pick it up
+    global_style = script.get("global_style", "")
+    if global_style and not scenes[0].get("global_style"):
+        scenes[0]["global_style"] = global_style
+
     stages_to_run = {
         None:         ["storyboard", "video", "stitch"],
         "validate":   ["validate"],

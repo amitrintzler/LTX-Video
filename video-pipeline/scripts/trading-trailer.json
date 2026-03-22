@@ -1,0 +1,86 @@
+{
+  "title": "trading-trailer",
+  "global_style": "cinematic 35mm anamorphic lens, deep shadow contrast, cool blue and amber color grading, financial thriller atmosphere, sharp focus on subjects with bokeh backgrounds",
+  "scenes": [
+    {
+      "id": "s01",
+      "storyboard_prompt": "Aerial night shot of a vast financial district skyline, skyscrapers with lit windows reflecting in a dark river below, single helicopter searchlight cutting through fog, establishing the scale and power of the financial world",
+      "video_prompt": "slow cinematic drone pull-back revealing the full city skyline, lights twinkling, fog drifting between towers",
+      "camera": "aerial drone pull-back, wide anamorphic lens",
+      "motion": "slow backward drift revealing the immense scale of the city",
+      "style": "deep blue night, amber building lights, cinematic fog"
+    },
+    {
+      "id": "s02",
+      "storyboard_prompt": "Extreme close-up of a traders hands flying over a mechanical keyboard, multiple glowing monitors reflected in aviator sunglasses, stock tickers scrolling rapidly in background, high tension energy",
+      "video_prompt": "fingers typing rapidly on keyboard, reflections of scrolling market data in the lenses, urgent motion",
+      "camera": "tight close-up, rack focus from hands to glasses reflection",
+      "motion": "rapid hand movement, urgent typing, market data streaming",
+      "style": "cool blue monitor light, sharp focus, high contrast"
+    },
+    {
+      "id": "s03",
+      "storyboard_prompt": "A massive illuminated stock chart fills the frame like a mountain range, green and red candles towering like skyscrapers against a dark background, a lone silhouette of a trader stands before it dwarfed by the data",
+      "video_prompt": "chart candles rise and fall dramatically, silhouette figure gestures toward the screen, data cascading",
+      "camera": "low angle looking up at the chart display, wide lens",
+      "motion": "chart bars animating up and down, figure moving purposefully",
+      "style": "green and red neon chart glow, dark room, dramatic scale"
+    },
+    {
+      "id": "s04",
+      "storyboard_prompt": "A golden bull and a dark bear face off on Wall Street in a dramatic wide shot, stylized like powerful animals frozen in confrontation, NYSE building in background, financial district street scene",
+      "video_prompt": "tension between the two figures, subtle movement, wind stirring dust on the empty street",
+      "camera": "low wide angle, street level perspective",
+      "motion": "animals breathing heavily, subtle shifting weight, ominous stillness",
+      "style": "golden amber light on bull, cold shadow on bear, epic wide"
+    },
+    {
+      "id": "s05",
+      "storyboard_prompt": "An options chain scrolling on a trading terminal transforms into a chess board, each option contract becomes a chess piece, calls are white knights puts are black rooks, the board is alive with possibility",
+      "video_prompt": "screen data morphs and transforms, chess pieces materialize from numbers, strategic arrangement forming",
+      "camera": "medium close-up on terminal screen, slight push in",
+      "motion": "numbers dissolving into chess pieces, board taking shape",
+      "style": "deep blue terminal glow, neon green data, surreal transformation"
+    },
+    {
+      "id": "s06",
+      "storyboard_prompt": "Extreme close-up of a traders eye, enormous stock market data reflected in the iris, a storm visible in the reflection with lightning flashing through financial charts, the calm determined eye of someone who has seen everything",
+      "video_prompt": "lightning flashes within the eye reflection, data scrolling, the eye remains perfectly still and focused",
+      "camera": "macro extreme close-up of a single human eye",
+      "motion": "lightning reflections in iris, subtle eye movement, data streaming in reflection",
+      "style": "photorealistic macro, electric blue and amber tones, cinematic"
+    },
+    {
+      "id": "s07",
+      "storyboard_prompt": "A glowing red sell button on a trading terminal, a hand hovers inches above it with sweat visible on the knuckles, six monitors showing crashing markets in background, the dramatic moment before a critical financial decision",
+      "video_prompt": "hand trembling slightly above the button, markets crashing on background screens, dramatic stillness before action",
+      "camera": "close-up on hand and button, deep focus on monitors behind",
+      "motion": "hand hovering with slight tremor, background screens flashing red",
+      "style": "red emergency light, high tension, deep shadow contrast"
+    },
+    {
+      "id": "s08",
+      "storyboard_prompt": "A cascade of golden coins and dollar bills raining down in slow motion inside a grand marble trading hall, traders frozen in celebration below, confetti of financial success filling the air with golden light",
+      "video_prompt": "currency raining down in slow motion, people reaching up, golden light catching each bill and coin",
+      "camera": "high angle looking down into the hall, wide establishing shot",
+      "motion": "slow motion currency cascade, arms raised in celebration",
+      "style": "golden warm light, marble grandeur, triumphant celebration"
+    },
+    {
+      "id": "s09",
+      "storyboard_prompt": "A stock chart line rockets upward like a space launch, the rising line breaks through the ceiling of the frame into a starfield, financial gains transformed into an interstellar trajectory, cinematic metaphor for limitless returns",
+      "video_prompt": "chart line accelerating upward with explosive velocity, breaking through frame edge into deep space stars",
+      "camera": "vertical pan following the rising chart line upward",
+      "motion": "chart line shooting upward with incredible speed, stars appearing at top of frame",
+      "style": "electric green chart line, deep space black background, cinematic scale"
+    },
+    {
+      "id": "s10",
+      "storyboard_prompt": "Silhouette of a lone trader standing on the rooftop of a glass skyscraper at dawn, the entire city spread below, holding a coffee cup, watching the sunrise that signals the opening bell, master of their financial world",
+      "video_prompt": "slow sunrise over the city, golden light spreading across the skyline, figure standing in quiet contemplation",
+      "camera": "wide establishing shot at rooftop level, sunrise behind the skyline",
+      "motion": "sunrise light slowly spreading, gentle wind movement in clothing",
+      "style": "golden hour dawn, silhouette high contrast, epic cinematic resolution"
+    }
+  ]
+}

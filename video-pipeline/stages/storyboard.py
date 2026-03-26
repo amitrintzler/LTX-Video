@@ -32,7 +32,14 @@ class StoryboardStage:
 
         global_style = scenes[0].get("global_style", "")
 
+        LTX_RENDERERS = {"ltx", "animatediff", None}
+
         for i, scene in enumerate(scenes):
+            # Skip scenes handled by non-LTX renderers
+            renderer = scene.get("renderer")
+            if renderer not in LTX_RENDERERS:
+                continue
+
             scene_id = f"scene_{i+1:03d}"
             out_path  = out_dir / f"{scene_id}.png"
 

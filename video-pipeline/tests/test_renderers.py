@@ -209,3 +209,70 @@ def test_manim_missing_manim_package_raises_helpful_error(tmp_path):
         importlib.reload(m)
         with pytest.raises(ImportError, match="pip install manim"):
             m.render(_manim_scene(), _manim_cfg(), tmp_path / "out.mp4")
+
+
+# ── StoryboardStage renderer-awareness ───────────────────────────
+
+
+def test_storyboard_skips_manim_scene(tmp_path):
+    """StoryboardStage.run() does not call txt2img for renderer='manim' scenes."""
+    from stages.storyboard import StoryboardStage
+
+    cfg = PipelineConfig(work_dir=str(tmp_path))
+    log = logging.getLogger("test")
+
+    with patch("stages.storyboard.DrawThingsClient") as MockClient:
+        mock_instance = MockClient.return_value
+        stage = StoryboardStage(cfg, log)
+        stage.run(
+            [{"id": "s01", "renderer": "manim", "description": "A payoff curve"}],
+            "test-title",
+        )
+        mock_instance.txt2img.assert_not_called()
+
+
+def test_storyboard_processes_ltx_scene(tmp_path):
+    """StoryboardStage.run() calls _generate_with_retry for renderer='ltx' scenes."""
+    from stages.storyboard import StoryboardStage
+
+    cfg = PipelineConfig(work_dir=str(tmp_path))
+    log = logging.getLogger("test")
+
+    with patch("stages.storyboard.DrawThingsClient") as MockClient:
+        mock_instance = MockClient.return_value
+        mock_instance.txt2img.return_value = [b"fake_png"]
+        stage = StoryboardStage(cfg, log)
+        stage.run(
+            [{
+                "id": "s01",
+                "renderer": "ltx",
+                "storyboard_prompt": "A mountain",
+                "style": "cinematic",
+                "negative": "blurry",
+            }],
+            "test-title",
+        )
+        mock_instance.txt2img.assert_called_once()
+
+
+def test_storyboard_processes_scene_with_no_renderer_field(tmp_path):
+    """Scenes without renderer field default to ltx and are processed normally."""
+    from stages.storyboard import StoryboardStage
+
+    cfg = PipelineConfig(work_dir=str(tmp_path))
+    log = logging.getLogger("test")
+
+    with patch("stages.storyboard.DrawThingsClient") as MockClient:
+        mock_instance = MockClient.return_value
+        mock_instance.txt2img.return_value = [b"fake_png"]
+        stage = StoryboardStage(cfg, log)
+        stage.run(
+            [{
+                "id": "s01",
+                "storyboard_prompt": "A mountain",
+                "style": "cinematic",
+                "negative": "blurry",
+            }],
+            "test-title",
+        )
+        mock_instance.txt2img.assert_called_once()

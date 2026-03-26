@@ -102,9 +102,11 @@ class ValidationStage:
                 )
             seen_ids.add(scene_id)
 
-            # Then check storyboard_prompt
+            # storyboard_prompt is only required for LTX/animatediff/default scenes
             scene_ref = f"Scene {i + 1} (id={scene_id})"
-            if not scene.get("storyboard_prompt", "").strip():
+            renderer = scene.get("renderer")
+            LTX_RENDERERS = {"ltx", "animatediff", None}
+            if renderer in LTX_RENDERERS and not scene.get("storyboard_prompt", "").strip():
                 raise ValidationError(
                     f"{scene_ref}: missing or empty 'storyboard_prompt'."
                 )

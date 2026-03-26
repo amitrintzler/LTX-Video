@@ -142,6 +142,7 @@ def test_manim_run_uses_timeout(tmp_path):
 
     call_kwargs = mock_sub.call_args[1]
     assert call_kwargs.get("timeout") == 120
+    assert out_path.exists()
 
 
 def test_manim_run_raises_on_timeout(tmp_path):

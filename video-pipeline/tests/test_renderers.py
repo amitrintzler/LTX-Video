@@ -27,6 +27,8 @@ def test_get_renderer_unknown_raises_valueerror():
         get_renderer("unknown_xyz")
 
 
+@pytest.mark.xfail(raises=ModuleNotFoundError, strict=True,
+                   reason="stages.renderers.manim not created until Task 3")
 def test_get_renderer_manim_returns_module_with_render():
     from stages.renderers import get_renderer
     mod = get_renderer("manim")

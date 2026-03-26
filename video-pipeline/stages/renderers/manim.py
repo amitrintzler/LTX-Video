@@ -9,6 +9,7 @@ Install deps:  pip install manim anthropic
 
 from __future__ import annotations
 import re
+import shutil
 import subprocess
 import tempfile
 from pathlib import Path
@@ -35,6 +36,9 @@ def render(scene: dict, config: PipelineConfig, out_path: Path) -> Path:
         duration_sec=duration_sec,
         bg_color=bg_color,
     )
+
+    if config.renderer_max_retries < 1:
+        raise ManimRenderError("renderer_max_retries must be >= 1")
 
     last_error: str | None = None
     for attempt in range(config.renderer_max_retries):
@@ -156,5 +160,5 @@ def _run_manim(code: str, out_path: Path, timeout: int = 120) -> Path:
             raise ManimRenderError("Manim succeeded but produced no MP4 file")
 
         out_path.parent.mkdir(parents=True, exist_ok=True)
-        mp4_files[0].rename(out_path)
+        shutil.move(str(mp4_files[0]), out_path)  # shutil.move handles cross-device moves
         return out_path

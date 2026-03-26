@@ -17,3 +17,24 @@ def test_config_new_fields_have_correct_defaults():
     assert cfg.animatediff_checkpoint == "frankjoshua/toonyou_beta6"
     assert cfg.animatediff_num_frames == 16
     assert cfg.animatediff_guidance_scale == 7.5
+
+
+# ── Registry ──────────────────────────────────────────────────────
+
+def test_get_renderer_unknown_raises_valueerror():
+    from stages.renderers import get_renderer
+    with pytest.raises(ValueError, match="unknown_xyz"):
+        get_renderer("unknown_xyz")
+
+
+def test_get_renderer_manim_returns_module_with_render():
+    from stages.renderers import get_renderer
+    mod = get_renderer("manim")
+    assert callable(getattr(mod, "render", None)), "manim renderer must expose render()"
+
+
+def test_get_renderer_error_message_lists_valid_renderers():
+    from stages.renderers import get_renderer
+    with pytest.raises(ValueError) as exc_info:
+        get_renderer("bad")
+    assert "manim" in str(exc_info.value)

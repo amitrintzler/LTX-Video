@@ -82,7 +82,30 @@ def run(script_path: str, stage: str | None, cfg: PipelineConfig, skip_validatio
 
     if "video" in stages_to_run:
         log.info("━━━ STAGE 2: Video clips (image → video per scene) ━━━")
+
+        # LTX scenes: handled by existing VideoStage (preserves path logic + retry)
         VideoStage(cfg, log).run(scenes, title)
+
+        # Non-LTX scenes: dispatched per-scene to their renderer module
+        from stages.renderers import get_renderer
+        safe_title = "".join(c if c.isalnum() or c in "-_" else "_" for c in title)
+        clips_dir = cfg.clips_dir / safe_title
+        clips_dir.mkdir(parents=True, exist_ok=True)
+
+        for i, scene in enumerate(scenes):
+            renderer_name = scene.get("renderer", "ltx")
+            if renderer_name == "ltx":
+                continue  # already handled by VideoStage above
+
+            out_path = clips_dir / f"scene_{i+1:03d}.mp4"
+            if out_path.exists():
+                log.info(f"  [scene_{i+1:03d}] skipping — clip exists")
+                continue
+
+            log.info(f"  [scene_{i+1:03d}] renderer={renderer_name}")
+            renderer = get_renderer(renderer_name)
+            renderer.render(scene, cfg, out_path)
+            log.info(f"  [scene_{i+1:03d}] ✓ saved → {out_path}")
 
     if "stitch" in stages_to_run:
         log.info("━━━ STAGE 3: Stitch clips → final video ━━━")

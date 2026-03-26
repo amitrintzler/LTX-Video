@@ -330,3 +330,74 @@ def test_video_processes_ltx_scene(tmp_path):
             "test-title",
         )
         mock_instance.img2video.assert_called_once()
+
+
+# ── Pipeline dispatcher ────────────────────────────────────────────
+
+
+def test_pipeline_dispatches_manim_scene(tmp_path):
+    """pipeline.run() calls manim renderer for scenes with renderer='manim'."""
+    import pipeline as pl
+
+    script_path = tmp_path / "test.json"
+    script_path.write_text("""{
+        "title": "test-mixed",
+        "global_style": "cinematic",
+        "scenes": [
+            {
+                "id": "s01",
+                "renderer": "manim",
+                "description": "A payoff curve",
+                "duration_sec": 4
+            }
+        ]
+    }""")
+
+    cfg = PipelineConfig(work_dir=str(tmp_path), min_scenes=1)
+    mock_render = MagicMock(return_value=tmp_path / "clips/test_mixed/scene_001.mp4")
+
+    with patch("stages.renderers.manim.render", mock_render), \
+         patch("stages.video.DrawThingsClient"), \
+         patch("stages.storyboard.DrawThingsClient"), \
+         patch("stages.stitch.StitchStage.run"):
+        pl.run(str(script_path), "video", cfg, skip_validation=True)
+
+    mock_render.assert_called_once()
+    call_args = mock_render.call_args
+    assert call_args[0][0]["renderer"] == "manim"
+
+
+def test_pipeline_skips_existing_clip(tmp_path):
+    """pipeline.run() skips a scene whose output clip already exists."""
+    import pipeline as pl
+
+    script_path = tmp_path / "test.json"
+    script_path.write_text("""{
+        "title": "test-skip",
+        "global_style": "cinematic",
+        "scenes": [
+            {
+                "id": "s01",
+                "renderer": "manim",
+                "description": "A payoff curve",
+                "duration_sec": 4
+            }
+        ]
+    }""")
+
+    cfg = PipelineConfig(work_dir=str(tmp_path), min_scenes=1)
+
+    # Pre-create the output clip
+    # Note: dispatcher uses _safe("test-skip") → "test-skip" (hyphens preserved)
+    clips_dir = cfg.clips_dir / "test-skip"
+    clips_dir.mkdir(parents=True)
+    (clips_dir / "scene_001.mp4").touch()
+
+    mock_render = MagicMock()
+    with patch("stages.renderers.manim.render", mock_render), \
+         patch("stages.video.DrawThingsClient"), \
+         patch("stages.storyboard.DrawThingsClient"), \
+         patch("stages.stitch.StitchStage.run"):
+        pl.run(str(script_path), "video", cfg, skip_validation=True)
+
+    mock_render.assert_not_called()

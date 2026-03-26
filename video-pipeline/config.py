@@ -30,7 +30,7 @@ class PipelineConfig:
     video_width: int = 1024
     video_height: int = 576
     video_fps: int = 24
-    video_frames: int = 81          # ~5 sec @ 16fps
+    video_frames: int = 81          # ~3.4 sec @ 24fps
     video_steps: int = 30
     video_cfg: float = 6.0
     video_negative: str = (

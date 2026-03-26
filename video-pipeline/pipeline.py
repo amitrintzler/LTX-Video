@@ -21,6 +21,7 @@ from stages.storyboard import StoryboardStage
 from stages.video import VideoStage
 from stages.stitch import StitchStage
 from stages.validate import ValidationStage
+from stages.renderers import get_renderer
 from config import PipelineConfig
 
 # ──────────────────────────────────────────
@@ -87,8 +88,7 @@ def run(script_path: str, stage: str | None, cfg: PipelineConfig, skip_validatio
         VideoStage(cfg, log).run(scenes, title)
 
         # Non-LTX scenes: dispatched per-scene to their renderer module
-        from stages.renderers import get_renderer
-        safe_title = "".join(c if c.isalnum() or c in "-_" else "_" for c in title)
+        safe_title = StitchStage._safe(title)  # shared formula — consistent with StitchStage/VideoStage
         clips_dir = cfg.clips_dir / safe_title
         clips_dir.mkdir(parents=True, exist_ok=True)
 

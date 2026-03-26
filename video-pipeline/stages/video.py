@@ -41,6 +41,10 @@ class VideoStage:
         global_style = scenes[0].get("global_style", "")
 
         for i, scene in enumerate(scenes):
+            # Skip scenes handled by non-LTX renderers (dispatcher handles them)
+            if scene.get("renderer", "ltx") != "ltx":
+                continue
+
             scene_id   = f"scene_{i+1:03d}"
             frame_path = frames_dir / f"{scene_id}.png"
             clip_path  = clips_dir  / f"{scene_id}.mp4"

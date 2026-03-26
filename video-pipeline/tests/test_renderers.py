@@ -276,3 +276,57 @@ def test_storyboard_processes_scene_with_no_renderer_field(tmp_path):
             "test-title",
         )
         mock_instance.txt2img.assert_called_once()
+
+
+# ── VideoStage renderer-awareness ─────────────────────────────────
+
+
+def test_video_skips_manim_scene_without_error(tmp_path):
+    """VideoStage.run() silently skips renderer='manim' scenes — no img2video call."""
+    from stages.video import VideoStage
+
+    cfg = PipelineConfig(work_dir=str(tmp_path))
+    log = logging.getLogger("test")
+
+    with patch("stages.video.DrawThingsClient") as MockClient:
+        mock_instance = MockClient.return_value
+        stage = VideoStage(cfg, log)
+        # Must not raise, must not call img2video
+        stage.run(
+            [{"id": "s01", "renderer": "manim", "description": "A payoff curve"}],
+            "test-title",
+        )
+        mock_instance.img2video.assert_not_called()
+
+
+def test_video_processes_ltx_scene(tmp_path):
+    """VideoStage.run() calls _generate_with_retry for renderer='ltx' scenes that have a frame."""
+    from stages.video import VideoStage
+
+    cfg = PipelineConfig(work_dir=str(tmp_path))
+    log = logging.getLogger("test")
+
+    # Create a fake storyboard frame so VideoStage proceeds past the frame-exists check
+    # Note: VideoStage._safe("test-title") → "test-title" (hyphens are preserved)
+    safe_title = "test-title"
+    frame_dir = cfg.frames_dir / safe_title
+    frame_dir.mkdir(parents=True)
+    (frame_dir / "scene_001.png").write_bytes(b"fake_png")
+
+    with patch("stages.video.DrawThingsClient") as MockClient, \
+         patch("stages.video.VideoStage._frames_to_mp4"):
+        mock_instance = MockClient.return_value
+        mock_instance.img2video.return_value = [b"frame1", b"frame2"]
+        stage = VideoStage(cfg, log)
+        stage.run(
+            [{
+                "id": "s01",
+                "renderer": "ltx",
+                "storyboard_prompt": "A mountain",
+                "video_prompt": "slow drift",
+                "style": "cinematic",
+                "negative": "blurry",
+            }],
+            "test-title",
+        )
+        mock_instance.img2video.assert_called_once()

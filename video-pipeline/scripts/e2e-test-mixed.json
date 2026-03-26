@@ -1,0 +1,35 @@
+{
+  "title": "e2e-test-mixed",
+  "brief": "Visual journey from financial analysis to celestial landscapes. An animated options payoff diagram transitions to a glimmering city at night, then ascends through luminous clouds toward a mountain peak at dawn, creating a progression from chart to urban glow to natural majesty.",
+  "global_style": "cinematic 35mm anamorphic lens, deep shadow contrast, cool blue color grading",
+  "scenes": [
+    {
+      "id": "s01",
+      "renderer": "manim",
+      "storyboard_prompt": "Animated call option payoff diagram with dark background, x-axis labeled 'Stock Price at Expiry', y-axis labeled 'P&L', green hockey-stick payoff curve, orange dashed strike line at center, translucent green profit zone",
+      "description": "Animate a simple call option payoff diagram. Draw x-axis labeled 'Stock Price at Expiry' and y-axis labeled 'P&L'. Trace a hockey-stick green payoff curve from left to right. Add a vertical orange dashed line at the midpoint labeled 'Strike'. Fill the profit zone (right of strike, above x-axis) with translucent green.",
+      "duration_sec": 6,
+      "style": "dark background #0a0a0a, profit green #00e676, strike orange #f7931e, white axes"
+    },
+    {
+      "id": "s02",
+      "renderer": "ltx",
+      "storyboard_prompt": "Breathtaking nighttime aerial shot looking down at a vast modern city, thousands of amber and blue street lights forming geometric grid patterns stretching to the horizon, glass skyscrapers glowing gold and teal",
+      "video_prompt": "city lights glimmering and pulsing below, light trails of moving traffic flowing along highways, slow sweeping pullback revealing more of the city",
+      "camera": "very high aerial shot, slow sweeping pullback, 35mm anamorphic",
+      "motion": "traffic light trails flowing along roads, building windows pulsing, camera slowly pulling back",
+      "style": "deep navy night sky, warm amber city lights, teal and blue accent towers",
+      "negative": "text, watermark, blurry, low quality, people visible, daylight"
+    },
+    {
+      "id": "s03",
+      "renderer": "ltx",
+      "storyboard_prompt": "Sweeping cinematic aerial shot descending through luminous clouds at dawn, warm golden and soft blue light breaking through the mist, revealing a mountain peak below emerging from the cloud layer, dramatic rim lighting on cloud edges, vast landscape stretching far below",
+      "video_prompt": "camera gliding downward through soft clouds, golden light streaming through from above, mountain peak gradually emerging below, clouds parting to reveal vast landscape, dramatic light rays cutting through mist",
+      "camera": "high aerial descent, slow push-down through clouds, 35mm anamorphic",
+      "motion": "camera descending through clouds, golden light rays shifting, clouds parting gradually, mountain peak coming into view",
+      "style": "warm golden dawn light, soft blue sky, dramatic cloud atmosphere, cool blue color grading",
+      "negative": "text, watermark, blurry, low quality, people visible, night sky"
+    }
+  ]
+}

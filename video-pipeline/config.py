@@ -29,7 +29,7 @@ class PipelineConfig:
     video_refiner_model: str = ""   # Low Noise Expert refiner
     video_width: int = 1024
     video_height: int = 576
-    video_fps: int = 16
+    video_fps: int = 24
     video_frames: int = 81          # ~5 sec @ 16fps
     video_steps: int = 30
     video_cfg: float = 6.0
@@ -58,6 +58,15 @@ class PipelineConfig:
     # ── Retry / resilience ───────────────────────────────────────────
     max_retries: int = 3
     retry_delay: int = 10           # seconds between retries
+
+    # ── Renderers ────────────────────────────────────────────────────
+    claude_model: str = "claude-sonnet-4-6"
+    renderer_max_retries: int = 3
+
+    # ── AnimateDiff (Sub-project 3) ──────────────────────────────────
+    animatediff_checkpoint: str = "frankjoshua/toonyou_beta6"
+    animatediff_num_frames: int = 16
+    animatediff_guidance_scale: float = 7.5
 
     # ── Validation ───────────────────────────────────────────────────
     content_safety: str = "strict"  # "strict" | "moderate" | "off"

@@ -5,9 +5,9 @@
   "image_model": "flux_1_schnell_q8p.ckpt",
   "image_width": 1024,
   "image_height": 576,
-  "image_steps": 25,
-  "image_cfg": 7.0,
-  "image_negative": "blurry, low quality, watermark, text, ugly, deformed, extra limbs, disfigured",
+  "image_steps": 4,
+  "image_cfg": 1.0,
+  "image_negative": "blurry, low quality, watermark, text, letters, words, writing, numbers, digits, characters, script, subtitles, captions, foreign text, gibberish, ugly, deformed, extra limbs, disfigured",
 
   "video_model": "ltx_2.3_22b_distilled_q6p.ckpt",
   "video_refiner_model": "",
@@ -17,7 +17,7 @@
   "video_frames": 97,
   "video_steps": 30,
   "video_cfg": 3.5,
-  "video_negative": "morphing, warping, distortion, flickering, jittering, blurry, face deformation, extra objects, watermark, text",
+  "video_negative": "morphing, warping, distortion, flickering, jittering, blurry, face deformation, extra objects, watermark, text, letters, words, writing, numbers, digits, characters, script, subtitles, captions, foreign text, gibberish",
   "use_tea_cache": true,
 
   "crossfade_sec": 0.5,
@@ -36,6 +36,13 @@
 
   "max_retries": 3,
   "retry_delay": 10,
+
+  "claude_model": "claude-sonnet-4-6",
+  "renderer_max_retries": 3,
+
+  "animatediff_checkpoint": "frankjoshua/toonyou_beta6",
+  "animatediff_num_frames": 16,
+  "animatediff_guidance_scale": 7.5,
 
   "content_safety": "strict",
   "min_scenes": 3,

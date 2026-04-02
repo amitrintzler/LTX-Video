@@ -204,13 +204,16 @@ Each description must specify:
 
 ---
 
-## Audio: Coqui TTS
+## Audio: Kokoro TTS
 
-- Library: Coqui TTS (MIT license, runs locally, no API key)
-- Install: `pip install TTS`
-- Per-scene: generate audio from `narration` field → `clips/<title>/scene_XXX_audio.mp3`
+- Library: Kokoro TTS (Apache 2.0, runs fully local, no API key, no commercial restrictions)
+- Install: `pip install kokoro soundfile`
+- Model download: ~80MB, automatic on first run
+- Per-scene: generate audio from `narration` field → `clips/<title>/scene_XXX_audio.wav`
 - Duration sync: TTS audio length must fit within `duration_sec`. If TTS audio is longer, `duration_sec` is extended to match.
 - Narrated mode only — companion modes produce no audio
+
+**Why not Coqui TTS:** The library is MIT but the XTTS v2 model uses the "Coqui Public Model License 1.0" which restricts commercial use. Coqui shut down in 2024 making commercial agreements impossible. Kokoro TTS is Apache 2.0 end-to-end (code and models) with comparable quality.
 
 ---
 
@@ -320,5 +323,5 @@ All tools: MIT or BSD-3. No commercial restrictions.
 | D3.js | ISC |
 | MoviePy | MIT |
 | PyAV | BSD-3 |
-| Coqui TTS | MIT |
+| Kokoro TTS | Apache 2.0 |
 | FFmpeg | LGPL/GPL (dynamically linked via subprocess — no obligation) |

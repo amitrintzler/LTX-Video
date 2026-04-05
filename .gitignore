@@ -172,3 +172,8 @@ runs/
 !tests/utils/car.png
 .DS_Store
 .worktrees/
+
+# Tooling state
+.claude/
+.playwright-mcp/
+.superpowers/

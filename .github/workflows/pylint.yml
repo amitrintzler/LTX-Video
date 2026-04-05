@@ -25,3 +25,7 @@ jobs:
     - name: Verify that no Black changes are required
       run: |
         black --check $(git ls-files '*.py')
+    - name: Run fast tests
+      run: |
+        pip install -e .[test]
+        pytest -m "not slow"

@@ -33,7 +33,13 @@ inference = [
 ]
 test = [
     "pytest",
+    "imageio[ffmpeg]",
+    "av",
+    "torchvision",
 ]
+
+[project.scripts]
+ltx-video = "ltx_video.__main__:main"
 
 [tool.setuptools.packages.find]
 include = ["ltx_video*"]

@@ -49,6 +49,10 @@ LTX-2 is the first DiT-based audio-video foundation model that contains all core
   - [Run locally](#run-locally)
     - [Installation](#installation)
     - [Inference](#inference)
+    - [CLI](#cli)
+    - [Scripts](#scripts)
+    - [Reproducibility](#reproducibility)
+    - [Run Logging](#run-logging)
   - [ComfyUI Integration](#comfyui-integration)
   - [Diffusers Integration](#diffusers-integration)
 - [Model User Guide](#model-user-guide)
@@ -258,6 +262,37 @@ Simply provide a list of paths to the images or video segments you want to condi
 python inference.py --prompt "PROMPT" --conditioning_media_paths IMAGE_OR_VIDEO_PATH_1 IMAGE_OR_VIDEO_PATH_2 --conditioning_start_frames TARGET_FRAME_1 TARGET_FRAME_2 --height HEIGHT --width WIDTH --num_frames NUM_FRAMES --seed SEED --pipeline_config configs/ltxv-13b-0.9.8-distilled.yaml
 ```
 
+### CLI
+
+You can also run inference via the module entrypoint or the installed CLI:
+
+```bash
+python -m ltx_video --help
+ltx-video --help
+```
+
+### Scripts
+
+This repo includes convenience scripts:
+
+```bash
+scripts/render_video.sh
+scripts/make_audio_xtts.sh "Hello world" /path/to/clean_voice.wav
+scripts/mux_audio.sh
+```
+
+### Reproducibility
+
+See `REPRODUCE.md` for an end-to-end, reproducible example that generates video, creates XTTS audio, and muxes the final output.
+
+### Run Logging
+
+Enable run logging to record metadata and output paths in `runs/`:
+
+```bash
+python -m ltx_video --log_run true --prompt "PROMPT"
+```
+
 ### Using as a library
 
 ```python
@@ -365,6 +400,20 @@ This repository supports both the 2B and 13B model variants, enabling full fine-
 
 Explore the repository to customize the model for your specific use cases!
 More information and training instructions can be found in the [README](https://github.com/Lightricks/LTX-Video-Trainer/blob/main/README.md).
+
+# Reproducible Example (Local XTTS + Video)
+
+This repo includes a fully reproducible example that generates a short photorealistic gorilla video and mixes Coqui XTTS v2 audio into a MOV file, with all steps and credits documented in `REPRODUCE.md`.
+
+Quick start:
+
+```bash
+scripts/render_video.sh
+scripts/make_audio_xtts.sh "I am here now. The jungle hears us..." /path/to/clean_voice.wav
+scripts/mux_audio.sh
+```
+
+See `REPRODUCE.md` for the full end-to-end workflow and credits.
 
 # Control Models
 

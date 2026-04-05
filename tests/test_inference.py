@@ -11,6 +11,8 @@ from ltx_video.inference import (
 )
 from ltx_video.utils.skip_layer_strategy import SkipLayerStrategy
 
+pytestmark = pytest.mark.slow
+
 
 @pytest.fixture
 def input_image_path():

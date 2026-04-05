@@ -37,6 +37,7 @@ from ltx_video.schedulers.rf import RectifiedFlowScheduler
 from ltx_video.utils.skip_layer_strategy import SkipLayerStrategy
 from ltx_video.models.autoencoders.latent_upsampler import LatentUpsampler
 import ltx_video.pipelines.crf_compressor as crf_compressor
+from ltx_video.config_validation import validate_pipeline_config
 
 logger = logging.get_logger("LTX-Video")
 
@@ -310,7 +311,9 @@ def load_pipeline_config(pipeline_config: str):
         raise ValueError(f"Pipeline config file {pipeline_config} does not exist")
 
     with open(path, "r") as f:
-        return yaml.safe_load(f)
+        config = yaml.safe_load(f)
+
+    return validate_pipeline_config(config)
 
 
 @dataclass
@@ -326,7 +329,7 @@ class InferenceConfig:
 
     # Pipeline settings
     pipeline_config: str = field(
-        default="configs/ltxv-13b-0.9.7-dev.yaml",
+        default="configs/ltxv-13b-0.9.8-dev.yaml",
         metadata={"help": "Path to the pipeline config file"},
     )
     seed: int = field(
@@ -384,10 +387,32 @@ class InferenceConfig:
             "help": "List of frame indices where each conditioning item should be applied. Must match the number of conditioning items."
         },
     )
+    log_run: bool = field(
+        default=False,
+        metadata={"help": "Log inference run metadata and outputs to runs/"},
+    )
 
 
 def infer(config: InferenceConfig):
     pipeline_config = load_pipeline_config(config.pipeline_config)
+    run = None
+    if config.log_run:
+        try:
+            from log_run import start_run, event, end_run  # noqa: WPS433
+
+            run = start_run(
+                {
+                    "prompt": config.prompt,
+                    "pipeline_config": str(config.pipeline_config),
+                    "seed": config.seed,
+                    "height": config.height,
+                    "width": config.width,
+                    "num_frames": config.num_frames,
+                    "frame_rate": config.frame_rate,
+                }
+            )
+        except Exception as exc:
+            logger.warning(f"Run logging requested but unavailable: {exc}")
 
     ltxv_model_name_or_path = pipeline_config["checkpoint_path"]
     if not os.path.isfile(ltxv_model_name_or_path):
@@ -566,27 +591,35 @@ def infer(config: InferenceConfig):
 
     generator = torch.Generator(device=device).manual_seed(config.seed)
 
-    images = pipeline(
-        **pipeline_config,
-        skip_layer_strategy=skip_layer_strategy,
-        generator=generator,
-        output_type="pt",
-        callback_on_step_end=None,
-        height=height_padded,
-        width=width_padded,
-        num_frames=num_frames_padded,
-        frame_rate=config.frame_rate,
-        **sample,
-        media_items=media_item,
-        conditioning_items=conditioning_items,
-        is_video=True,
-        vae_per_channel_normalize=True,
-        image_cond_noise_scale=config.image_cond_noise_scale,
-        mixed_precision=(precision == "mixed_precision"),
-        offload_to_cpu=offload_to_cpu,
-        device=device,
-        enhance_prompt=enhance_prompt,
-    ).images
+    try:
+        images = pipeline(
+            **pipeline_config,
+            skip_layer_strategy=skip_layer_strategy,
+            generator=generator,
+            output_type="pt",
+            callback_on_step_end=None,
+            height=height_padded,
+            width=width_padded,
+            num_frames=num_frames_padded,
+            frame_rate=config.frame_rate,
+            **sample,
+            media_items=media_item,
+            conditioning_items=conditioning_items,
+            is_video=True,
+            vae_per_channel_normalize=True,
+            image_cond_noise_scale=config.image_cond_noise_scale,
+            mixed_precision=(precision == "mixed_precision"),
+            offload_to_cpu=offload_to_cpu,
+            device=device,
+            enhance_prompt=enhance_prompt,
+        ).images
+    except Exception as exc:
+        if run:
+            try:
+                end_run(run, error=str(exc))
+            except Exception:
+                pass
+        raise
 
     # Crop the padded images to the desired resolution and number of frames
     (pad_left, pad_right, pad_top, pad_bottom) = padding
@@ -632,6 +665,17 @@ def infer(config: InferenceConfig):
                     video.append_data(frame)
 
         logger.warning(f"Output saved to {output_filename}")
+        if run:
+            try:
+                event(run, "output_saved", {"path": str(output_filename)})
+            except Exception:
+                pass
+
+    if run:
+        try:
+            end_run(run, outputs={"count": images.shape[0]})
+        except Exception:
+            pass
 
 
 def prepare_conditioning(

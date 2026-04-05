@@ -101,6 +101,16 @@ At the top of the file, before the class, set the Manim config:
     config.frame_rate = {fps}
     config.background_color = "{bg_color}"
 
+CRITICAL — LaTeX is NOT installed. You MUST follow these rules:
+- NEVER use MathTex or Tex. They require LaTeX and will crash.
+- Use Text(...) for ALL labels, titles, and annotations.
+- Use Unicode characters for math symbols in Text strings:
+    subscripts: T → use plain "T", S_T → use "S\u209c" or just "S_T" as a string
+    Greek: α→"\u03b1" β→"\u03b2" σ→"\u03c3" μ→"\u03bc" Δ→"\u0394" Γ→"\u0393"
+    operators: ≥→"\u2265" ≤→"\u2264" ×→"\u00d7" ±→"\u00b1"
+- For Brace labels: Text(...) only.
+- Everything else (Axes, Line, Arrow, Dot, DashedLine, Create, Write, etc.) is fine.
+
 The animation must complete within {duration_sec} seconds total. Do not call self.wait() beyond that.
 Output only valid Python code. No markdown fences, no explanation."""
 

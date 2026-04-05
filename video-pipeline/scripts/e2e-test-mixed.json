@@ -6,7 +6,7 @@
     {
       "id": "s01",
       "renderer": "manim",
-      "description": "Animate a simple call option payoff diagram. Draw x-axis labeled 'Stock Price at Expiry' and y-axis labeled 'P&L'. Trace a hockey-stick green payoff curve from left to right. Add a vertical orange dashed line at the midpoint labeled 'Strike'. Fill the profit zone (right of strike, above x-axis) with translucent green.",
+      "description": "Animate theta decay over time. Draw x-axis labeled 'Days to Expiry' going from 100 on the left to 0 on the right. Draw y-axis labeled 'Option Value'. Show a curve in orange that stays relatively flat far from expiry then curves sharply downward near zero days. Animate a white dot sliding along the curve from left to right over the full duration. Add a label 'Theta decay accelerates' near the steep part of the curve. Dark background.",
       "duration_sec": 6,
       "style": "dark background #0a0a0a, profit green #00e676, strike orange #f7931e, white axes"
     },

@@ -1,0 +1,61 @@
+{
+  "title": "black-scholes-pricing",
+  "brief": "A cinematic journey through mountain peaks, flags, hourglasses, storms, rivers, and balance scales — each scene a visual metaphor for one input of the pricing model: stock price as mountain summit, strike price as distant flag target, time as flowing hourglass sand, volatility as shifting weather from calm lake to storm, risk-free rate as steady river current, and theoretical value as a perfectly balanced scale at golden hour.",
+  "global_style": "Cinematic natural light, warm earth tones, shallow depth of field, slow meditative camera movements",
+  "scenes": [
+    {
+      "id": "s01",
+      "storyboard_prompt": "A mountain peak rising above morning mist, sunlit golden summit, wide landscape, 35mm anamorphic, dramatic natural light from the east, sharp foreground rocks fading into soft misty valley below",
+      "video_prompt": "Slow aerial pull-back revealing the full mountain range, morning mist drifting through valleys, golden light expanding across peaks",
+      "camera": "slow aerial pull-back, 35mm anamorphic",
+      "motion": "mist drifting, light expanding across mountainside",
+      "style": "golden hour warmth, high contrast between lit peaks and shadowed valleys",
+      "negative": "text, letters, words, writing, numbers, digits, characters, script, subtitles, captions, foreign text, gibberish, watermark"
+    },
+    {
+      "id": "s02",
+      "storyboard_prompt": "A single red flag planted on a distant mountain ridge, misty valley between viewer and the flag, long telephoto compression, warm afternoon light, sharp foreground grass blades",
+      "video_prompt": "Flag rippling gently in mountain breeze, camera slow push-in through the misty valley toward the distant ridge, depth shifting",
+      "camera": "slow push-in, 200mm telephoto",
+      "motion": "flag rippling in breeze, mist swirling in valley",
+      "style": "warm golden light on distant ridge, cool blue mist in mid-ground",
+      "negative": "text, letters, words, writing, numbers, digits, characters, script, subtitles, captions, foreign text, gibberish, watermark"
+    },
+    {
+      "id": "s03",
+      "storyboard_prompt": "A large hourglass sitting on a sunlit stone windowsill, golden sand flowing downward, warm afternoon sun casting long shadows across stone floor, shallow depth of field",
+      "video_prompt": "Sand grains flowing steadily through the hourglass neck, soft light shifting as clouds pass outside the window, shadows slowly elongating",
+      "camera": "static close-up with gentle rack focus, 85mm",
+      "motion": "sand flowing downward, light shifting gradually",
+      "style": "warm amber and gold tones, soft natural window light",
+      "negative": "text, letters, words, writing, numbers, digits, characters, script, subtitles, captions, foreign text, gibberish, watermark"
+    },
+    {
+      "id": "s04",
+      "storyboard_prompt": "A calm lake at dawn reflecting a perfect sky, glassy surface mirror reflection, then dark storm clouds gathering at the horizon, dramatic contrast between still water and turbulent sky",
+      "video_prompt": "Lake surface shifting from glassy calm to gentle ripples as wind picks up, storm clouds rolling in at the horizon, reflection breaking into fractured light",
+      "camera": "low angle static shot near water surface, 35mm wide",
+      "motion": "water surface rippling, clouds building and moving, reflection distorting",
+      "style": "cool blues for calm water transitioning to stormy purple-grey atmosphere",
+      "negative": "text, letters, words, writing, numbers, digits, characters, script, subtitles, captions, foreign text, gibberish, watermark"
+    },
+    {
+      "id": "s05",
+      "storyboard_prompt": "A wide river flowing steadily through a red canyon at golden hour, smooth water current, canyon walls glowing amber, long exposure look with silky water surface",
+      "video_prompt": "River flowing steadily forward, camera tracking downstream at water level, canyon walls slowly passing, water catching golden light",
+      "camera": "downstream tracking shot at water level, 24mm wide",
+      "motion": "river flowing forward, canyon walls sliding past, light glinting off water",
+      "style": "warm amber canyon walls, deep blue river water, golden hour rim lighting",
+      "negative": "text, letters, words, writing, numbers, digits, characters, script, subtitles, captions, foreign text, gibberish, watermark"
+    },
+    {
+      "id": "s06",
+      "storyboard_prompt": "A large stone balance scale on a cliff edge at sunset, two equal stone bowls perfectly level, ocean horizon behind, warm orange sky, dramatic silhouette with golden rim light",
+      "video_prompt": "Scale bowls gently swaying and settling to perfect balance, ocean waves crashing on cliff below, sun dipping toward horizon, golden light washing over stone",
+      "camera": "slow orbit around the scale, 50mm",
+      "motion": "scale settling to balance, ocean waves below, sun descending",
+      "style": "deep orange and gold sunset, strong rim light on stone scale, dark foreground cliff",
+      "negative": "text, letters, words, writing, numbers, digits, characters, script, subtitles, captions, foreign text, gibberish, watermark"
+    }
+  ]
+}

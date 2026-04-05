@@ -1,0 +1,79 @@
+{
+  "title": "options-educator-trailer",
+  "brief": "Cinematic trailer for Options Educator, a trading education app. Opening on a stormy ocean with a golden shaft of light breaking through dark storm clouds at dawn, the arc moves through a mountain canyon at sunrise flooding with golden light, an aerial descent into a glowing city at night with blue and gold towers, close-up confident hands on a mahogany trading desk in warm morning light, a lone mountain climber triumphant at a summit against a blazing sunrise, cascading golden coins falling through a sunlit canyon, an epic golden-hour aerial coastal city flyover, and finally a Milky Way night sky with a lone silhouette on a mountain boulder — constellation trails forming overhead.",
+  "global_style": "Cinematic 4K anamorphic, blue-teal-gold palette on deep navy backgrounds, dramatic golden-hour accents, shallow depth of field, volumetric light shafts, epic orchestral scale",
+  "scenes": [
+    {
+      "id": "s01",
+      "storyboard_prompt": "Dramatic ocean storm at night, massive dark navy waves crashing against a jagged sea cliff, a single powerful shaft of golden-white light breaks through parting storm clouds above and illuminates the churning white foam below, wide cinematic composition, 35mm anamorphic horizontal lens flares on the shaft of light",
+      "video_prompt": "Slow-motion storm waves surge and crash against the cliff in rhythmic pulses, the golden shaft of light widens and intensifies as clouds part overhead, spray explodes upward and catches the light like scattered diamonds, the ocean surface gradually shifts from dark navy toward deep teal",
+      "camera": "slow push-in toward the cliff, slightly low angle, 35mm anamorphic",
+      "motion": "massive waves rolling in and crashing, foam and spray exploding upward catching light, storm clouds churning and parting, golden shaft of light strengthening and widening",
+      "style": "deep navy blue ocean, storm-dark sky cracking to golden dawn, dramatic high-contrast cinematic lighting, anamorphic lens flares on the light shaft",
+      "negative": "text, letters, words, writing, numbers, digits, characters, script, subtitles, captions, foreign text, gibberish, watermark, blurry, ugly, deformed"
+    },
+    {
+      "id": "s02",
+      "storyboard_prompt": "Aerial view descending into a dramatic narrow mountain canyon at sunrise, sheer golden sandstone walls glowing amber and orange, a deep sapphire blue river winding far below, brilliant white sun rays pouring between the canyon walls from above, wide anamorphic frame",
+      "video_prompt": "Camera descends steadily through the canyon from high above, golden light sweeps across the rock walls as the sun rises, the blue river below shimmers and sparkles, shadows retreat as warm light floods downward to the canyon floor",
+      "camera": "slow vertical descent through canyon from aerial height, 28mm wide anamorphic",
+      "motion": "gentle river current visible far below, light rays sweeping across stone walls as sun rises, fine dust particles drifting in the shafts of light",
+      "style": "warm amber-orange canyon walls, deep sapphire blue river, brilliant white morning sun rays, volumetric golden dust in the air",
+      "negative": "text, letters, words, writing, numbers, digits, characters, script, subtitles, captions, foreign text, gibberish, watermark, blurry, ugly, deformed"
+    },
+    {
+      "id": "s03",
+      "storyboard_prompt": "Aerial night shot of a gleaming modern city skyline seen from high altitude, glass towers glowing electric blue and warm gold, a dense grid of streets below alive with streaming amber vehicle light trails, deep navy sky above, wide anamorphic establishing shot",
+      "video_prompt": "Camera descends smoothly through the night sky toward the city, towers grow larger, streams of golden vehicle light trails flow through canyons of blue-lit glass buildings, the city pulses with electric energy as the camera approaches",
+      "camera": "dramatic aerial descent from high to low altitude, 50mm anamorphic",
+      "motion": "continuous camera descent toward the city, vehicle light trails streaming through streets, building windows twinkling and reflecting, cloud wisps passing the camera",
+      "style": "electric blue and warm gold city lights against deep navy night sky, glass towers reflecting light, dynamic energetic atmosphere, anamorphic bokeh on distant lights",
+      "negative": "text, letters, words, writing, numbers, digits, characters, script, subtitles, captions, foreign text, gibberish, watermark, blurry, ugly, deformed"
+    },
+    {
+      "id": "s04",
+      "storyboard_prompt": "Close-up of two confident hands resting on a polished mahogany desk, warm morning sunlight streaming through tall windows behind, scattered physical printed papers beside a steaming coffee cup, shallow depth of field with the window light blurred into golden bokeh, 85mm portrait lens",
+      "video_prompt": "Hands move deliberately and confidently across the desk surface, morning sunlight shifts softly as clouds move outside, golden dust motes float lazily in the light beams, steam curls gently upward from the coffee cup",
+      "camera": "close-up with rack focus, 85mm shallow depth of field, slight slow push-in",
+      "motion": "hands moving with calm purpose, soft shifting light from the window, steam rising from coffee, dust motes floating in sunbeams",
+      "style": "warm amber-gold morning light through tall windows, rich mahogany desk tones, intimate focused atmosphere, golden bokeh in the background",
+      "negative": "text, letters, words, writing, numbers, digits, characters, script, subtitles, captions, foreign text, gibberish, watermark, blurry, ugly, monitors, screens, keyboards"
+    },
+    {
+      "id": "s05",
+      "storyboard_prompt": "A lone mountain climber silhouette stands on a dramatic rocky summit with arms raised in triumph, facing a blazing orange and gold sunrise over a vast sea of clouds far below, epic wide shot showing the tiny figure against the immense glowing sky, 35mm anamorphic",
+      "video_prompt": "The triumphant silhouette holds the pose as the sunrise intensifies behind distant peaks, light rays burst outward like a crown, the cloud sea below ripples slowly like a golden ocean, wind ripples the climber's jacket fabric",
+      "camera": "wide dramatic angle slightly below the figure, 35mm anamorphic",
+      "motion": "sunrise blazing and intensifying, clouds drifting slowly far below, jacket fabric rippling in summit wind, rays of light sweeping outward",
+      "style": "brilliant orange-gold sunrise explosion, deep purple-blue mountain silhouettes, warm triumphant golden light, epic scale and majestic atmosphere",
+      "negative": "text, letters, words, writing, numbers, digits, characters, script, subtitles, captions, foreign text, gibberish, watermark, blurry, ugly, deformed"
+    },
+    {
+      "id": "s06",
+      "storyboard_prompt": "Slow-motion cascade of polished gold coins pouring over the edge of a sunlit stone ledge and falling through warm amber canyon air, caught in a shaft of late-afternoon sunlight, coins glittering and spinning as they fall, wide dramatic 35mm anamorphic shot showing scale of the drop",
+      "video_prompt": "Torrents of spinning gold coins pour over the ledge in slow motion, each coin catching the amber sunlight and creating a shower of warm glittering sparks as they fall, canyon walls glow in deep orange-amber afternoon light",
+      "camera": "medium-wide angle tilted upward to show coins cascading down from above, 35mm anamorphic",
+      "motion": "continuous slow-motion cascade of coins pouring and tumbling through the air, each coin spinning and glittering in the sunlight, golden light particles scattering",
+      "style": "rich gold and amber sunset light, spinning glittering coins, deep warm canyon tones, spectacular warm glittering atmosphere",
+      "negative": "text, letters, words, writing, numbers, digits, characters, script, subtitles, captions, foreign text, gibberish, watermark, blurry, ugly, deformed"
+    },
+    {
+      "id": "s07",
+      "storyboard_prompt": "Epic aerial golden-hour flyover of a coastal city at extreme altitude, the ocean shimmering with orange sunset reflection on the left, the full urban sprawl stretching to the purple horizon on the right, glass towers glowing amber and gold below, ultra-wide 28mm anamorphic",
+      "video_prompt": "Camera glides forward in a smooth majestic aerial flight, the coastline sweeping below, blazing golden-hour light paints every surface amber and orange, the ocean surface sparkles with broken reflections, the city sprawls to the horizon in warm triumphant light",
+      "camera": "smooth forward aerial flight at high altitude, 28mm ultra-wide anamorphic",
+      "motion": "continuous smooth forward flight, ocean waves below glittering in golden light, city alive with movement, long golden shadows stretching from every tower",
+      "style": "blazing golden-hour orange and amber, shimmering ocean on one side, vast city on the other, dramatic scale, warm triumphant cinematic quality, anamorphic horizontal flares from the sun",
+      "negative": "text, letters, words, writing, numbers, digits, characters, script, subtitles, captions, foreign text, gibberish, watermark, blurry, ugly, deformed"
+    },
+    {
+      "id": "s08",
+      "storyboard_prompt": "Night sky over a dark mountain ridge, the full Milky Way arc blazing overhead in brilliant white and gold, thousands of stars dense and luminous, a lone figure standing silhouetted on a large boulder far below, ultra-wide 24mm anamorphic composition",
+      "video_prompt": "Camera pulls slowly back and tilts upward from the lone figure on the boulder, the star field becomes denser and more brilliant, the Milky Way core shimmers subtly, individual bright stars twinkle intensely, faint constellation connection lines slowly emerge across the sky",
+      "camera": "slow pull-back and upward tilt from the figure, 24mm ultra-wide anamorphic",
+      "motion": "slow continuous camera pull-back and tilt, Milky Way dust faintly shifting, stars twinkling, the figure perfectly still on the boulder below, constellation line tracings slowly appearing",
+      "style": "deep navy and purple night sky, brilliant white and gold stars, faint blue Milky Way dust, profound inspiring atmosphere, constellation connection lines emerging",
+      "negative": "text, letters, words, writing, numbers, digits, characters, script, subtitles, captions, foreign text, gibberish, watermark, blurry, ugly, deformed"
+    }
+  ]
+}

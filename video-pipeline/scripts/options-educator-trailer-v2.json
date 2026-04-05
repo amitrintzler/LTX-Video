@@ -1,0 +1,65 @@
+{
+  "title": "options-educator-trailer-v2",
+  "brief": "Hybrid cinematic trailer for Options Educator, a gamified trading education app. LTX scenes provide cinematic financial-world bookends: the Wall Street charging bull at night, aerial NYSE golden hour, triumphant ocean sunrise. Manim scenes show the actual app content: live Black-Scholes pricing dashboard, iron condor payoff diagram, Greeks live gauges, and a gamification dashboard with XP bar filling, achievement badge unlocking, streak counter hitting 30 days, and leaderboard climb. Blue-teal-gold palette, dark backgrounds, Bloomberg-meets-Pixar aesthetic.",
+  "global_style": "Dark navy backgrounds, electric blue-teal-gold color palette, cinematic anamorphic quality, Bloomberg terminal meets Pixar aesthetic",
+  "scenes": [
+    {
+      "id": "s01",
+      "renderer": "ltx",
+      "storyboard_prompt": "The iconic Charging Bull bronze statue on Wall Street seen from a dramatic low angle at dusk, the polished bronze surface gleaming with warm amber and blue-teal city light reflections, lower Manhattan glass skyscrapers rising behind it in soft bokeh, deep navy sky above with the first stars emerging, wide cinematic shot, 35mm anamorphic",
+      "video_prompt": "Camera slowly pushes in toward the bull from a low angle, the bronze surface catches and shifts warm amber and cool blue light as city lights begin to glow, the glass towers behind slowly light up as dusk deepens to night, the bull's powerful form fills the frame",
+      "camera": "low angle slow push-in, 35mm anamorphic",
+      "motion": "slow camera push toward the bull, building lights gradually coming on in background bokeh, ambient city glow intensifying, subtle atmospheric haze",
+      "style": "warm amber and blue-teal reflections on bronze, deep navy dusk sky, glowing city bokeh background, dramatic cinematic lighting",
+      "negative": "text, letters, words, writing, numbers, digits, characters, script, subtitles, captions, foreign text, gibberish, watermark, blurry, ugly, deformed, daylight, bright sky"
+    },
+    {
+      "id": "s02",
+      "renderer": "manim",
+      "script_path": "scripts/manim/scene_bs_dashboard.py",
+      "duration_sec": 14,
+      "description": "Black-Scholes live pricing dashboard — already scripted"
+    },
+    {
+      "id": "s03",
+      "renderer": "manim",
+      "script_path": "scripts/manim/scene_iron_condor.py",
+      "duration_sec": 13,
+      "description": "Iron condor payoff diagram — already scripted"
+    },
+    {
+      "id": "s04",
+      "renderer": "manim",
+      "script_path": "scripts/manim/scene_greeks.py",
+      "duration_sec": 14,
+      "description": "Greeks live dashboard — already scripted"
+    },
+    {
+      "id": "s05",
+      "renderer": "manim",
+      "script_path": "scripts/manim/scene_gamification.py",
+      "duration_sec": 11,
+      "description": "Gamification scene — XP bar, badge unlock, streak counter, leaderboard — scripted"
+    },
+    {
+      "id": "s06",
+      "renderer": "ltx",
+      "storyboard_prompt": "Breathtaking aerial shot at golden hour looking down at the New York Stock Exchange building and lower Manhattan financial district, warm amber late afternoon light casting long diagonal shadows between glass towers, tiny figures on the streets below, the distinctive neoclassical NYSE columns visible, 35mm anamorphic with subtle lens flare",
+      "video_prompt": "Slow rotating aerial orbit around the NYSE building, long shadows sweeping as light shifts, glass towers reflecting orange-gold sunset light, birds flying below camera level, the full financial district visible",
+      "camera": "high aerial slow clockwise orbit, 35mm anamorphic",
+      "motion": "camera slowly orbiting, shadows shifting on buildings, glass facades reflecting gold sunset, birds passing below",
+      "style": "warm golden-hour amber light, deep blue sky above, glass and steel towers glowing orange-gold, cinematic color grade",
+      "negative": "text, letters, words, writing, numbers, digits, characters, script, subtitles, captions, foreign text, gibberish, watermark, blurry, ugly, deformed, night, rain"
+    },
+    {
+      "id": "s07",
+      "renderer": "ltx",
+      "storyboard_prompt": "Perfectly centered wide shot of a brilliant golden sunrise breaking over a dark calm ocean horizon, the sun disc touching the water line, warm amber and gold light spreading across a glassy dark ocean surface toward the camera in a wide reflection path, deep blue sky above fading to rich amber at the horizon, 35mm anamorphic",
+      "video_prompt": "Sun slowly rises above the ocean horizon, the golden reflection path on the water widens toward camera, sky colors deepen from blue to amber as the sun clears the horizon, gentle swells catching and releasing golden light",
+      "camera": "perfectly centered wide shot, completely still camera, 35mm anamorphic",
+      "motion": "sun rising, golden reflection widening on water, subtle ocean swells rolling toward camera, sky warming",
+      "style": "deep blue sky, rich amber-gold horizon, brilliant golden sun reflection on dark calm water, serene and triumphant",
+      "negative": "text, letters, words, writing, numbers, digits, characters, script, subtitles, captions, foreign text, gibberish, watermark, blurry, ugly, deformed, clouds, overcast"
+    }
+  ]
+}

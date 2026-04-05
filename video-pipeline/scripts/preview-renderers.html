@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Black-Scholes — Canvas Preview</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+html, body {
+  width: 100%; height: 100%;
+  background: #000;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  overflow: hidden;
+}
+canvas {
+  display: block;
+  max-width: 100vw;
+  max-height: 100vh;
+  aspect-ratio: 16 / 9;
+}
+</style>
+</head>
+<body>
+<canvas id="canvas" width="1920" height="1080"></canvas>
+<script>
+(function () {
+  'use strict';
+
+  const canvas = document.getElementById('canvas');
+  const ctx    = canvas.getContext('2d');
+  const W = 1920, H = 1080;
+
+  /* ── helpers ─────────────────────────────────────────────────────── */
+  const ease  = t => t < 0.5 ? 4*t*t*t : 1 - Math.pow(-2*t+2, 3) / 2;
+  const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
+  const lerp  = (a, b, t)   => a + (b - a) * t;
+  const prog  = (start, dur, t) => ease(clamp((t - start) / dur, 0, 1));
+
+  /* rounded-rect path helper */
+  function rrect(x, y, w, h, r) {
+    ctx.beginPath();
+    ctx.moveTo(x + r, y);
+    ctx.arcTo(x + w, y,     x + w, y + h, r);
+    ctx.arcTo(x + w, y + h, x,     y + h, r);
+    ctx.arcTo(x,     y + h, x,     y,     r);
+    ctx.arcTo(x,     y,     x + w, y,     r);
+    ctx.closePath();
+  }
+
+  /* ── main render ──────────────────────────────────────────────────── */
+  window.renderFrame = function (t) {
+    t = clamp(t, 0, 10);
+
+    /* ── Background ─────────────────────────────────────────────── */
+    ctx.fillStyle = '#0f1117';
+    ctx.fillRect(0, 0, W, H);
+
+    /* ── Dot grid (constant, always on) ─────────────────────────── */
+    ctx.fillStyle = '#ffffff08';
+    for (let gx = 0; gx <= W; gx += 40) {
+      for (let gy = 0; gy <= H; gy += 40) {
+        ctx.beginPath();
+        ctx.arc(gx, gy, 1.5, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
+
+    /* ── LAYER 1 — background glow ellipse (t 0 → 1.5 s) ────────── */
+    {
+      const p = prog(0, 1.5, t);
+      if (p > 0) {
+        ctx.save();
+        ctx.globalAlpha = p;
+        ctx.beginPath();
+        ctx.ellipse(960, 540, 600, 300, 0, 0, Math.PI * 2);
+        ctx.fillStyle = '#6366f120';
+        ctx.fill();
+        /* inner bright core */
+        ctx.save();
+        ctx.clip();                    // clip to ellipse
+        ctx.translate(960, 540);
+        ctx.scale(1, 300 / 600);       // squash into ellipse aspect
+        ctx.translate(-960, -540);
+        const g = ctx.createRadialGradient(960, 540, 0, 960, 540, 600);
+        g.addColorStop(0,   'rgba(99,102,241,0.18)');
+        g.addColorStop(0.4, 'rgba(99,102,241,0.08)');
+        g.addColorStop(1,   'rgba(99,102,241,0)');
+        ctx.fillStyle = g;
+        ctx.fillRect(960 - 600, 540 - 600, 1200, 1200);
+        ctx.restore();
+        ctx.restore();
+      }
+    }
+
+    /* ── LAYER 2 — hero card (enters t=0.8, slides y 620→460 / 0.6 s) */
+    {
+      const p  = prog(0.8, 0.6, t);
+      const cy = lerp(620, 460, p);   // animated card top-y
+      const cx = 960 - 550;           // card left-x  = 410
+      const cw = 1100, ch = 220, cr = 16;
+
+      if (p > 0) {
+        ctx.save();
+        ctx.globalAlpha = p;
+
+        /* shadow + fill */
+        ctx.shadowBlur  = 40;
+        ctx.shadowColor = '#6366f140';
+        ctx.fillStyle   = '#161b22';
+        rrect(cx, cy, cw, ch, cr);
+        ctx.fill();
+
+        /* stroke */
+        ctx.shadowBlur  = 0;
+        ctx.shadowColor = 'transparent';
+        ctx.strokeStyle = '#30363d';
+        ctx.lineWidth   = 1;
+        rrect(cx, cy, cw, ch, cr);
+        ctx.stroke();
+
+        /* accent bar — 4×160 px at card-relative (130, 30) */
+        ctx.fillStyle = '#6366f1';
+        ctx.fillRect(cx + 130, cy + 30, 4, 160);
+
+        /* label: 'BLACK-SCHOLES MODEL' — card-relative (160, 50) */
+        ctx.fillStyle      = '#6366f1';
+        ctx.font           = '600 15px system-ui,-apple-system,sans-serif';
+        ctx.letterSpacing  = '3px';
+        ctx.textAlign      = 'left';
+        ctx.textBaseline   = 'alphabetic';
+        ctx.fillText('BLACK-SCHOLES MODEL', cx + 160, cy + 50);
+
+        /* headline — card-relative (160, 95) */
+        ctx.fillStyle     = '#f1f5f9';
+        ctx.font          = '700 52px system-ui,-apple-system,sans-serif';
+        ctx.letterSpacing = '0px';
+        ctx.fillText('The Formula That Priced Risk', cx + 160, cy + 95);
+
+        /* byline — card-relative (160, 140) */
+        ctx.fillStyle = '#64748b';
+        ctx.font      = '400 20px system-ui,-apple-system,sans-serif';
+        ctx.fillText('1973 \u2014 Fischer Black & Myron Scholes', cx + 160, cy + 140);
+
+        ctx.restore();
+      }
+    }
+
+    /* ── LAYER 3 — formula pill (enters t=1.8, slides x 1500→1380 / 0.5 s) */
+    {
+      const p  = prog(1.8, 0.5, t);
+      const px = lerp(1500, 1380, p);
+      const py = 430;
+      const pw = 380, ph = 80, pr = 12;
+
+      if (p > 0) {
+        ctx.save();
+        ctx.globalAlpha = p;
+
+        ctx.shadowBlur  = 20;
+        ctx.shadowColor = '#6366f140';
+        ctx.fillStyle   = '#1e1b4b';
+        rrect(px, py, pw, ph, pr);
+        ctx.fill();
+
+        ctx.shadowBlur  = 0;
+        ctx.shadowColor = 'transparent';
+        ctx.strokeStyle = '#6366f150';
+        ctx.lineWidth   = 1;
+        rrect(px, py, pw, ph, pr);
+        ctx.stroke();
+
+        ctx.fillStyle     = '#a5b4fc';
+        ctx.font          = '500 22px monospace';
+        ctx.letterSpacing = '0px';
+        ctx.textAlign     = 'center';
+        ctx.textBaseline  = 'middle';
+        /* C = S·Φ(d₁) − Ke⁻ʳᵀ·Φ(d₂) */
+        ctx.fillText(
+          'C = S\u00b7\u03a6(d\u2081) \u2212 Ke\u207b\u02b3\u1d40\u00b7\u03a6(d\u2082)',
+          px + pw / 2,
+          py + ph / 2
+        );
+
+        ctx.restore();
+      }
+    }
+
+    /* ── LAYER 4 — three stat cards (staggered t=2.2, 2.5, 2.8; slide up 40 px) */
+    const STATS = [
+      { st: 2.2, x: 210, label: 'YEAR',        lc: '#f59e0b', val: '1973', vc: '#f1f5f9' },
+      { st: 2.5, x: 510, label: 'NOBEL PRIZE',  lc: '#94a3b8', val: '1997', vc: '#f1f5f9' },
+      { st: 2.8, x: 810, label: 'INPUTS',       lc: '#94a3b8', val: '5',    vc: '#10b981' },
+    ];
+
+    for (const s of STATS) {
+      const p  = prog(s.st, 0.5, t);
+      const sy = lerp(740, 700, p);   // slides up 40 px
+
+      if (p > 0) {
+        ctx.save();
+        ctx.globalAlpha = p;
+
+        /* shadow + fill */
+        ctx.shadowBlur  = 24;
+        ctx.shadowColor = '#6366f140';
+        ctx.fillStyle   = '#161b22';
+        rrect(s.x, sy, 260, 120, 12);
+        ctx.fill();
+
+        /* stroke */
+        ctx.shadowBlur  = 0;
+        ctx.shadowColor = 'transparent';
+        ctx.strokeStyle = '#30363d';
+        ctx.lineWidth   = 1;
+        rrect(s.x, sy, 260, 120, 12);
+        ctx.stroke();
+
+        /* badge label */
+        ctx.fillStyle     = s.lc;
+        ctx.font          = '600 11px system-ui,-apple-system,sans-serif';
+        ctx.letterSpacing = '2px';
+        ctx.textAlign     = 'left';
+        ctx.textBaseline  = 'alphabetic';
+        ctx.fillText(s.label, s.x + 16, sy + 28);
+
+        /* value */
+        ctx.fillStyle     = s.vc;
+        ctx.font          = '700 48px system-ui,-apple-system,sans-serif';
+        ctx.letterSpacing = '0px';
+        ctx.fillText(s.val, s.x + 16, sy + 93);
+
+        ctx.restore();
+      }
+    }
+
+    /* ── LAYER 5 — highlight sweep across hero card (t=3.0, over 0.8 s) */
+    {
+      const p = prog(3.0, 0.8, t);
+      if (p > 0) {
+        const hx = 960 - 550;   // card left  = 410
+        const hw = 1100;         // card width
+        const hy = 555;          // abs y = card top 460 + 95 (title baseline offset)
+
+        ctx.save();
+        ctx.globalAlpha = 0.3;
+        ctx.fillStyle   = '#6366f1';
+        ctx.fillRect(hx, hy - 1, hw * p, 2);
+        ctx.restore();
+      }
+    }
+  };
+
+  /* ── animation loop ──────────────────────────────────────────────── */
+  let t0 = null;
+  function loop(ts) {
+    if (t0 === null) t0 = ts;
+    const t = (ts - t0) / 1000;
+    window.renderFrame(t);
+    if (t < 10) requestAnimationFrame(loop);
+    else         window.renderFrame(10);   // hold final frame
+  }
+  requestAnimationFrame(loop);
+
+})();
+</script>
+</body>
+</html>

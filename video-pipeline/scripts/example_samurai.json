@@ -1,0 +1,52 @@
+{
+  "title": "Samurai-in-Rain",
+  "global_style": "cinematic 35mm anamorphic, muted color grading, dramatic shadows",
+
+  "scenes": [
+    {
+      "id": "s01",
+      "storyboard_prompt": "A lone samurai stands at the edge of a misty mountain cliff at dawn, back to camera, overlooking a vast valley below, traditional armor, katana sheathed, fog rising from below",
+      "video_prompt": "A lone samurai stands at cliff edge, camera slowly pushes forward, wind moves his cloak gently, mist swirls around his feet",
+      "camera": "slow push-in, 85mm lens",
+      "motion": "gentle wind motion, swirling mist, slow and contemplative",
+      "style": "golden hour rim lighting, moody atmosphere",
+      "duration_hint": "5s"
+    },
+    {
+      "id": "s02",
+      "storyboard_prompt": "The samurai unsheathes his katana in close-up, water droplets running down the polished blade, reflection of stormy sky in the metal",
+      "video_prompt": "Extreme close-up of katana being drawn slowly from sheath, water droplets roll down the blade in slow motion, sky reflects in the steel",
+      "camera": "extreme close-up, macro lens, rack focus",
+      "motion": "slow draw of blade, water droplets falling in slow motion",
+      "style": "high contrast, silver tones, cinematic slow motion",
+      "duration_hint": "5s"
+    },
+    {
+      "id": "s03",
+      "storyboard_prompt": "Wide shot of a bamboo forest in heavy rain, the samurai walks down a dirt path between tall bamboo stalks, lightning illuminates the scene from behind",
+      "video_prompt": "Samurai walks steadily through bamboo forest in heavy rain, wide tracking shot following from side, lightning flash illuminates scene, rain drops visible in air",
+      "camera": "wide tracking shot from side, 35mm anamorphic",
+      "motion": "steady forward walk, rain falling, lightning flash, bamboo swaying",
+      "style": "dramatic lightning, dark and stormy, rain streaks visible",
+      "duration_hint": "5s"
+    },
+    {
+      "id": "s04",
+      "storyboard_prompt": "The samurai faces 5 shadowy opponents in a burning village at night, embers floating in the air, fire in background, dramatic standoff",
+      "video_prompt": "Samurai faces multiple opponents in burning village, camera circles slowly around the standoff, embers float through air like orange snow, fire crackles in background",
+      "camera": "slow 360-degree orbit, low angle",
+      "motion": "slow rotation of camera, embers drifting, tension building",
+      "style": "fire and shadow contrast, orange and black palette, dramatic",
+      "duration_hint": "5s"
+    },
+    {
+      "id": "s05",
+      "storyboard_prompt": "The samurai sheathes his katana and walks away from smoldering ruins into the morning mist, silhouette against orange sky",
+      "video_prompt": "Samurai sheathes sword and walks away from camera into morning mist, silhouette shrinks against glowing orange horizon, peaceful resolution",
+      "camera": "wide static shot, low angle looking up",
+      "motion": "slow walk into mist, figure gradually disappearing, serene",
+      "style": "sunrise orange, silhouette, peaceful resolution, lens flare",
+      "duration_hint": "5s"
+    }
+  ]
+}

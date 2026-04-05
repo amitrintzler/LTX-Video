@@ -108,6 +108,7 @@ class StitchStage:
                 "-crf", str(self.cfg.output_crf),
                 "-preset", self.cfg.output_preset,
                 "-pix_fmt", "yuv420p",
+                "-movflags", "+faststart",
                 str(out_path),
             ]
         )

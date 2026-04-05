@@ -1,0 +1,63 @@
+{
+  "title": "options-masterclass",
+  "brief": "A cinematic options trading education series covering the full Black-Scholes model, all four Greeks in a live dashboard, the volatility smile and skew, and an iron condor strategy payoff. Each Manim scene is a self-contained lesson with live math, phase-based narrative pacing, and contextual callout annotations. LTX scenes provide cinematic transitions between concepts.",
+  "global_style": "cinematic 35mm anamorphic, deep navy and near-black backgrounds, electric data-viz colors (cyan, amber, red), professional Bloomberg terminal aesthetic",
+
+  "scenes": [
+
+    {
+      "id": "s01",
+      "renderer": "manim",
+      "description": "Build a live Black-Scholes inputs dashboard. Show five input sliders on the left: S (stock price, range 60-140, start 100), K (strike, fixed 100), T (time, 60 days), sigma (IV, 20%-50%, start 30%), r (risk-free rate, 5%). On the right show the computed call price and put price updating in real time. Below them show delta, gamma, theta, vega in a 2x2 grid. Animate: first hold all inputs static for 1 second. Then animate sigma from 30% up to 50% over 2 seconds, showing price and Greeks change — add a callout 'Higher IV = more expensive options'. Then animate sigma back to 30%. Then animate S from 100 up to 115 over 2 seconds — add callout 'Delta shows sensitivity to stock move'. Then animate T from 60 days down to 5 days over 3 seconds showing theta accelerating and gamma spiking. Dark background #050510, cyan #00d4ff for call price, amber #ffaa00 for put price, white axes.",
+      "duration_sec": 12,
+      "style": "dark background #050510, cyan for calls, amber for puts, white axes, Bloomberg terminal aesthetic"
+    },
+
+    {
+      "id": "s02",
+      "renderer": "ltx",
+      "storyboard_prompt": "Extreme close-up of a Bloomberg terminal screen glowing in a dark trading room, green and amber numbers cascading down the display, reflections of the screen visible on a polished desk surface, shallow depth of field, bokeh background with blurred city lights through floor-to-ceiling windows",
+      "video_prompt": "numbers streaming down the terminal screen, cursor blinking, camera slowly pulling back to reveal more of the dark trading room, ambient city glow through windows",
+      "camera": "extreme close-up pulling back slowly, 85mm lens, very shallow depth of field",
+      "motion": "terminal data streaming, cursor blinking, slow reveal of trading room",
+      "style": "deep black trading room, amber and green terminal glow, cool blue city lights through windows",
+      "negative": "text overlays, watermark, daylight, people visible, blurry numbers"
+    },
+
+    {
+      "id": "s03",
+      "renderer": "manim",
+      "description": "Visualize the volatility smile and skew. Draw axes: x-axis is strike price from 70 to 130 labeled 'Strike', y-axis is implied volatility from 15% to 50% labeled 'Implied Volatility (IV)'. Plot three curves simultaneously in different colors: a U-shaped 'smile' curve for short-dated options (7 days, color cyan, peaked at 45% on the wings, minimum 25% at ATM), a left-skewed 'smirk' curve for 30-day options (color amber, steep left wing starting at 42% at K=70, minimum 22% at K=105, right side flat at 24%), and a flatter curve for 90-day options (color light purple, range 20%-30%). Label each curve. Add vertical dashed lines at K=70, 100, 130 labeled 'OTM Put', 'ATM', 'OTM Call'. Phase 1: animate curves drawing in sequence with 0.5s pause between each. Phase 2: add a callout box 'Put skew: OTM puts more expensive — crash insurance demand'. Phase 3: add a second callout 'Term structure flattens as T increases'. Hold final state for 1 second.",
+      "duration_sec": 10,
+      "style": "dark background #04040e, cyan for short-dated, amber for 30-day, lavender for 90-day, white axes"
+    },
+
+    {
+      "id": "s04",
+      "renderer": "manim",
+      "description": "Animate an iron condor strategy payoff diagram. X-axis: stock price at expiry 70 to 130, labeled 'Stock Price at Expiry'. Y-axis: profit/loss from -$400 to $200, labeled 'P&L at Expiry ($)'. The iron condor consists of: sell put K=85 (short put), buy put K=80 (long put), sell call K=115 (short call), buy call K=120 (long call). Net premium received = $150 (the max profit zone). Phase 1: Draw x-axis and y-axis. Phase 2: Animate each leg appearing one at a time — first show short put payoff in red, then long put in dimmer red, then short call in red, then long call in dimmer red, each with a label appearing as it draws. Phase 3: Show the COMBINED net payoff curve in bright white — flat at +$150 between K=85 and K=115, sloping to max loss of -$350 outside the wings. Fill the profit zone (85-115) in green with low opacity, fill the loss zones in red with low opacity. Phase 4: Add vertical dashed lines at all four strikes. Add callout: 'Max profit: $150 if stock stays between $85-$115'. Add second callout: 'Max loss: $350 if stock moves beyond wings'. Show a moving dot sliding along the net payoff curve from left to right over 3 seconds. Dark background, profit green #00e676, loss red #ff4444.",
+      "duration_sec": 14,
+      "style": "dark background #04040e, profit green #00e676, loss red #ff4444, white net payoff, white axes"
+    },
+
+    {
+      "id": "s05",
+      "renderer": "manim",
+      "description": "Show a live 'Greeks dashboard' for an ATM call option as the stock price moves. Layout: main chart on left shows the call option price curve (BS curve, K=100, T=30 days, sigma=30%) with a vertical tracker line that moves. Right panel shows four gauges in a 2x2 grid: Delta (0 to 1), Gamma (0 to 0.08), Theta (-$0.15 to $0), Vega ($0 to $0.40). Use a ValueTracker for S (stock price) that animates from S=75 to S=125. As S moves: the tracker line slides along the BS curve, the ATM dot moves with it, and all four gauges update live. Color code: Delta in cyan, Gamma in amber (turns red when > 0.06), Theta in red always, Vega in lavender. For each gauge show a horizontal bar that fills proportionally and a numeric readout. Phase 1: Hold at S=100 for 1.5 seconds showing ATM values. Phase 2: animate S from 100 to 125 over 3 seconds — add callout 'Deep ITM: Delta approaches 1.0, Gamma falls'. Phase 3: animate S from 125 back to 75 over 5 seconds — add callout when crossing ATM 'ATM: Gamma peaks here' and when reaching S=75 'Deep OTM: Delta near zero, Vega still significant'. Dark background, all Greeks color-coded.",
+      "duration_sec": 13,
+      "style": "dark background #04040e, delta cyan, gamma amber, theta red, vega lavender, white axes"
+    },
+
+    {
+      "id": "s06",
+      "renderer": "ltx",
+      "storyboard_prompt": "Breathtaking aerial shot at golden hour looking down at the New York Stock Exchange building and lower Manhattan financial district, warm amber late afternoon light casting long shadows between glass towers, tiny figures on the streets below, an American flag visible on the NYSE facade",
+      "video_prompt": "slow rotating aerial shot circling the NYSE building, long shadows sweeping as if time is passing, reflections shifting on glass towers, birds flying below camera level",
+      "camera": "high aerial circular orbit, very slow clockwise rotation, 35mm anamorphic, slight lens flare from sun angle",
+      "motion": "camera slowly orbiting, shadows creeping across buildings, flag waving, subtle traffic movement below",
+      "style": "warm golden hour amber light, deep blue sky, glass and steel towers glowing, cinematic color grade",
+      "negative": "text, watermark, blurry, night time, rain, people close up"
+    }
+
+  ]
+}

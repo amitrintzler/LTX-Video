@@ -1,6 +1,6 @@
 # AI Video Pipeline — Research-first Manim + Kokoro TTS
 
-End-to-end pipeline: **topic → research docs → JSON scripts → render → TTS narration → stitched final video**. Runs locally on your Mac. The current generator produces Manim scenes by default.
+End-to-end pipeline: **topic → final video**. Runs locally on your Mac. The current generator produces Manim scenes by default.
 
 Reference output: **black-scholes-narrated.mp4** — research-backed topic script rendered with Manim and stitched with local TTS.
 
@@ -12,21 +12,13 @@ Reference output: **black-scholes-narrated.mp4** — research-backed topic scrip
 scripts/<title>.json
         │
         ▼
-┌──────────────┐   Claude Code CLI + web search
-│ Stage 1      │ ──► research/<topic>.md
-│ Research     │ ──► research/<topic>-outline.md
-└──────────────┘
-        │
-        ▼
-┌──────────────┐   Claude Code CLI (claude --print)
-│ Stage 2      │ ──► scripts/<topic>-narrated.json
-│ Script       │ ──► scripts/<topic>-companion-long.json
+┌──────────────┐   Topic in
+│ Pipeline     │ ──► topic → scripts → render → TTS → stitch
 └──────────────┘
         │
         ▼
 ┌──────────────┐   Manim Community + Claude CLI
-│ Stage 3      │ ──► render per scene → clips/<title>/scene_NNN.mp4
-│ Render       │
+│ Output       │ ──► final MP4
 └──────────────┘
         │
         ▼
@@ -74,7 +66,7 @@ cd video-pipeline
 python3 pipeline.py "Black-Scholes options pricing"
 ```
 
-That runs research, script generation, render, TTS, and stitch in one go.
+That runs the full pipeline in one go.
 
 ### Run from another repo
 
@@ -93,22 +85,16 @@ By default, outputs go to your current directory. Override that with `--work-dir
 ### Stage by stage
 
 ```bash
-# Research only
-python3 pipeline.py "Black-Scholes options pricing" --stage research
-
-# Generate scripts from the research docs
-python3 pipeline.py "Black-Scholes options pricing" --stage script --mode both
-
-# Validate script
+# Validate a generated script
 python3 pipeline.py scripts/<title>-narrated.json --stage validate
 
-# Render all scenes
+# Render a generated script
 python3 pipeline.py scripts/<title>-narrated.json --stage render
 
-# Generate TTS narration
+# Generate TTS narration for a generated script
 python3 pipeline.py scripts/<title>-narrated.json --stage tts
 
-# Stitch final video
+# Stitch the final video for a generated script
 python3 pipeline.py scripts/<title>-narrated.json --stage stitch
 ```
 
@@ -127,7 +113,6 @@ open output/<title>-final.mp4
 {
   "title": "kebab-case-slug",
   "brief": "2–3 sentences summarising the topic and what intuitions the video builds.",
-  "research_brief": "One paragraph summary of the research findings.",
   "global_style": {
     "background": "#0d1117",
     "primary": "#FFD700",

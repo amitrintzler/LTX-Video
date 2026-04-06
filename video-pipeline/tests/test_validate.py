@@ -14,6 +14,11 @@ def log():
     return logging.getLogger("test")
 
 
+@pytest.fixture(autouse=True)
+def skip_draw_things_check(monkeypatch):
+    monkeypatch.setattr(ValidationStage, "_check_api_reachable", lambda self: None)
+
+
 def make_cfg(**kwargs):
     defaults = dict(content_safety="strict", min_scenes=3, max_scenes=20)
     defaults.update(kwargs)

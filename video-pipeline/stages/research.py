@@ -1,0 +1,275 @@
+"""
+stages/research.py — Topic research stage.
+
+Collects a small bundle of live search evidence, then uses Claude Code CLI
+to synthesize:
+  - research/<slug>.md
+  - research/<slug>-outline.md
+"""
+
+from __future__ import annotations
+
+import json
+import logging
+import urllib.parse
+import urllib.request
+from pathlib import Path
+from typing import Any
+
+from config import PipelineConfig
+from stages.claude_client import run_claude_json
+from stages.scene_utils import safe_slug
+
+
+class ResearchStage:
+    def __init__(self, cfg: PipelineConfig, log: logging.Logger):
+        self.cfg = cfg
+        self.log = log.getChild("research")
+
+    def run(self, topic: str) -> tuple[Path, Path]:
+        slug = safe_slug(topic)
+        research_dir = self.cfg.research_dir
+        research_dir.mkdir(parents=True, exist_ok=True)
+
+        research_path = research_dir / f"{slug}.md"
+        outline_path = research_dir / f"{slug}-outline.md"
+
+        if research_path.exists() and outline_path.exists():
+            self.log.info(f"  Reusing existing research docs for '{topic}'")
+            return research_path, outline_path
+
+        queries = self._build_queries(topic)
+        evidence = self._collect_evidence(topic, queries)
+        self.log.info(f"  Collected {len(evidence)} evidence snippets from {len(queries)} queries")
+
+        prompt = self._build_prompt(topic, slug, queries, evidence)
+        schema = {
+            "type": "object",
+            "properties": {
+                "title": {"type": "string"},
+                "research_brief": {"type": "string"},
+                "research_markdown": {"type": "string"},
+                "outline_markdown": {"type": "string"},
+            },
+            "required": [
+                "title",
+                "research_brief",
+                "research_markdown",
+                "outline_markdown",
+            ],
+            "additionalProperties": False,
+        }
+        result = run_claude_json(
+            prompt=prompt,
+            model=self.cfg.claude_model,
+            system_prompt=self._system_prompt(),
+            schema=schema,
+            timeout=900,
+        )
+
+        research_markdown = self._normalize_markdown(result["research_markdown"])
+        outline_markdown = self._normalize_markdown(result["outline_markdown"])
+
+        research_path.write_text(research_markdown.rstrip() + "\n")
+        outline_path.write_text(outline_markdown.rstrip() + "\n")
+
+        self.log.info(f"  Research saved -> {research_path}")
+        self.log.info(f"  Outline saved  -> {outline_path}")
+        return research_path, outline_path
+
+    def _system_prompt(self) -> str:
+        return (
+            "You are a research analyst and learning designer. "
+            "Use the supplied search evidence to produce grounded, topic-specific "
+            "research notes and an outline that can drive a video script. "
+            "Do not invent facts that are not supported by the evidence unless you "
+            "clearly label them as a reasonable inference. "
+            "Return only the JSON object required by the schema."
+        )
+
+    def _build_queries(self, topic: str) -> list[str]:
+        topic_clean = topic.strip()
+        lower = topic_clean.lower()
+
+        if any(word in lower for word in ["option", "trading", "finance", "market", "stock"]):
+            return [
+                f"{topic_clean} definition and core formula",
+                f"{topic_clean} worked example with numbers",
+                f"{topic_clean} historical context",
+                f"{topic_clean} visual intuition",
+                f"{topic_clean} common misconceptions",
+                f"{topic_clean} real world example",
+            ]
+
+        if any(word in lower for word in ["physics", "chemistry", "biology", "math", "probability", "statistics", "algorithm", "machine learning"]):
+            return [
+                f"{topic_clean} definition and mechanism",
+                f"{topic_clean} worked example or experiment",
+                f"{topic_clean} historical context",
+                f"{topic_clean} visual intuition",
+                f"{topic_clean} common misconceptions",
+                f"{topic_clean} real world application",
+            ]
+
+        if any(word in lower for word in ["history", "war", "novel", "movie", "story", "biography", "detective"]):
+            return [
+                f"{topic_clean} historical context",
+                f"{topic_clean} key events and timeline",
+                f"{topic_clean} important characters or figures",
+                f"{topic_clean} visual references",
+                f"{topic_clean} common misconceptions",
+                f"{topic_clean} real world significance",
+            ]
+
+        return [
+            f"{topic_clean} definition and overview",
+            f"{topic_clean} key concepts",
+            f"{topic_clean} real world example",
+            f"{topic_clean} historical context",
+            f"{topic_clean} visual intuition",
+            f"{topic_clean} common misconceptions",
+        ]
+
+    def _collect_evidence(self, topic: str, queries: list[str]) -> list[dict[str, str]]:
+        evidence: list[dict[str, str]] = []
+        seen_urls: set[str] = set()
+
+        for query in queries:
+            snippets = self._duckduckgo_instant_answer(query)
+            for item in snippets:
+                url = item.get("url", "").strip()
+                if url and url in seen_urls:
+                    continue
+                if url:
+                    seen_urls.add(url)
+                item["query"] = query
+                evidence.append(item)
+
+        wiki = self._wikipedia_summary(topic)
+        if wiki:
+            url = wiki.get("url", "")
+            if not url or url not in seen_urls:
+                if url:
+                    seen_urls.add(url)
+                evidence.append({"query": topic, **wiki})
+
+        return evidence[:18]
+
+    def _duckduckgo_instant_answer(self, query: str) -> list[dict[str, str]]:
+        url = (
+            "https://api.duckduckgo.com/"
+            f"?q={urllib.parse.quote_plus(query)}&format=json&no_html=1&skip_disambig=1"
+        )
+        try:
+            with urllib.request.urlopen(url, timeout=15) as resp:
+                data = json.loads(resp.read().decode("utf-8"))
+        except Exception as e:
+            self.log.warning(f"  DDG lookup failed for '{query}': {e}")
+            return []
+
+        results: list[dict[str, str]] = []
+        abstract = (data.get("AbstractText") or "").strip()
+        abstract_url = (data.get("AbstractURL") or "").strip()
+        heading = (data.get("Heading") or query).strip()
+        if abstract:
+            results.append(
+                {
+                    "source": "duckduckgo",
+                    "title": heading,
+                    "url": abstract_url,
+                    "snippet": abstract,
+                }
+            )
+
+        def walk_related(items: Any):
+            for item in items or []:
+                if not isinstance(item, dict):
+                    continue
+                if "Topics" in item:
+                    yield from walk_related(item.get("Topics"))
+                    continue
+                text = (item.get("Text") or "").strip()
+                first_url = (item.get("FirstURL") or "").strip()
+                if text:
+                    yield {
+                        "source": "duckduckgo",
+                        "title": text.split(" - ", 1)[0],
+                        "url": first_url,
+                        "snippet": text,
+                    }
+
+        results.extend(list(walk_related(data.get("RelatedTopics"))))
+        return results
+
+    def _wikipedia_summary(self, topic: str) -> dict[str, str]:
+        title = urllib.parse.quote(topic.strip().replace(" ", "_"))
+        url = f"https://en.wikipedia.org/api/rest_v1/page/summary/{title}"
+        try:
+            with urllib.request.urlopen(url, timeout=15) as resp:
+                data = json.loads(resp.read().decode("utf-8"))
+        except Exception:
+            return {}
+
+        extract = (data.get("extract") or "").strip()
+        page_url = ""
+        content_urls = data.get("content_urls") or {}
+        if isinstance(content_urls, dict):
+            desktop = content_urls.get("desktop") or {}
+            if isinstance(desktop, dict):
+                page_url = (desktop.get("page") or "").strip()
+
+        if not extract:
+            return {}
+
+        return {
+            "source": "wikipedia",
+            "title": (data.get("title") or topic).strip(),
+            "url": page_url,
+            "snippet": extract,
+        }
+
+    def _build_prompt(
+        self,
+        topic: str,
+        slug: str,
+        queries: list[str],
+        evidence: list[dict[str, str]],
+    ) -> str:
+        evidence_block = json.dumps(evidence, indent=2, ensure_ascii=False)
+        queries_block = "\n".join(f"- {q}" for q in queries)
+        return f"""
+Topic: {topic}
+Slug: {slug}
+
+You are preparing research for a video pipeline. Use the search evidence below to write:
+1. `research_markdown`: 400-600 words, markdown, grounded in the evidence.
+2. `outline_markdown`: markdown outline with Act 1, Act 2, Act 3, Act 4 sections.
+3. `research_brief`: one concise paragraph summarising the topic and the teaching goal.
+
+Research constraints:
+- Use specific facts, names, numbers, and relationships from the evidence.
+- Include at least one worked example or concrete example if the topic permits.
+- Add a short "common misconceptions" section.
+- Explain what the video should teach in each act.
+- Keep the outline suitable for later script generation.
+- Do not mention that you are an AI or that you were asked to use Claude.
+- Do not invent facts if the evidence does not support them; mark such items as inferences.
+
+Target search queries:
+{queries_block}
+
+Search evidence:
+{evidence_block}
+""".strip()
+
+    @staticmethod
+    def _normalize_markdown(text: str) -> str:
+        stripped = text.strip()
+        if stripped.startswith("```"):
+            lines = stripped.splitlines()
+            if lines and lines[0].startswith("```"):
+                lines = lines[1:]
+            if lines and lines[-1].strip() == "```":
+                lines = lines[:-1]
+            stripped = "\n".join(lines).strip()
+        return stripped

@@ -11,9 +11,10 @@ from config import PipelineConfig
 
 def test_config_new_fields_have_correct_defaults():
     cfg = PipelineConfig()
-    assert cfg.video_fps == 24
+    assert cfg.video_fps == 60
     assert cfg.claude_model == "claude-sonnet-4-6"
     assert cfg.renderer_max_retries == 3
+    assert cfg.render_workers == 1
     assert cfg.animatediff_checkpoint == "frankjoshua/toonyou_beta6"
     assert cfg.animatediff_num_frames == 16
     assert cfg.animatediff_guidance_scale == 7.5
@@ -66,25 +67,25 @@ def _manim_cfg():
 
 
 def test_manim_render_success(tmp_path):
-    """On success: Claude called once, _run_manim called once, out_path returned."""
+    """On success: Claude CLI called once, _run_manim called once, out_path returned."""
     from stages.renderers import manim as manim_mod
     out_path = tmp_path / "scene_001.mp4"
 
-    mock_client = MagicMock()
-    mock_client.messages.create.return_value.content[0].text = (
+    mock_call = MagicMock(return_value=(
         "from manim import *\nclass VideoScene(Scene): pass"
-    )
+    ))
 
-    with patch("stages.renderers.manim._get_client", return_value=mock_client), \
+    with patch("stages.renderers.manim._check_imports"), \
+         patch("stages.renderers.manim._call_claude_cli", mock_call), \
          patch("stages.renderers.manim._run_manim", return_value=out_path):
         result = manim_mod.render(_manim_scene(), _manim_cfg(), out_path)
 
     assert result == out_path
-    mock_client.messages.create.assert_called_once()
+    mock_call.assert_called_once()
 
 
 def test_manim_render_retries_on_failure(tmp_path):
-    """On _run_manim failure, Claude is called again with error; raises after max_retries."""
+    """On _run_manim failure, Claude CLI is called again with error; raises after max_retries."""
     from stages.renderers import manim as manim_mod
     from stages.renderers.manim import ManimRenderError
 
@@ -92,19 +93,19 @@ def test_manim_render_retries_on_failure(tmp_path):
     cfg = _manim_cfg()
     cfg.renderer_max_retries = 3
 
-    mock_client = MagicMock()
-    mock_client.messages.create.return_value.content[0].text = "from manim import *\nclass VideoScene(Scene): pass"
+    mock_call = MagicMock(return_value="from manim import *\nclass VideoScene(Scene): pass")
 
-    with patch("stages.renderers.manim._get_client", return_value=mock_client), \
+    with patch("stages.renderers.manim._check_imports"), \
+         patch("stages.renderers.manim._call_claude_cli", mock_call), \
          patch("stages.renderers.manim._run_manim", side_effect=ManimRenderError("bad syntax")):
         with pytest.raises(ManimRenderError):
             manim_mod.render(_manim_scene(), cfg, out_path)
 
-    assert mock_client.messages.create.call_count == 3
+    assert mock_call.call_count == 3
 
 
 def test_manim_retry_passes_error_to_claude(tmp_path):
-    """On retry, Claude receives the previous error in its user message."""
+    """On retry, Claude CLI receives the previous error in its user prompt."""
     from stages.renderers import manim as manim_mod
     from stages.renderers.manim import ManimRenderError
 
@@ -112,18 +113,40 @@ def test_manim_retry_passes_error_to_claude(tmp_path):
     cfg = _manim_cfg()
     cfg.renderer_max_retries = 2
 
-    mock_client = MagicMock()
-    mock_client.messages.create.return_value.content[0].text = "from manim import *\nclass VideoScene(Scene): pass"
+    seen_errors = []
 
-    with patch("stages.renderers.manim._get_client", return_value=mock_client), \
+    def fake_call(model, system, description, error):
+        seen_errors.append(error)
+        return "from manim import *\nclass VideoScene(Scene): pass"
+
+    with patch("stages.renderers.manim._check_imports"), \
+         patch("stages.renderers.manim._call_claude_cli", side_effect=fake_call), \
          patch("stages.renderers.manim._run_manim", side_effect=ManimRenderError("NameError: foo")):
         with pytest.raises(ManimRenderError):
             manim_mod.render(_manim_scene(), cfg, out_path)
 
-    # Second call's user message must contain the error text
-    second_call_messages = mock_client.messages.create.call_args_list[1][1]["messages"]
-    user_content = second_call_messages[0]["content"]
-    assert "NameError: foo" in user_content
+    assert seen_errors[0] is None
+    assert "NameError: foo" in seen_errors[1]
+
+
+def test_manim_claude_cli_invocation_uses_print_and_system_prompt():
+    from stages.renderers.manim import _call_claude_cli
+
+    fake_result = MagicMock()
+    fake_result.returncode = 0
+    fake_result.stdout = "```python\nfrom manim import *\nclass VideoScene(Scene): pass\n```"
+    fake_result.stderr = ""
+
+    with patch("stages.renderers.manim.subprocess.run", return_value=fake_result) as mock_run:
+        code = _call_claude_cli("claude-sonnet-4-6", "SYSTEM", "DRAW A CURVE", None)
+
+    assert "from manim import *" in code
+    cmd = mock_run.call_args[0][0]
+    assert cmd[0] == "claude"
+    assert "--print" in cmd
+    assert "--system-prompt" in cmd
+    assert "--tools" in cmd
+    assert "DRAW A CURVE" in cmd
 
 
 def test_manim_run_uses_timeout(tmp_path):
@@ -176,20 +199,14 @@ def test_build_system_prompt_contains_dimensions():
     assert "8" in prompt
 
 
-def test_manim_missing_anthropic_raises_helpful_error(tmp_path):
-    """If anthropic is not installed, render() raises ImportError with install instructions."""
-    import builtins, importlib
-    real_import = builtins.__import__
+def test_manim_missing_claude_cli_raises_helpful_error(tmp_path):
+    """If claude is not installed, render() raises a helpful error."""
+    from stages.renderers.manim import ManimRenderError
+    import stages.renderers.manim as m
 
-    def mock_import(name, *args, **kwargs):
-        if name == "anthropic":
-            raise ImportError("No module named 'anthropic'")
-        return real_import(name, *args, **kwargs)
-
-    with patch("builtins.__import__", side_effect=mock_import):
-        import stages.renderers.manim as m
-        importlib.reload(m)
-        with pytest.raises(ImportError, match="pip install anthropic"):
+    with patch("stages.renderers.manim._check_imports"), \
+         patch("stages.renderers.manim.subprocess.run", side_effect=FileNotFoundError()):
+        with pytest.raises(ManimRenderError, match="Claude Code CLI not found"):
             m.render(_manim_scene(), _manim_cfg(), tmp_path / "out.mp4")
 
 
@@ -203,9 +220,7 @@ def test_manim_missing_manim_package_raises_helpful_error(tmp_path):
             raise ImportError("No module named 'manim'")
         return real_import(name, *args, **kwargs)
 
-    mock_client = MagicMock()
-    with patch("builtins.__import__", side_effect=mock_import), \
-         patch("stages.renderers.manim._get_client", return_value=mock_client):
+    with patch("builtins.__import__", side_effect=mock_import):
         import stages.renderers.manim as m
         importlib.reload(m)
         with pytest.raises(ImportError, match="pip install manim"):

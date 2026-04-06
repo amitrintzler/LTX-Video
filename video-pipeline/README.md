@@ -1,8 +1,8 @@
-# AI Video Pipeline — Manim + D3 + Motion Canvas + Kokoro TTS
+# AI Video Pipeline — Research-first Manim + Kokoro TTS
 
-End-to-end pipeline: **topic → research → JSON script → animated clips → TTS narration → stitched final video**. Runs 100% locally on your Mac. No GPU required for the programmatic renderers.
+End-to-end pipeline: **topic → research docs → JSON scripts → render → TTS narration → stitched final video**. Runs locally on your Mac. The current generator produces Manim scenes by default.
 
-Reference output: **black-scholes-narrated-final.mp4** — 15 scenes, 282s, all three renderers.
+Reference output: **black-scholes-narrated.mp4** — research-backed topic script rendered with Manim and stitched with local TTS.
 
 ---
 
@@ -12,13 +12,21 @@ Reference output: **black-scholes-narrated-final.mp4** — 15 scenes, 282s, all 
 scripts/<title>.json
         │
         ▼
-┌──────────────┐   Claude CLI (claude --print)
-│ Stage 1      │ ──► generates renderer code per scene
-│ Render       │      → clips/<title>/scene_NNN.mp4
-│              │
-│  manim       │ ──► Manim Community v0.20 (math/curves/axes)
-│  motion-canvas──► Playwright/Canvas2D (story panels, cards)
-│  d3          │ ──► Node.js + canvas npm (charts, tables)
+┌──────────────┐   Claude Code CLI + web search
+│ Stage 1      │ ──► research/<topic>.md
+│ Research     │ ──► research/<topic>-outline.md
+└──────────────┘
+        │
+        ▼
+┌──────────────┐   Claude Code CLI (claude --print)
+│ Stage 2      │ ──► scripts/<topic>-narrated.json
+│ Script       │ ──► scripts/<topic>-companion-long.json
+└──────────────┘
+        │
+        ▼
+┌──────────────┐   Manim Community + Claude CLI
+│ Stage 3      │ ──► render per scene → clips/<title>/scene_NNN.mp4
+│ Render       │
 └──────────────┘
         │
         ▼
@@ -63,23 +71,45 @@ claude --version
 
 ```bash
 cd video-pipeline
-python3 pipeline.py scripts/<title>.json
+python3 pipeline.py "Black-Scholes options pricing"
+```
+
+That runs research, script generation, render, TTS, and stitch in one go.
+
+### Run from another repo
+
+Use the launcher in [`scripts/run_video_pipeline.sh`](/Users/amitri/Projects/LTX-Video/scripts/run_video_pipeline.sh) when the script JSON lives in a different project:
+
+```bash
+/Users/amitri/Projects/LTX-Video/scripts/run_video_pipeline.sh "Black-Scholes options pricing"
+```
+
+By default, outputs go to your current directory. Override that with `--work-dir`:
+
+```bash
+/Users/amitri/Projects/LTX-Video/scripts/run_video_pipeline.sh "Black-Scholes options pricing" --work-dir /Users/amitri/Projects/other-repo --stage all
 ```
 
 ### Stage by stage
 
 ```bash
-# Validate script
-python3 pipeline.py scripts/<title>.json --stage validate
+# Research only
+python3 pipeline.py "Black-Scholes options pricing" --stage research
 
-# Render all scenes (parallel, Claude generates code per scene)
-python3 pipeline.py scripts/<title>.json --stage render --skip-validation
+# Generate scripts from the research docs
+python3 pipeline.py "Black-Scholes options pricing" --stage script --mode both
+
+# Validate script
+python3 pipeline.py scripts/<title>-narrated.json --stage validate
+
+# Render all scenes
+python3 pipeline.py scripts/<title>-narrated.json --stage render
 
 # Generate TTS narration
-python3 pipeline.py scripts/<title>.json --stage tts --skip-validation
+python3 pipeline.py scripts/<title>-narrated.json --stage tts
 
 # Stitch final video
-python3 pipeline.py scripts/<title>.json --stage stitch --skip-validation
+python3 pipeline.py scripts/<title>-narrated.json --stage stitch
 ```
 
 ### Remux for fast-start playback
@@ -97,6 +127,7 @@ open output/<title>-final.mp4
 {
   "title": "kebab-case-slug",
   "brief": "2–3 sentences summarising the topic and what intuitions the video builds.",
+  "research_brief": "One paragraph summary of the research findings.",
   "global_style": {
     "background": "#0d1117",
     "primary": "#FFD700",
@@ -112,8 +143,8 @@ open output/<title>-final.mp4
   "scenes": [
     {
       "id": "s01",
-      "renderer": "motion-canvas",
-      "title": "Hook — The Problem",
+      "renderer": "manim",
+      "title": "Hook - The Problem",
       "duration_sec": 14,
       "narration": "2–4 sentences of voiceover, written for a listener who cannot see the screen.",
       "description": "Detailed animation instruction. 150–300 words. Every visual element explicit.",
@@ -127,9 +158,8 @@ open output/<title>-final.mp4
 
 | Content type | Renderer |
 |---|---|
-| Equations, curves, axes plots, probability distributions, payoff diagrams | `manim` |
-| Step-by-step explainers, animated cards, story panels, formula builds | `motion-canvas` |
-| Bar charts, time-series, multi-panel dashboards, comparison tables | `d3` |
+| Current generated scripts | `manim` |
+| Legacy / future renderers | `motion-canvas`, `d3`, `html_anim`, `slides` |
 
 ---
 
@@ -169,6 +199,8 @@ The stitch stage auto-extends clips with a freeze of the last frame when narrati
 | `video_width/height` | `1920 / 1080` | Output resolution |
 | `video_fps` | `60` | Frame rate |
 | `tts_voice` | `af_heart` | Kokoro voice |
+| `tts_enabled` | `true` | Enable local narration |
+| `output_mode` | `narrated` | Stitch mode |
 | `crossfade_sec` | `0.5` | Dissolve between scenes |
 | `output_crf` | `18` | Quality (lower = better) |
 | `renderer_max_retries` | `3` | Auto-retry failed scenes |
@@ -217,5 +249,5 @@ video-pipeline/
 | Manim `FileNotFoundError: latex` | Remove `numbers_to_include` from `Axes()` |
 | Panel content bleeding between panels | Wrap every panel in `ctx.save/clip/restore` |
 | TTS audio cut mid-sentence | Delete `*_muxed.mp4` and re-stitch — freeze-frame is automatic |
-| Validation fails (Draw Things ping) | Use `--skip-validation` for manim/d3/motion-canvas scripts |
+| Validation fails (Draw Things ping) | Use the new renderer-based script format, or run with Draw Things only for legacy LTX/AnimatedDiff scenes |
 | Final video shorter than expected | Delete stale `*_muxed.mp4` files and re-stitch |

@@ -1,9 +1,9 @@
 # Core pipeline deps
 rich
 pillow
-anthropic
 
 # Optional — install manually when needed:
+# Kokoro TTS:           pip install kokoro soundfile
 # Manim renderer:      pip install manim
 # html_anim + slides:  pip install playwright && playwright install chromium
 # AnimateDiff:         pip install torch diffusers transformers accelerate

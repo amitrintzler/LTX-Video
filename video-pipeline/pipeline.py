@@ -1,32 +1,34 @@
 #!/usr/bin/env python3
 """
-End-to-End Video Generation Pipeline
-Draw Things API → Storyboard → Clip → Stitch → Final Video
+End-to-end video generation pipeline.
 
-Usage:
-    python pipeline.py my_script.json
-    python pipeline.py my_script.json --stage storyboard
-    python pipeline.py my_script.json --stage video
-    python pipeline.py my_script.json --stage stitch
+New flow:
+    topic -> research -> scripts -> render -> tts -> stitch
+
+Legacy flow is still available for old Draw Things scripts via the
+storyboard/video stages.
 """
+
+from __future__ import annotations
 
 import argparse
 import json
 import logging
 import sys
-from pathlib import Path
 from datetime import datetime
+from pathlib import Path
+from typing import Optional
 
-from stages.storyboard import StoryboardStage
-from stages.video import VideoStage
-from stages.stitch import StitchStage
-from stages.validate import ValidationStage
-from stages.renderers import get_renderer
 from config import PipelineConfig
+from stages.research import ResearchStage
+from stages.script import ScriptStage
+from stages.render import RenderStage
+from stages.stitch import StitchStage
+from stages.tts import TTSStage
+from stages.validate import ValidationStage
+from stages.scene_utils import needs_draw_things, safe_slug
 
-# ──────────────────────────────────────────
-# Logging
-# ──────────────────────────────────────────
+
 def setup_logging(log_dir: Path) -> logging.Logger:
     log_dir.mkdir(parents=True, exist_ok=True)
     ts = datetime.now().strftime("%Y%m%d_%H%M%S")
@@ -44,84 +46,274 @@ def setup_logging(log_dir: Path) -> logging.Logger:
     return logging.getLogger("pipeline")
 
 
-def load_script(path: str) -> dict:
+def load_json(path: Path) -> dict:
     with open(path) as f:
         return json.load(f)
 
 
-def run(script_path: str, stage: str | None, cfg: PipelineConfig, skip_validation: bool = False):
-    log = setup_logging(cfg.log_dir)
-    log.info(f"Loading script: {script_path}")
-    script = load_script(script_path)
+def _is_existing_file(input_ref: str) -> bool:
+    return Path(input_ref).expanduser().is_file()
 
-    title   = script.get("title", "untitled")
-    scenes  = script["scenes"]
-    log.info(f"Project: '{title}' — {len(scenes)} scenes")
 
-    # Propagate root-level global_style into scenes[0] so all stages pick it up
-    global_style = script.get("global_style", "")
-    if global_style and not scenes[0].get("global_style"):
-        scenes[0]["global_style"] = global_style
+def _infer_output_mode(script: dict, script_path: Optional[Path], cfg: PipelineConfig) -> str:
+    title = str(script.get("title", ""))
+    if title.endswith("-companion-long") or (script_path and script_path.name.endswith("-companion-long.json")):
+        return "companion-long"
+    if title.endswith("-narrated") or (script_path and script_path.name.endswith("-narrated.json")):
+        return "narrated"
+    return cfg.output_mode
+
+
+def _script_paths_for_topic(cfg: PipelineConfig, topic: str, mode: str) -> list[Path]:
+    slug = safe_slug(topic)
+    modes = ["narrated", "companion-long"] if mode == "both" else [mode]
+    paths = [cfg.scripts_dir / f"{slug}-{current_mode}.json" for current_mode in modes]
+    missing = [p for p in paths if not p.exists()]
+    if missing:
+        raise FileNotFoundError(
+            "Missing script file(s): "
+            + ", ".join(str(p) for p in missing)
+            + ". Run the script stage first."
+        )
+    return paths
+
+
+def _run_validation(log: logging.Logger, cfg: PipelineConfig, script: dict, scenes: list[dict], title: str):
+    ValidationStage(cfg, log).run(script, scenes, title)
+
+
+def _run_legacy_pipeline(
+    log: logging.Logger,
+    cfg: PipelineConfig,
+    script: dict,
+    scenes: list[dict],
+    title: str,
+    stage: Optional[str],
+    skip_validation: bool,
+):
+    from stages.storyboard import StoryboardStage
+    from stages.video import VideoStage
 
     stages_to_run = {
-        None:         ["storyboard", "video", "stitch"],
-        "validate":   ["validate"],
+        None: ["storyboard", "video", "stitch"],
+        "validate": ["validate"],
         "storyboard": ["storyboard"],
-        "video":      ["video"],
-        "stitch":     ["stitch"],
-        "all":        ["storyboard", "video", "stitch"],
+        "video": ["video"],
+        "stitch": ["stitch"],
+        "all": ["storyboard", "video", "stitch"],
     }.get(stage, [stage])
 
     if not skip_validation and (
         "validate" in stages_to_run or "storyboard" in stages_to_run
     ):
-        ValidationStage(cfg, log).run(script, scenes, title)
+        _run_validation(log, cfg, script, scenes, title)
 
     if "storyboard" in stages_to_run:
-        log.info("━━━ STAGE 1: Storyboard (image per scene) ━━━")
+        log.info("━━━ Legacy Stage 1: Storyboard (Draw Things) ━━━")
         StoryboardStage(cfg, log).run(scenes, title)
 
     if "video" in stages_to_run:
-        log.info("━━━ STAGE 2: Video clips (image → video per scene) ━━━")
-
-        # LTX scenes: handled by existing VideoStage (preserves path logic + retry)
+        log.info("━━━ Legacy Stage 2: Video clips (Draw Things) ━━━")
         VideoStage(cfg, log).run(scenes, title)
 
-        # Non-LTX scenes: dispatched per-scene to their renderer module
-        safe_title = StitchStage._safe(title)  # shared formula — consistent with StitchStage/VideoStage
-        clips_dir = cfg.clips_dir / safe_title
-        clips_dir.mkdir(parents=True, exist_ok=True)
+    if "stitch" in stages_to_run:
+        log.info("━━━ Legacy Stage 3: Stitch clips -> final video ━━━")
+        StitchStage(cfg, log).run(scenes, title, output_mode=_infer_output_mode(script, None, cfg))
 
-        for i, scene in enumerate(scenes):
-            renderer_name = scene.get("renderer", "ltx")
-            if renderer_name == "ltx":
-                continue  # already handled by VideoStage above
 
-            out_path = clips_dir / f"scene_{i+1:03d}.mp4"
-            if out_path.exists():
-                log.info(f"  [scene_{i+1:03d}] skipping — clip exists")
-                continue
+def _run_new_pipeline_for_script(
+    log: logging.Logger,
+    cfg: PipelineConfig,
+    script: dict,
+    script_path: Optional[Path],
+    stage: Optional[str],
+    skip_validation: bool,
+    output_mode_override: Optional[str],
+):
+    if stage == "storyboard":
+        raise ValueError(
+            "storyboard is a legacy Draw Things stage and is not available for renderer-based scripts"
+        )
 
-            log.info(f"  [scene_{i+1:03d}] renderer={renderer_name}")
-            renderer = get_renderer(renderer_name)
-            renderer.render(scene, cfg, out_path)
-            log.info(f"  [scene_{i+1:03d}] ✓ saved → {out_path}")
+    title = script.get("title", "untitled")
+    scenes = script["scenes"]
+    output_mode = output_mode_override or _infer_output_mode(script, script_path, cfg)
+
+    stages_to_run = {
+        None: ["render", "tts", "stitch"],
+        "validate": ["validate"],
+        "render": ["render"],
+        "video": ["render"],
+        "tts": ["tts"],
+        "stitch": ["stitch"],
+        "all": ["render", "tts", "stitch"],
+    }.get(stage, [stage])
+
+    if not skip_validation and ("validate" in stages_to_run or "render" in stages_to_run):
+        _run_validation(log, cfg, script, scenes, title)
+
+    if "render" in stages_to_run:
+        log.info("━━━ Render stage ━━━")
+        RenderStage(cfg, log).run(scenes, title)
+
+    if "tts" in stages_to_run:
+        log.info("━━━ TTS stage ━━━")
+        if output_mode == "narrated":
+            TTSStage(cfg, log).run(scenes, title)
+        else:
+            log.info("  TTS skipped — companion-long output is silent")
 
     if "stitch" in stages_to_run:
-        log.info("━━━ STAGE 3: Stitch clips → final video ━━━")
-        StitchStage(cfg, log).run(scenes, title)
+        log.info("━━━ Stitch stage ━━━")
+        if output_mode == "narrated":
+            StitchStage(cfg, log).run(scenes, title, output_mode="narrated")
+            StitchStage(cfg, log).run(scenes, title, output_mode="companion-short")
+        else:
+            StitchStage(cfg, log).run(scenes, title, output_mode="companion-long")
 
-    log.info("✅ Pipeline complete.")
+
+def _run_topic_pipeline(
+    log: logging.Logger,
+    cfg: PipelineConfig,
+    topic: str,
+    stage: Optional[str],
+    skip_validation: bool,
+    script_mode: str,
+):
+    stages_to_run = {
+        None: ["research", "script", "render", "tts", "stitch"],
+        "research": ["research"],
+        "script": ["script"],
+        "render": ["render"],
+        "video": ["render"],
+        "tts": ["tts"],
+        "stitch": ["stitch"],
+        "all": ["research", "script", "render", "tts", "stitch"],
+    }.get(stage, [stage])
+
+    title = topic
+    if "research" in stages_to_run:
+        log.info("━━━ Research stage ━━━")
+        ResearchStage(cfg, log).run(topic)
+        if stage == "research":
+            return
+
+    script_paths: list[Path] = []
+    if "script" in stages_to_run or any(s in stages_to_run for s in ["render", "tts", "stitch"]):
+        log.info("━━━ Script stage ━━━")
+        script_paths = ScriptStage(cfg, log).run(topic, mode=script_mode)
+
+    if "script" in stages_to_run and not any(
+        s in stages_to_run for s in ["render", "tts", "stitch"]
+    ):
+        return
+
+    if not script_paths:
+        script_paths = _script_paths_for_topic(cfg, topic, script_mode if script_mode != "both" else "both")
+
+    for script_path in script_paths:
+        script = load_json(script_path)
+        _run_new_pipeline_for_script(
+            log,
+            cfg,
+            script,
+            script_path,
+            stage="all" if stage in (None, "all") else stage,
+            skip_validation=skip_validation,
+            output_mode_override=None,
+        )
+
+
+def run(
+    input_ref: str,
+    stage: Optional[str],
+    cfg: PipelineConfig,
+    skip_validation: bool = False,
+    script_mode: str = "both",
+    output_mode: Optional[str] = None,
+):
+    log = setup_logging(cfg.log_dir)
+    log.info(f"Loading input: {input_ref}")
+
+    if _is_existing_file(input_ref):
+        script_path = Path(input_ref)
+        script = load_json(script_path)
+        title = script.get("title", "untitled")
+        scenes = script["scenes"]
+        log.info(f"Project: '{title}' — {len(scenes)} scenes")
+
+        if stage is None:
+            if needs_draw_things(scenes):
+                _run_legacy_pipeline(log, cfg, script, scenes, title, None, skip_validation)
+            else:
+                _run_new_pipeline_for_script(
+                    log,
+                    cfg,
+                    script,
+                    script_path,
+                    None,
+                    skip_validation,
+                    output_mode,
+                )
+            log.info("✅ Pipeline complete.")
+            return
+
+        if stage in {"storyboard", "video", "stitch", "validate", "all"} and needs_draw_things(scenes):
+            _run_legacy_pipeline(log, cfg, script, scenes, title, stage, skip_validation)
+        else:
+            _run_new_pipeline_for_script(
+                log,
+                cfg,
+                script,
+                script_path,
+                stage,
+                skip_validation,
+                output_mode,
+            )
+
+        log.info("✅ Pipeline complete.")
+        return
+
+    # Topic input: research / script / render / tts / stitch.
+    topic = input_ref
+    if stage == "validate":
+        raise ValueError("validate stage expects a script JSON path, not a topic")
+
+    if stage in {"research", "script", "render", "tts", "stitch", "all", None}:
+        _run_topic_pipeline(
+            log,
+            cfg,
+            topic,
+            stage,
+            skip_validation,
+            script_mode,
+        )
+        log.info("✅ Pipeline complete.")
+        return
+
+    raise ValueError(f"Unsupported stage: {stage}")
 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="AI Video Pipeline")
-    parser.add_argument("script", help="Path to scene script JSON")
+    parser.add_argument("input", help="Topic name or script JSON path")
     parser.add_argument(
         "--stage",
-        choices=["validate", "storyboard", "video", "stitch", "all"],
+        choices=["research", "script", "render", "video", "tts", "stitch", "all", "validate", "storyboard"],
         default=None,
-        help="Run only a specific stage (default: all)",
+        help="Run only a specific stage (default: full pipeline based on input type)",
+    )
+    parser.add_argument(
+        "--mode",
+        choices=["narrated", "companion-long", "both"],
+        default="both",
+        help="Script-generation mode when input is a topic",
+    )
+    parser.add_argument(
+        "--output-mode",
+        choices=["narrated", "companion-short", "companion-long"],
+        default=None,
+        help="Override stitch output mode for script inputs",
     )
     parser.add_argument(
         "--skip-validation",
@@ -130,11 +322,19 @@ if __name__ == "__main__":
         help="Skip validation (for re-runs of known-good scripts)",
     )
     parser.add_argument(
-        "--config", default="config.json",
+        "--config",
+        default="config.json",
         help="Path to config JSON (default: config.json)",
     )
     args = parser.parse_args()
 
     cfg_path = Path(args.config)
     cfg = PipelineConfig.from_file(cfg_path) if cfg_path.exists() else PipelineConfig()
-    run(args.script, args.stage, cfg, skip_validation=args.skip_validation)
+    run(
+        args.input,
+        args.stage,
+        cfg,
+        skip_validation=args.skip_validation,
+        script_mode=args.mode,
+        output_mode=args.output_mode,
+    )

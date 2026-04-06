@@ -1,0 +1,160 @@
+"""Tests for the research-first pipeline stages."""
+
+from __future__ import annotations
+
+import json
+import logging
+import sys
+from pathlib import Path
+
+import pytest
+
+sys.path.insert(0, str(Path(__file__).parent.parent))
+
+from config import PipelineConfig
+from stages.scene_utils import safe_slug
+
+
+@pytest.fixture
+def log():
+    return logging.getLogger("test")
+
+
+def _script_payload(title: str, scene_count: int = 3) -> dict:
+    scenes = []
+    for i in range(scene_count):
+        scenes.append(
+            {
+                "id": f"s{i+1:02d}",
+                "renderer": "manim",
+                "title": f"Scene {i+1}",
+                "duration_sec": 14,
+                "narration": f"Narration for scene {i+1}.",
+                "description": f"Scene {i+1} description with #0d1117 background and #FFD700 accents.",
+                "style": "#0d1117 background, #FFD700 primary, #FFFFFF text",
+            }
+        )
+    return {
+        "title": title,
+        "brief": "Brief summary of the topic.",
+        "research_brief": "Research brief.",
+        "global_style": {
+            "background": "#0d1117",
+            "primary": "#FFD700",
+            "danger": "#FF4444",
+            "success": "#00C896",
+            "text": "#FFFFFF",
+            "muted": "#8B949E",
+            "font": "JetBrains Mono",
+            "transition": "fade_black_0.3s",
+            "resolution": "1920x1080",
+            "fps": 60,
+        },
+        "scenes": scenes,
+    }
+
+
+def test_research_stage_writes_docs(tmp_path, log, monkeypatch):
+    from stages.research import ResearchStage
+
+    cfg = PipelineConfig(work_dir=str(tmp_path))
+    stage = ResearchStage(cfg, log)
+    slug = safe_slug("Black-Scholes")
+
+    monkeypatch.setattr(
+        "stages.research.run_claude_json",
+        lambda **kwargs: {
+            "title": slug,
+            "research_brief": "A concise research brief.",
+            "research_markdown": "# Research\n\nGrounded notes.\n",
+            "outline_markdown": "# Outline\n\n- Act 1\n- Act 2\n- Act 3\n- Act 4\n",
+        },
+    )
+    monkeypatch.setattr(
+        stage,
+        "_collect_evidence",
+        lambda topic, queries: [
+            {"source": "wikipedia", "title": topic, "url": "https://example.com", "snippet": "Facts"}
+        ],
+    )
+
+    research_path, outline_path = stage.run("Black-Scholes")
+
+    assert research_path.exists()
+    assert outline_path.exists()
+    assert "Grounded notes" in research_path.read_text()
+    assert "Act 4" in outline_path.read_text()
+
+
+def test_script_stage_writes_both_modes(tmp_path, log, monkeypatch):
+    from stages.script import ScriptStage
+
+    cfg = PipelineConfig(work_dir=str(tmp_path))
+    stage = ScriptStage(cfg, log)
+    topic = "Black-Scholes"
+    slug = safe_slug(topic)
+    research_dir = cfg.research_dir
+    research_dir.mkdir(parents=True, exist_ok=True)
+    research_path = research_dir / f"{slug}.md"
+    outline_path = research_dir / f"{slug}-outline.md"
+    research_path.write_text("# Research\n\nNotes.\n")
+    outline_path.write_text("# Outline\n\n- Act 1\n- Act 2\n- Act 3\n- Act 4\n")
+
+    monkeypatch.setattr(stage, "_ensure_research", lambda topic, slug: (research_path, outline_path))
+    monkeypatch.setattr(
+        "stages.script.run_claude_json",
+        lambda **kwargs: _script_payload(
+            title="black-scholes-narrated" if "Target scene count: 22" in kwargs["prompt"] else "black-scholes-companion-long",
+            scene_count=3,
+        ),
+    )
+
+    outputs = stage.run(topic, mode="both")
+
+    assert len(outputs) == 2
+    assert (cfg.scripts_dir / f"{slug}-narrated.json").exists()
+    assert (cfg.scripts_dir / f"{slug}-companion-long.json").exists()
+
+
+def test_topic_all_routes_through_new_flow(tmp_path, log, monkeypatch):
+    import pipeline as pipeline_mod
+    from stages.research import ResearchStage
+    from stages.script import ScriptStage
+    from stages.render import RenderStage
+    from stages.tts import TTSStage
+    from stages.stitch import StitchStage
+    from stages.validate import ValidationStage
+
+    cfg = PipelineConfig(work_dir=str(tmp_path))
+    topic = "Black-Scholes"
+    slug = safe_slug(topic)
+    scripts_dir = cfg.scripts_dir
+    scripts_dir.mkdir(parents=True, exist_ok=True)
+
+    narrated_path = scripts_dir / f"{slug}-narrated.json"
+    companion_path = scripts_dir / f"{slug}-companion-long.json"
+    narrated_path.write_text(json.dumps(_script_payload(f"{slug}-narrated"), indent=2))
+    companion_path.write_text(json.dumps(_script_payload(f"{slug}-companion-long"), indent=2))
+
+    calls = []
+
+    monkeypatch.setattr(ResearchStage, "run", lambda self, topic: calls.append(("research", topic)) or (
+        cfg.research_dir / f"{slug}.md",
+        cfg.research_dir / f"{slug}-outline.md",
+    ))
+    monkeypatch.setattr(ScriptStage, "run", lambda self, topic, mode="both": calls.append(("script", topic, mode)) or [narrated_path, companion_path])
+    monkeypatch.setattr(RenderStage, "run", lambda self, scenes, title: calls.append(("render", title, len(scenes))))
+    monkeypatch.setattr(TTSStage, "run", lambda self, scenes, title: calls.append(("tts", title, len(scenes))))
+    monkeypatch.setattr(StitchStage, "run", lambda self, scenes, title, output_mode="narrated": calls.append(("stitch", title, output_mode, len(scenes))))
+    monkeypatch.setattr(ValidationStage, "run", lambda self, script, scenes, title: calls.append(("validate", title, len(scenes))))
+
+    pipeline_mod.run(topic, None, cfg)
+
+    assert calls[0] == ("research", topic)
+    assert calls[1] == ("script", topic, "both")
+    assert ("render", f"{slug}-narrated", 3) in calls
+    assert ("render", f"{slug}-companion-long", 3) in calls
+    assert ("tts", f"{slug}-narrated", 3) in calls
+    assert ("stitch", f"{slug}-narrated", "narrated", 3) in calls
+    assert ("stitch", f"{slug}-narrated", "companion-short", 3) in calls
+    assert ("stitch", f"{slug}-companion-long", "companion-long", 3) in calls

@@ -17,6 +17,7 @@ import re
 import urllib.request
 import urllib.error
 from config import PipelineConfig
+from stages.scene_utils import needs_draw_things
 
 
 SAFETY_KEYWORDS_MODERATE = [
@@ -43,7 +44,10 @@ class ValidationStage:
         self.log = log.getChild("validate")
 
     def run(self, script: dict, scenes: list[dict], title: str):
-        self._check_api_reachable()
+        if needs_draw_things(scenes):
+            self._check_api_reachable()
+        else:
+            self.log.info("  Skipping Draw Things API check — script uses renderer-based scenes only")
         self._check_technical(script, scenes)
         self._check_safety(scenes)
         self._check_coherence(script, scenes)
@@ -126,6 +130,8 @@ class ValidationStage:
             text = " ".join([
                 scene.get("storyboard_prompt", ""),
                 scene.get("video_prompt", ""),
+                scene.get("description", ""),
+                scene.get("narration", ""),
             ]).lower()
 
             for kw in keywords:
@@ -139,12 +145,18 @@ class ValidationStage:
     # ── Check 3: Scene Coherence ──────────────────────────────────────
 
     def _check_coherence(self, script: dict, scenes: list[dict]):
-        global_style = script.get("global_style", "").strip()
-        if not global_style:
-            raise ValidationError(
-                "Script missing 'global_style' at root level. "
-                "Add a one-sentence visual style description."
-            )
+        raw_style = script.get("global_style")
+        if isinstance(raw_style, dict):
+            if not raw_style:
+                raise ValidationError("Script 'global_style' dict is empty.")
+            global_style = " ".join(str(v) for v in raw_style.values())
+        else:
+            global_style = (raw_style or "").strip()
+            if not global_style:
+                raise ValidationError(
+                    "Script missing 'global_style' at root level. "
+                    "Add a one-sentence visual style description or dict."
+                )
 
         style_words = set(global_style.lower().split())
         for i, scene in enumerate(scenes):
@@ -242,6 +254,8 @@ class ValidationStage:
             " ".join([
                 s.get("storyboard_prompt", ""),
                 s.get("video_prompt", ""),
+                s.get("description", ""),
+                s.get("narration", ""),
                 s.get("style", ""),
             ])
             for s in scenes

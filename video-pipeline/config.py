@@ -27,10 +27,10 @@ class PipelineConfig:
     # ── Video (Wan 2.2 14B — I2V mode) ──────────────────────────────
     video_model: str = ""
     video_refiner_model: str = ""   # Low Noise Expert refiner
-    video_width: int = 1024
-    video_height: int = 576
-    video_fps: int = 24
-    video_frames: int = 81          # ~3.4 sec @ 24fps
+    video_width: int = 1920
+    video_height: int = 1080
+    video_fps: int = 60
+    video_frames: int = 81          # ~1.4 sec @ 60fps
     video_steps: int = 30
     video_cfg: float = 6.0
     video_negative: str = (
@@ -50,6 +50,8 @@ class PipelineConfig:
 
     # ── Paths ────────────────────────────────────────────────────────
     work_dir: str = "."
+    scripts_subdir: str = "scripts"
+    research_subdir: str = "research"
     frames_subdir: str = "frames"
     clips_subdir: str = "clips"
     output_subdir: str = "output"
@@ -62,6 +64,16 @@ class PipelineConfig:
     # ── Renderers ────────────────────────────────────────────────────
     claude_model: str = "claude-sonnet-4-6"
     renderer_max_retries: int = 3
+    render_workers: int = 1
+
+    # ── TTS (Kokoro) ─────────────────────────────────────────────────
+    tts_enabled: bool = True
+    tts_voice: str = "af_heart"
+    tts_speed: float = 1.0
+    tts_sample_rate: int = 24000
+
+    # ── Output modes ────────────────────────────────────────────────
+    output_mode: str = "narrated"   # narrated | companion-short | companion-long
 
     # ── AnimateDiff (Sub-project 3) ──────────────────────────────────
     animatediff_checkpoint: str = "frankjoshua/toonyou_beta6"
@@ -71,7 +83,7 @@ class PipelineConfig:
     # ── Validation ───────────────────────────────────────────────────
     content_safety: str = "strict"  # "strict" | "moderate" | "off"
     min_scenes: int = 3
-    max_scenes: int = 20
+    max_scenes: int = 50
 
     # ────────────────────────────────────────────────────────────────
     @property
@@ -89,6 +101,14 @@ class PipelineConfig:
     @property
     def log_dir(self) -> Path:
         return Path(self.work_dir) / self.log_subdir
+
+    @property
+    def scripts_dir(self) -> Path:
+        return Path(self.work_dir) / self.scripts_subdir
+
+    @property
+    def research_dir(self) -> Path:
+        return Path(self.work_dir) / self.research_subdir
 
     @classmethod
     def from_file(cls, path: Path) -> "PipelineConfig":

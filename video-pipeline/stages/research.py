@@ -68,55 +68,30 @@ class ResearchStage:
             "additionalProperties": False,
         }
 
-        if self.cfg.llm_provider == "claude":
-            # Claude CLI: search + synthesize in one call using WebSearch tool
-            try:
-                self.log.info("  Using Claude CLI with WebSearch for research")
-                prompt = self._build_claude_research_prompt(topic, slug, queries)
-                result = run_claude_research(
-                    prompt=prompt,
-                    model=self.cfg.llm_model_name(),
-                    system_prompt=self._system_prompt(),
-                    schema=schema,
-                    timeout=300,
-                )
-                research_markdown = self._normalize_markdown(
-                    result.get("research_markdown") or result.get("research_brief") or ""
-                )
-                outline_markdown = self._normalize_markdown(
-                    result.get("outline_markdown") or result.get("research_markdown") or ""
-                )
-            except Exception as exc:
-                self.log.warning(f"  Claude CLI research failed ({exc}); using structured fallback")
-        else:
-            # LM Studio: collect evidence via HTTP, then synthesize
-            evidence = self._collect_evidence(title, queries)
-            self.log.info(f"  Collected {len(evidence)} evidence snippets from {len(queries)} queries")
-            try:
-                prompt = self._build_prompt(topic, slug, queries, evidence)
-                result = run_claude_json(
-                    prompt=prompt,
-                    model=self.cfg.llm_model_name(),
-                    system_prompt=self._system_prompt(),
-                    schema=schema,
-                    provider=self.cfg.llm_provider,
-                    base_url=self.cfg.lmstudio_base_url,
-                    api_key=self.cfg.lmstudio_api_key,
-                    timeout=180,
-                )
-                research_markdown = self._normalize_markdown(
-                    result.get("research_markdown") or result.get("research_brief") or ""
-                )
-                outline_markdown = self._normalize_markdown(
-                    result.get("outline_markdown") or result.get("research_markdown") or ""
-                )
-            except Exception as exc:
-                self.log.warning(f"  Research LLM failed ({exc}); using structured fallback")
+        # Research always uses Claude CLI with WebSearch regardless of llm_provider
+        try:
+            self.log.info("  Using Claude CLI with WebSearch for research")
+            prompt = self._build_claude_research_prompt(topic, slug, queries)
+            result = run_claude_research(
+                prompt=prompt,
+                model=self.cfg.claude_model,
+                system_prompt=self._system_prompt(),
+                schema=schema,
+                timeout=300,
+            )
+            research_markdown = self._normalize_markdown(
+                result.get("research_markdown") or result.get("research_brief") or ""
+            )
+            outline_markdown = self._normalize_markdown(
+                result.get("outline_markdown") or result.get("research_markdown") or ""
+            )
+        except Exception as exc:
+            self.log.warning(f"  Claude CLI research failed ({exc}); using structured fallback")
 
         if not research_markdown.strip():
-            research_markdown = self._fallback_research_markdown(topic, title, queries, evidence)
+            research_markdown = self._fallback_research_markdown(topic, title, queries, [])
         if not outline_markdown.strip():
-            outline_markdown = self._fallback_outline_markdown(topic, title, queries, evidence)
+            outline_markdown = self._fallback_outline_markdown(topic, title, queries, [])
 
         research_path.write_text(research_markdown.rstrip() + "\n")
         outline_path.write_text(outline_markdown.rstrip() + "\n")

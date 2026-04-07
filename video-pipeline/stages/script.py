@@ -110,8 +110,35 @@ class ScriptStage:
 
         preferred_renderer = self._suggest_renderer(topic, research_text, outline_text)
 
-        if isinstance(topic, dict):
-            self.log.info("  Structured topic document — using deterministic script generator")
+        prompt = self._build_prompt(
+            topic=topic,
+            slug=slug,
+            mode=mode,
+            acts=acts,
+            scene_count=scene_count,
+            duration_target=duration_target,
+            preferred_renderer=preferred_renderer,
+            research_text=research_text,
+            outline_text=outline_text,
+        )
+        schema = self._schema(scene_count)
+        try:
+            result = run_claude_json(
+                prompt=prompt,
+                model=self.cfg.llm_model_name(),
+                system_prompt=self._system_prompt(),
+                schema=schema,
+                provider=self.cfg.llm_provider,
+                base_url=self.cfg.lmstudio_base_url,
+                api_key=self.cfg.lmstudio_api_key,
+                timeout=180,
+                max_tokens=scene_count * 1500,
+            )
+
+            script = self._normalize_script(result)
+            script = self._ensure_primary_renderer(script, preferred_renderer)
+        except (ClaudeCLIError, ValueError, TimeoutError) as exc:
+            self.log.warning(f"  Script LLM failed ({exc}); using deterministic fallback script")
             script = self._fallback_script(
                 topic=topic,
                 slug=slug,
@@ -120,44 +147,6 @@ class ScriptStage:
                 research_text=research_text,
                 outline_text=outline_text,
             )
-        else:
-            prompt = self._build_prompt(
-                topic=topic,
-                slug=slug,
-                mode=mode,
-                acts=acts,
-                scene_count=scene_count,
-                duration_target=duration_target,
-                preferred_renderer=preferred_renderer,
-                research_text=research_text,
-                outline_text=outline_text,
-            )
-            schema = self._schema(scene_count)
-            try:
-                result = run_claude_json(
-                    prompt=prompt,
-                    model=self.cfg.llm_model_name(),
-                    system_prompt=self._system_prompt(),
-                    schema=schema,
-                    provider=self.cfg.llm_provider,
-                    base_url=self.cfg.lmstudio_base_url,
-                    api_key=self.cfg.lmstudio_api_key,
-                    timeout=180,
-                    max_tokens=scene_count * 1500,
-                )
-
-                script = self._normalize_script(result)
-                script = self._ensure_primary_renderer(script, preferred_renderer)
-            except (ClaudeCLIError, ValueError, TimeoutError) as exc:
-                self.log.warning(f"  Script LLM failed ({exc}); using deterministic fallback script")
-                script = self._fallback_script(
-                    topic=topic,
-                    slug=slug,
-                    mode=mode,
-                    preferred_renderer=preferred_renderer,
-                    research_text=research_text,
-                    outline_text=outline_text,
-                )
         script_path.write_text(json.dumps(script, indent=2, ensure_ascii=False) + "\n")
         meta_path.write_text(
             json.dumps(
@@ -493,12 +482,11 @@ Rules:
 - Choose one `primary_renderer` for the movie based on the topic and research.
 - Pick the best renderer per scene based on the topic and research.
 - Preferred renderer for this topic: "{preferred_renderer}".
-- Use "manim" for mathematical, diagrammatic, or derivation-heavy scenes.
-- Use "slides" for text-forward summaries, comparisons, or checklist scenes.
-- Use "d3" for chart-centric, data-centric, or statistical scenes.
-- Use "html_anim" for web-style interactions or UI-like scenes.
-- Use "animatediff" only for cinematic or character-driven legacy scenes.
-- If a chosen renderer is not implemented in this repo, the renderer stage will fall back to "manim".
+- Valid renderers are ONLY: "manim", "motion-canvas", "d3". Do not use any other value.
+- Use "manim" for equations, curves, payoff diagrams, axes plots, mathematical proofs, probability distributions.
+- Use "motion-canvas" for step-by-step concept walkthroughs, text-driven explainers, animated cards, story panels, formula builds.
+- Use "d3" for data charts, bar charts, time-series, multi-panel financial dashboards, tables with animation, comparison panels.
+- Mix all three renderers across the scenes to give the video visual variety.
 - The global_style object must use this contract:
   background #0d1117, primary #FFD700, danger #FF4444, success #00C896,
   text #FFFFFF, muted #8B949E, font "JetBrains Mono",
@@ -524,23 +512,15 @@ Rules:
         haystack = " ".join([topic_context_json(topic), research_text[:4000], outline_text[:2000]]).lower()
 
         if any(word in haystack for word in [
-            "chart", "graph", "trend", "distribution", "histogram", "scatter", "bar chart", "data"
+            "chart", "graph", "trend", "distribution", "histogram", "scatter", "bar chart", "data",
+            "dashboard", "table", "comparison", "panel",
         ]):
             return "d3"
 
         if any(word in haystack for word in [
-            "slide", "presentation", "bullet", "checklist", "comparison", "table", "summary"
+            "slide", "presentation", "bullet", "checklist", "summary", "walkthrough", "explainer",
+            "story", "narrative", "step-by-step",
         ]):
-            return "slides"
-
-        if any(word in haystack for word in [
-            "interface", "ui", "dashboard", "interactive", "web", "browser", "click"
-        ]):
-            return "html_anim"
-
-        if any(word in haystack for word in [
-            "story", "narrative", "character", "cinematic", "scene", "dialogue"
-        ]):
-            return "animatediff"
+            return "motion-canvas"
 
         return "manim"

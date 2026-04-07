@@ -28,7 +28,7 @@ def run_claude_research(
     cmd = [
         "claude",
         "--print",
-        "--output-format", "json",
+        "--output-format", "text",
         "--model", model,
         "--system-prompt", system_prompt,
         "--allowedTools", "WebSearch",

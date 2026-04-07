@@ -8,11 +8,12 @@ Each renderer module must expose:
 # Registry of all known renderer names → module paths.
 # Implemented renderers should import cleanly; missing ones raise ModuleNotFoundError.
 RENDERERS: dict[str, str] = {
-    "manim":        "stages.renderers.manim",
-    "html_anim":    "stages.renderers.html_anim",
-    "d3":           "stages.renderers.d3",
-    "animatediff":  "stages.renderers.animatediff",
-    "slides":       "stages.renderers.slides",
+    "manim":          "stages.renderers.manim",
+    "motion-canvas":  "stages.renderers.slides",   # slides is the closest text/card renderer
+    "d3":             "stages.renderers.d3",
+    "html_anim":      "stages.renderers.html_anim",
+    "animatediff":    "stages.renderers.animatediff",
+    "slides":         "stages.renderers.slides",
 }
 
 

@@ -26,6 +26,8 @@ if [[ -z "$PYTHON_BIN" ]]; then
   fi
 fi
 
+echo "Using Python: $PYTHON_BIN" >&2
+
 usage() {
   cat <<'EOF'
 Usage:

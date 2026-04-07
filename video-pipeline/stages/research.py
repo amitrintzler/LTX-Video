@@ -53,58 +53,63 @@ class ResearchStage:
                 return research_path, outline_path
 
         queries = self._build_queries(topic)
-        evidence = self._collect_evidence(title, queries)
-        self.log.info(f"  Collected {len(evidence)} evidence snippets from {len(queries)} queries")
-
-        if not evidence:
-            self.log.warning("  No live evidence found — using structured topic fallback")
-            research_markdown = self._fallback_research_markdown(topic, title, queries, evidence)
-            outline_markdown = self._fallback_outline_markdown(topic, title, queries, evidence)
+        if isinstance(topic, dict):
+            self.log.info("  Structured topic document — using deterministic research fallback")
+            research_markdown = self._fallback_research_markdown(topic, title, queries, [])
+            outline_markdown = self._fallback_outline_markdown(topic, title, queries, [])
         else:
-            prompt = self._build_prompt(topic, slug, queries, evidence)
-            schema = {
-                "type": "object",
-                "properties": {
-                    "title": {"type": "string"},
-                    "research_brief": {"type": "string"},
-                    "research_markdown": {"type": "string"},
-                    "outline_markdown": {"type": "string"},
-                },
-                "required": [
-                    "title",
-                    "research_brief",
-                    "research_markdown",
-                    "outline_markdown",
-                ],
-                "additionalProperties": False,
-            }
-            result = run_claude_json(
-                prompt=prompt,
-                model=self.cfg.llm_model_name(),
-                system_prompt=self._system_prompt(),
-                schema=schema,
-                provider=self.cfg.llm_provider,
-                base_url=self.cfg.lmstudio_base_url,
-                api_key=self.cfg.lmstudio_api_key,
-                timeout=900,
-            )
+            evidence = self._collect_evidence(title, queries)
+            self.log.info(f"  Collected {len(evidence)} evidence snippets from {len(queries)} queries")
 
-            research_markdown = self._normalize_markdown(
-                result.get("research_markdown")
-                or result.get("research_brief")
-                or ""
-            )
-            outline_markdown = self._normalize_markdown(
-                result.get("outline_markdown")
-                or result.get("research_markdown")
-                or result.get("research_brief")
-                or ""
-            )
-
-            if not research_markdown.strip():
+            if not evidence:
+                self.log.warning("  No live evidence found — using structured topic fallback")
                 research_markdown = self._fallback_research_markdown(topic, title, queries, evidence)
-            if not outline_markdown.strip():
                 outline_markdown = self._fallback_outline_markdown(topic, title, queries, evidence)
+            else:
+                prompt = self._build_prompt(topic, slug, queries, evidence)
+                schema = {
+                    "type": "object",
+                    "properties": {
+                        "title": {"type": "string"},
+                        "research_brief": {"type": "string"},
+                        "research_markdown": {"type": "string"},
+                        "outline_markdown": {"type": "string"},
+                    },
+                    "required": [
+                        "title",
+                        "research_brief",
+                        "research_markdown",
+                        "outline_markdown",
+                    ],
+                    "additionalProperties": False,
+                }
+                result = run_claude_json(
+                    prompt=prompt,
+                    model=self.cfg.llm_model_name(),
+                    system_prompt=self._system_prompt(),
+                    schema=schema,
+                    provider=self.cfg.llm_provider,
+                    base_url=self.cfg.lmstudio_base_url,
+                    api_key=self.cfg.lmstudio_api_key,
+                    timeout=180,
+                )
+
+                research_markdown = self._normalize_markdown(
+                    result.get("research_markdown")
+                    or result.get("research_brief")
+                    or ""
+                )
+                outline_markdown = self._normalize_markdown(
+                    result.get("outline_markdown")
+                    or result.get("research_markdown")
+                    or result.get("research_brief")
+                    or ""
+                )
+
+                if not research_markdown.strip():
+                    research_markdown = self._fallback_research_markdown(topic, title, queries, evidence)
+                if not outline_markdown.strip():
+                    outline_markdown = self._fallback_outline_markdown(topic, title, queries, evidence)
 
         research_path.write_text(research_markdown.rstrip() + "\n")
         outline_path.write_text(outline_markdown.rstrip() + "\n")

@@ -1,6 +1,6 @@
 # AI Video Pipeline — Research-first multi-renderer + Kokoro TTS
 
-End-to-end pipeline: **topic → final video**. Runs locally on your Mac. The script stage chooses a renderer from the topic and research, with `manim`, `slides`, `html_anim`, `d3`, and `animatediff` implemented today.
+End-to-end pipeline: **topic document or topic string → final video**. Runs locally on your Mac. The script stage chooses a renderer from the topic and research, with `manim`, `slides`, `html_anim`, `d3`, and `animatediff` implemented today.
 
 Reference output: **black-scholes-narrated.mp4** — research-backed topic script rendered with Manim and stitched with local TTS.
 
@@ -78,7 +78,7 @@ That runs the full pipeline in one go.
 
 ### Run from another repo
 
-Use the launcher in [`scripts/run_video_pipeline.sh`](/Users/amitri/Projects/LTX-Video/scripts/run_video_pipeline.sh) when the script JSON lives in a different project:
+Use the launcher in [`scripts/run_video_pipeline.sh`](/Users/amitri/Projects/LTX-Video/scripts/run_video_pipeline.sh) when the topic JSON lives in a different project:
 
 ```bash
 /Users/amitri/Projects/LTX-Video/scripts/run_video_pipeline.sh "Black-Scholes options pricing"
@@ -88,6 +88,12 @@ By default, outputs go to your current directory. Override that with `--work-dir
 
 ```bash
 /Users/amitri/Projects/LTX-Video/scripts/run_video_pipeline.sh "Black-Scholes options pricing" --work-dir /Users/amitri/Projects/other-repo --stage all
+```
+
+You can also pass a structured topic JSON file produced by the lesson repo:
+
+```bash
+/Users/amitri/Projects/LTX-Video/scripts/run_video_pipeline.sh /Users/amitri/Projects/optionseducator/scripts/video-topics/.runtime/black-scholes-pricing.json --work-dir /Users/amitri/Projects/other-repo --stage all
 ```
 
 ### Stage by stage

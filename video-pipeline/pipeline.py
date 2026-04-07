@@ -26,7 +26,8 @@ from stages.render import RenderStage
 from stages.stitch import StitchStage
 from stages.tts import TTSStage
 from stages.validate import ValidationStage
-from stages.scene_utils import needs_draw_things, safe_slug
+from stages.scene_utils import needs_draw_things
+from stages.topic_utils import is_topic_document, topic_slug, topic_title
 
 
 def setup_logging(log_dir: Path) -> logging.Logger:
@@ -67,8 +68,8 @@ def _infer_output_mode(script: dict, script_path: Optional[Path], cfg: PipelineC
     return cfg.output_mode
 
 
-def _script_paths_for_topic(cfg: PipelineConfig, topic: str, mode: str) -> list[Path]:
-    slug = safe_slug(topic)
+def _script_paths_for_topic(cfg: PipelineConfig, topic: str | dict, mode: str) -> list[Path]:
+    slug = topic_slug(topic)
     modes = ["narrated", "companion-long"] if mode == "both" else [mode]
     paths = [cfg.scripts_dir / f"{slug}-{current_mode}.json" for current_mode in modes]
     missing = [p for p in paths if not p.exists()]
@@ -178,7 +179,7 @@ def _run_new_pipeline_for_script(
 def _run_topic_pipeline(
     log: logging.Logger,
     cfg: PipelineConfig,
-    topic: str,
+    topic: str | dict,
     stage: Optional[str],
     skip_validation: bool,
     script_mode: str,
@@ -194,7 +195,6 @@ def _run_topic_pipeline(
         "all": ["research", "script", "render", "tts", "stitch"],
     }.get(stage, [stage])
 
-    title = topic
     if "research" in stages_to_run:
         log.info("━━━ Research stage ━━━")
         ResearchStage(cfg, log).run(topic)
@@ -247,7 +247,27 @@ def run(
 
     if _is_existing_file(input_ref):
         script_path = Path(input_ref)
-        script = load_json(script_path)
+        payload = load_json(script_path)
+        if isinstance(payload, dict) and is_topic_document(payload):
+            topic = payload
+            title = topic_title(topic)
+            log.info(f"Topic: '{title}' — structured topic document")
+
+            if stage == "validate":
+                raise ValueError("validate stage expects a script JSON path, not a topic")
+
+            _run_topic_pipeline(
+                log,
+                cfg,
+                topic,
+                stage,
+                skip_validation,
+                script_mode,
+            )
+            log.info("✅ Pipeline complete.")
+            return
+
+        script = payload
         title = script.get("title", "untitled")
         scenes = script["scenes"]
         log.info(f"Project: '{title}' — {len(scenes)} scenes")

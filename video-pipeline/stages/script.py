@@ -110,34 +110,8 @@ class ScriptStage:
 
         preferred_renderer = self._suggest_renderer(topic, research_text, outline_text)
 
-        prompt = self._build_prompt(
-            topic=topic,
-            slug=slug,
-            mode=mode,
-            acts=acts,
-            scene_count=scene_count,
-            duration_target=duration_target,
-            preferred_renderer=preferred_renderer,
-            research_text=research_text,
-            outline_text=outline_text,
-        )
-        schema = self._schema(scene_count)
-        try:
-            result = run_claude_json(
-                prompt=prompt,
-                model=self.cfg.llm_model_name(),
-                system_prompt=self._system_prompt(),
-                schema=schema,
-                provider=self.cfg.llm_provider,
-                base_url=self.cfg.lmstudio_base_url,
-                api_key=self.cfg.lmstudio_api_key,
-                timeout=1800,
-            )
-
-            script = self._normalize_script(result)
-            script = self._ensure_primary_renderer(script, preferred_renderer)
-        except (ClaudeCLIError, ValueError, TimeoutError) as exc:
-            self.log.warning(f"  Script LLM failed ({exc}); using deterministic fallback script")
+        if isinstance(topic, dict):
+            self.log.info("  Structured topic document — using deterministic script generator")
             script = self._fallback_script(
                 topic=topic,
                 slug=slug,
@@ -146,6 +120,43 @@ class ScriptStage:
                 research_text=research_text,
                 outline_text=outline_text,
             )
+        else:
+            prompt = self._build_prompt(
+                topic=topic,
+                slug=slug,
+                mode=mode,
+                acts=acts,
+                scene_count=scene_count,
+                duration_target=duration_target,
+                preferred_renderer=preferred_renderer,
+                research_text=research_text,
+                outline_text=outline_text,
+            )
+            schema = self._schema(scene_count)
+            try:
+                result = run_claude_json(
+                    prompt=prompt,
+                    model=self.cfg.llm_model_name(),
+                    system_prompt=self._system_prompt(),
+                    schema=schema,
+                    provider=self.cfg.llm_provider,
+                    base_url=self.cfg.lmstudio_base_url,
+                    api_key=self.cfg.lmstudio_api_key,
+                    timeout=180,
+                )
+
+                script = self._normalize_script(result)
+                script = self._ensure_primary_renderer(script, preferred_renderer)
+            except (ClaudeCLIError, ValueError, TimeoutError) as exc:
+                self.log.warning(f"  Script LLM failed ({exc}); using deterministic fallback script")
+                script = self._fallback_script(
+                    topic=topic,
+                    slug=slug,
+                    mode=mode,
+                    preferred_renderer=preferred_renderer,
+                    research_text=research_text,
+                    outline_text=outline_text,
+                )
         script_path.write_text(json.dumps(script, indent=2, ensure_ascii=False) + "\n")
         meta_path.write_text(
             json.dumps(

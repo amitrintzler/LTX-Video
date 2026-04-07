@@ -123,15 +123,14 @@ class ScriptStage:
         )
         schema = self._schema(scene_count)
         try:
+            # Script generation always uses Claude CLI regardless of llm_provider
             result = run_claude_json(
                 prompt=prompt,
-                model=self.cfg.llm_model_name(),
+                model=self.cfg.claude_model,
                 system_prompt=self._system_prompt(),
                 schema=schema,
-                provider=self.cfg.llm_provider,
-                base_url=self.cfg.lmstudio_base_url,
-                api_key=self.cfg.lmstudio_api_key,
-                timeout=180,
+                provider="claude",
+                timeout=600,
                 max_tokens=scene_count * 1500,
             )
 

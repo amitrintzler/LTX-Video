@@ -13,7 +13,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from config import PipelineConfig
 from stages.scene_utils import safe_slug
-from stages.topic_utils import topic_signature
+from stages.topic_utils import topic_signature, topic_slug
 
 
 @pytest.fixture
@@ -254,6 +254,36 @@ def test_script_stage_normalizes_wrapped_cache(tmp_path, log, monkeypatch):
     assert "structured_output" not in saved
     assert saved["title"] == "black-scholes-narrated"
     assert isinstance(saved["scenes"], list)
+
+
+def test_script_stage_falls_back_when_llm_fails(tmp_path, log, monkeypatch):
+    from stages.script import ScriptStage
+    from stages.claude_client import ClaudeCLIError
+
+    cfg = PipelineConfig(work_dir=str(tmp_path))
+    stage = ScriptStage(cfg, log)
+    topic = _topic_payload("Basics Flow")
+    slug = topic_slug(topic)
+    research_dir = cfg.research_dir
+    research_dir.mkdir(parents=True, exist_ok=True)
+    research_path = research_dir / f"{slug}.md"
+    outline_path = research_dir / f"{slug}-outline.md"
+    research_path.write_text("# Research\n\nCore lesson notes.\n")
+    outline_path.write_text("# Outline\n\n- Act 1\n- Act 2\n- Act 3\n- Act 4\n")
+
+    monkeypatch.setattr(stage, "_ensure_research", lambda topic, slug: (research_path, outline_path))
+    monkeypatch.setattr(
+        "stages.script.run_claude_json",
+        lambda **kwargs: (_ for _ in ()).throw(ClaudeCLIError("LLM backend did not return valid JSON")),
+    )
+
+    outputs = stage.run(topic, mode="narrated")
+
+    assert len(outputs) == 1
+    script = json.loads(outputs[0].read_text())
+    assert script["title"] == f"{slug}-narrated"
+    assert script["primary_renderer"] in {"manim", "slides", "html_anim", "d3"}
+    assert len(script["scenes"]) >= 3
 
 
 def test_topic_all_routes_through_new_flow(tmp_path, log, monkeypatch):

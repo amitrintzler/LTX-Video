@@ -190,6 +190,8 @@ def _run_lmstudio(
         "temperature": 0.0 if json_schema is not None else 0.2,
     }
     if json_schema is not None:
+        body["max_tokens"] = 8192
+    if json_schema is not None:
         body["response_format"] = {
             "type": "json_schema",
             "json_schema": {

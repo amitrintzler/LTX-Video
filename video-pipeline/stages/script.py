@@ -4,15 +4,22 @@ stages/script.py — Generate narrated and companion-long scene scripts.
 
 from __future__ import annotations
 
+import hashlib
 import json
 import logging
 from pathlib import Path
 from typing import Optional
 
 from config import PipelineConfig
-from stages.claude_client import run_claude_json
+from stages.claude_client import ClaudeCLIError, run_claude_json
 from stages.research import ResearchStage
-from stages.scene_utils import safe_slug
+from stages.topic_utils import (
+    TopicInput,
+    topic_context_json,
+    topic_signature,
+    topic_slug,
+    topic_title,
+)
 
 
 class ScriptStage:
@@ -20,8 +27,8 @@ class ScriptStage:
         self.cfg = cfg
         self.log = log.getChild("script")
 
-    def run(self, topic: str, mode: str = "both") -> list[Path]:
-        slug = safe_slug(topic)
+    def run(self, topic: TopicInput, mode: str = "both") -> list[Path]:
+        slug = topic_slug(topic)
         research_path, outline_path = self._ensure_research(topic, slug)
 
         modes = self._normalize_modes(mode)
@@ -30,12 +37,18 @@ class ScriptStage:
             outputs.append(self._generate_script(topic, slug, current_mode, research_path, outline_path))
         return outputs
 
-    def _ensure_research(self, topic: str, slug: str) -> tuple[Path, Path]:
+    def _ensure_research(self, topic: TopicInput, slug: str) -> tuple[Path, Path]:
         research_dir = self.cfg.research_dir
         research_path = research_dir / f"{slug}.md"
         outline_path = research_dir / f"{slug}-outline.md"
-        if research_path.exists() and outline_path.exists():
-            return research_path, outline_path
+        meta_path = research_dir / f"{slug}.meta.json"
+        if research_path.exists() and outline_path.exists() and meta_path.exists():
+            try:
+                meta = json.loads(meta_path.read_text())
+            except json.JSONDecodeError:
+                meta = {}
+            if isinstance(meta, dict) and meta.get("topic_signature") == topic_signature(topic):
+                return research_path, outline_path
         self.log.info("  Research docs missing — generating them first")
         return ResearchStage(self.cfg, self.log).run(topic)
 
@@ -48,7 +61,7 @@ class ScriptStage:
 
     def _generate_script(
         self,
-        topic: str,
+        topic: TopicInput,
         slug: str,
         mode: str,
         research_path: Path,
@@ -64,23 +77,37 @@ class ScriptStage:
             acts = "Acts 1-4"
 
         script_path = self.cfg.scripts_dir / f"{slug}-{mode}.json"
+        meta_path = self.cfg.scripts_dir / f"{slug}-{mode}.meta.json"
         self.cfg.scripts_dir.mkdir(parents=True, exist_ok=True)
-
-        if script_path.exists():
-            existing = self._load_existing_script(script_path)
-            if existing is not None:
-                if self._is_valid_script(existing):
-                    self.log.info(f"  Reusing existing script -> {script_path}")
-                    return script_path
-                if self._is_valid_script(existing.get("structured_output")):
-                    normalized = existing["structured_output"]
-                    script_path.write_text(json.dumps(normalized, indent=2, ensure_ascii=False) + "\n")
-                    self.log.warning(f"  Normalized wrapped script -> {script_path}")
-                    return script_path
-            self.log.warning(f"  Existing script is invalid, regenerating -> {script_path}")
 
         research_text = research_path.read_text()
         outline_text = outline_path.read_text()
+        research_signature = self._research_signature(research_text, outline_text)
+        current_topic_signature = topic_signature(topic)
+
+        if script_path.exists():
+            if meta_path.exists():
+                try:
+                    meta = json.loads(meta_path.read_text())
+                except json.JSONDecodeError:
+                    meta = {}
+                if (
+                    isinstance(meta, dict)
+                    and meta.get("topic_signature") == current_topic_signature
+                    and meta.get("research_signature") == research_signature
+                ):
+                    existing = self._load_existing_script(script_path)
+                    if existing is not None:
+                        if self._is_valid_script(existing):
+                            self.log.info(f"  Reusing existing script -> {script_path}")
+                            return script_path
+                        if self._is_valid_script(existing.get("structured_output")):
+                            normalized = existing["structured_output"]
+                            script_path.write_text(json.dumps(normalized, indent=2, ensure_ascii=False) + "\n")
+                            self.log.warning(f"  Normalized wrapped script -> {script_path}")
+                            return script_path
+            self.log.warning(f"  Existing script is invalid, regenerating -> {script_path}")
+
         preferred_renderer = self._suggest_renderer(topic, research_text, outline_text)
 
         prompt = self._build_prompt(
@@ -95,20 +122,43 @@ class ScriptStage:
             outline_text=outline_text,
         )
         schema = self._schema(scene_count)
-        result = run_claude_json(
-            prompt=prompt,
-            model=self.cfg.llm_model_name(),
-            system_prompt=self._system_prompt(),
-            schema=schema,
-            provider=self.cfg.llm_provider,
-            base_url=self.cfg.lmstudio_base_url,
-            api_key=self.cfg.lmstudio_api_key,
-            timeout=1800,
-        )
+        try:
+            result = run_claude_json(
+                prompt=prompt,
+                model=self.cfg.llm_model_name(),
+                system_prompt=self._system_prompt(),
+                schema=schema,
+                provider=self.cfg.llm_provider,
+                base_url=self.cfg.lmstudio_base_url,
+                api_key=self.cfg.lmstudio_api_key,
+                timeout=1800,
+            )
 
-        script = self._normalize_script(result)
-        script = self._ensure_primary_renderer(script, preferred_renderer)
+            script = self._normalize_script(result)
+            script = self._ensure_primary_renderer(script, preferred_renderer)
+        except (ClaudeCLIError, ValueError, TimeoutError) as exc:
+            self.log.warning(f"  Script LLM failed ({exc}); using deterministic fallback script")
+            script = self._fallback_script(
+                topic=topic,
+                slug=slug,
+                mode=mode,
+                preferred_renderer=preferred_renderer,
+                research_text=research_text,
+                outline_text=outline_text,
+            )
         script_path.write_text(json.dumps(script, indent=2, ensure_ascii=False) + "\n")
+        meta_path.write_text(
+            json.dumps(
+                {
+                    "topic_signature": current_topic_signature,
+                    "research_signature": research_signature,
+                    "topic_title": topic_title(topic),
+                },
+                indent=2,
+                ensure_ascii=False,
+            )
+            + "\n"
+        )
         self.log.info(f"  Script saved -> {script_path}")
         return script_path
 
@@ -153,6 +203,169 @@ class ScriptStage:
                     normalized_scenes.append(scene)
             script["scenes"] = normalized_scenes
         return script
+
+    def _fallback_script(
+        self,
+        *,
+        topic: TopicInput,
+        slug: str,
+        mode: str,
+        preferred_renderer: str,
+        research_text: str,
+        outline_text: str,
+    ) -> dict:
+        title = f"{slug}-{mode}"
+        topic_name = topic_title(topic)
+        primary_renderer = preferred_renderer if preferred_renderer != "animatediff" else "manim"
+        if primary_renderer not in {"manim", "slides", "html_anim", "d3"}:
+            primary_renderer = "manim"
+
+        scene_specs = self._fallback_scene_specs(topic, topic_name, research_text, outline_text, mode)
+        scenes = []
+        for idx, (scene_title, narration, description) in enumerate(scene_specs, start=1):
+            scenes.append(
+                {
+                    "id": f"s{idx:02d}",
+                    "renderer": primary_renderer,
+                    "title": scene_title,
+                    "duration_sec": 12 if mode == "narrated" else 14,
+                    "narration": narration,
+                    "description": description,
+                    "style": "dark background #0d1117, primary #FFD700, success #00C896, text #FFFFFF",
+                }
+            )
+
+        brief = self._fallback_brief(topic, topic_name, research_text, outline_text)
+        return {
+            "title": title,
+            "brief": brief,
+            "research_brief": brief,
+            "primary_renderer": primary_renderer,
+            "global_style": {
+                "background": "#0d1117",
+                "primary": "#FFD700",
+                "danger": "#FF4444",
+                "success": "#00C896",
+                "text": "#FFFFFF",
+                "muted": "#8B949E",
+                "font": "JetBrains Mono",
+                "transition": "fade_black_0.3s",
+                "resolution": "1920x1080",
+                "fps": 60,
+            },
+            "scenes": scenes,
+        }
+
+    def _fallback_scene_specs(
+        self,
+        topic: TopicInput,
+        topic_name: str,
+        research_text: str,
+        outline_text: str,
+        mode: str,
+    ) -> list[tuple[str, str, str]]:
+        topic_text = topic_context_json(topic)
+        key_terms = self._topic_list_from_topic(topic, "key_terms")
+        visual_hooks = self._topic_list_from_topic(topic, "visual_hooks")
+        misconceptions = self._topic_list_from_topic(topic, "misconceptions")
+        teaching_notes = self._topic_notes(topic)
+
+        specs = [
+            (
+                "Hook",
+                f"Open with the central idea behind {topic_name} and why it matters.",
+                f"Use a bold opening frame for {topic_name}. Introduce the main concept, the audience promise, and a visual hook. Keep the motion simple and explicit so the lesson starts with a clear question and a clear payoff. Topic context: {topic_text[:220]}.",
+            ),
+            (
+                "Core Idea",
+                "Define the key terms and the basic mechanism.",
+                f"Explain the main mechanism step by step using one central visual idea. Call out the key terms {', '.join(key_terms[:3]) if key_terms else 'from the topic document'}. Show the structure first, then the relationship, then the consequence.",
+            ),
+            (
+                "Visual Intuition",
+                "Translate the idea into a concrete visual system.",
+                f"Turn the topic into a diagram, flow, or timeline that the viewer can follow. If the topic includes visual hooks such as {', '.join(visual_hooks[:3]) if visual_hooks else 'diagram, comparison, or process visuals'}, center the scene around them. The viewer should be able to point at the exact moving pieces.",
+            ),
+            (
+                "Worked Example",
+                "Walk through one concrete example or calculation.",
+                "Use a single example that makes the topic feel tangible. Show the inputs, the transformation, and the output in order. Keep every visual label explicit and avoid vague abstractions.",
+            ),
+            (
+                "Misconceptions",
+                "Correct the common mistakes and edge cases.",
+                f"Call out the most likely misunderstandings, especially {', '.join(misconceptions[:3]) if misconceptions else 'common beginner mistakes'}. Show what the viewer might assume, then show the corrected version. Keep the correction calm and precise.",
+            ),
+            (
+                "Summary",
+                "Close with the main takeaway and next step.",
+                f"Summarize the lesson and connect it back to the teaching notes. {' '.join(teaching_notes[:2]) if teaching_notes else 'End with a practical summary that reinforces the core idea.'}",
+            ),
+        ]
+
+        if mode == "companion-long":
+            specs.insert(
+                3,
+                (
+                    "Context",
+                    "Add the background and why the topic developed this way.",
+                    f"Place {topic_name} in context using the research and outline. Explain the historical or practical reason it exists, and why the structure matters before the example appears.",
+                ),
+            )
+            specs.append(
+                (
+                    "Applications",
+                    "Show where the idea is used in practice.",
+                    f"Connect the lesson to real-world use, practice, or implementation. Reference the research text and outline in one clear sentence: {research_text[:180].strip() or topic_name}.",
+                )
+            )
+
+        return specs
+
+    def _fallback_brief(
+        self,
+        topic: TopicInput,
+        topic_name: str,
+        research_text: str,
+        outline_text: str,
+    ) -> str:
+        if isinstance(topic, dict):
+            brief = str(topic.get("brief") or topic.get("prompt_summary") or "").strip()
+            if brief:
+                return brief
+            description = str(topic.get("description") or "").strip()
+            if description:
+                return description
+        for text in (research_text, outline_text):
+            cleaned = " ".join(text.split()).strip()
+            if cleaned:
+                return cleaned[:240]
+        return f"A topic-driven lesson on {topic_name}."
+
+    @staticmethod
+    def _topic_notes(topic: TopicInput) -> list[str]:
+        if not isinstance(topic, dict):
+            return []
+        notes = topic.get("teaching_notes")
+        if not isinstance(notes, dict):
+            return []
+        values = []
+        for key in ("opener", "explanation", "practice", "close"):
+            value = notes.get(key)
+            if isinstance(value, str) and value.strip():
+                values.append(value.strip())
+        return values
+
+    @staticmethod
+    def _topic_list_from_topic(topic: TopicInput, key: str) -> list[str]:
+        if not isinstance(topic, dict):
+            return []
+        value = topic.get(key)
+        if isinstance(value, list):
+            return [str(item).strip() for item in value if isinstance(item, str) and item.strip()]
+        if isinstance(value, str) and value.strip():
+            return [value.strip()]
+        return []
 
     def _system_prompt(self) -> str:
         return (
@@ -233,7 +446,7 @@ class ScriptStage:
     def _build_prompt(
         self,
         *,
-        topic: str,
+        topic: TopicInput,
         slug: str,
         mode: str,
         acts: str,
@@ -243,13 +456,18 @@ class ScriptStage:
         research_text: str,
         outline_text: str,
     ) -> str:
+        topic_block = topic_context_json(topic)
+        topic_name = topic_title(topic)
         return f"""
-Topic: {topic}
+Topic title: {topic_name}
 Slug: {slug}
 Mode: {mode}
 Target scene count: {scene_count}
 Average duration target per scene: {duration_target} seconds
 Use only {acts} from the outline.
+
+Topic document:
+{topic_block}
 
 Research document:
 {research_text}
@@ -286,8 +504,12 @@ Rules:
 - Return JSON only.
 """.strip()
 
-    def _suggest_renderer(self, topic: str, research_text: str, outline_text: str) -> str:
-        haystack = " ".join([topic, research_text[:4000], outline_text[:2000]]).lower()
+    def _research_signature(self, research_text: str, outline_text: str) -> str:
+        payload = f"{research_text}\n---outline---\n{outline_text}".encode("utf-8")
+        return hashlib.sha256(payload).hexdigest()
+
+    def _suggest_renderer(self, topic: TopicInput, research_text: str, outline_text: str) -> str:
+        haystack = " ".join([topic_context_json(topic), research_text[:4000], outline_text[:2000]]).lower()
 
         if any(word in haystack for word in [
             "chart", "graph", "trend", "distribution", "histogram", "scatter", "bar chart", "data"

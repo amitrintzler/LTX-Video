@@ -143,6 +143,7 @@ class ScriptStage:
                     base_url=self.cfg.lmstudio_base_url,
                     api_key=self.cfg.lmstudio_api_key,
                     timeout=180,
+                    max_tokens=scene_count * 1500,
                 )
 
                 script = self._normalize_script(result)

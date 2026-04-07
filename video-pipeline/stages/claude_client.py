@@ -50,6 +50,7 @@ def run_claude_json(
     base_url: str = "http://localhost:1234/v1",
     api_key: str = "lm-studio",
     timeout: int = 600,
+    max_tokens: int = 32768,
 ) -> dict[str, Any]:
     """Run the configured LLM backend and parse a structured JSON response."""
     result = _run_llm(
@@ -62,6 +63,7 @@ def run_claude_json(
         output_format="json",
         json_schema=schema,
         timeout=timeout,
+        max_tokens=max_tokens,
     )
     try:
         payload = _extract_json_payload(result)
@@ -80,6 +82,7 @@ def run_claude_json(
         api_key=api_key,
         schema=schema,
         timeout=timeout,
+        max_tokens=max_tokens,
     )
     payload = _extract_json_payload(repaired)
     if not isinstance(payload, dict):
@@ -98,6 +101,7 @@ def _run_llm(
     output_format: str,
     json_schema: Optional[dict[str, Any]] = None,
     timeout: int = 600,
+    max_tokens: int = 32768,
 ) -> str:
     if provider == "lmstudio":
         return _run_lmstudio(
@@ -109,6 +113,7 @@ def _run_llm(
             output_format=output_format,
             json_schema=json_schema,
             timeout=timeout,
+            max_tokens=max_tokens,
         )
 
     return _run_claude(
@@ -181,6 +186,7 @@ def _run_lmstudio(
     output_format: str,
     json_schema: Optional[dict[str, Any]] = None,
     timeout: int = 600,
+    max_tokens: int = 32768,
 ) -> str:
     url = base_url.rstrip("/") + "/chat/completions"
     messages = _build_lmstudio_messages(system_prompt=system_prompt, prompt=prompt, model=model)
@@ -190,7 +196,7 @@ def _run_lmstudio(
         "temperature": 0.0 if json_schema is not None else 0.2,
     }
     if json_schema is not None:
-        body["max_tokens"] = 8192
+        body["max_tokens"] = max_tokens
     if json_schema is not None:
         body["response_format"] = {
             "type": "json_schema",
@@ -308,6 +314,7 @@ def _repair_json_response(
     api_key: str,
     schema: dict[str, Any],
     timeout: int,
+    max_tokens: int = 32768,
 ) -> str:
     repair_prompt = (
         "The previous response was not valid JSON.\n"
@@ -327,4 +334,5 @@ def _repair_json_response(
         output_format="json",
         json_schema=schema,
         timeout=timeout,
+        max_tokens=max_tokens,
     )

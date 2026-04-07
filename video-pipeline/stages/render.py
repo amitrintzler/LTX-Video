@@ -95,6 +95,7 @@ class RenderStage:
 
         safety_note = (
             " Use plain-text labels only. Do not use MathTex, Tex, or any LaTeX syntax."
+            " Use explicit hex color strings only; avoid named colors like CYAN."
         )
         if safety_note.strip() not in text:
             text = f"{text.rstrip('.')}." + safety_note

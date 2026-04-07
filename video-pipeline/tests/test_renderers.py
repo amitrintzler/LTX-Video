@@ -520,6 +520,32 @@ class VideoScene(Scene):
     run_call.assert_not_called()
 
 
+def test_manim_rejects_named_color_constants_before_running_manim(tmp_path):
+    import stages.renderers.manim as manim_mod
+    from stages.renderers.manim import ManimRenderError
+
+    cfg = _manim_cfg()
+    cfg.llm_provider = "lmstudio"
+    cfg.llm_model = "local-model"
+    cfg.renderer_max_retries = 2
+    out_path = tmp_path / "scene_001.mp4"
+
+    bad_code = """from manim import *
+class VideoScene(Scene):
+    def construct(self):
+        dot = Dot(color=CYAN)
+"""
+
+    with patch("stages.renderers.manim._check_imports"), \
+         patch("stages.renderers.manim._call_lmstudio_api", return_value=bad_code) as lm_call, \
+         patch("stages.renderers.manim._run_manim") as run_call:
+        with pytest.raises(ManimRenderError, match="named color constants"):
+            manim_mod.render(_manim_scene(), cfg, out_path)
+
+    assert lm_call.call_count == 2
+    run_call.assert_not_called()
+
+
 def test_manim_run_uses_timeout(tmp_path):
     """_run_manim passes timeout=120 to subprocess.run."""
     from stages.renderers.manim import _run_manim

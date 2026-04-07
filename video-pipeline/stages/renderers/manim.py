@@ -26,6 +26,28 @@ class ManimRenderError(RuntimeError):
 
 
 CLAUDE_CODEGEN_TIMEOUT = 600
+NAMED_COLOR_NAMES = (
+    "CYAN",
+    "TEAL",
+    "AQUA",
+    "BLUE",
+    "GREEN",
+    "YELLOW",
+    "RED",
+    "ORANGE",
+    "PURPLE",
+    "PINK",
+    "GOLD",
+    "WHITE",
+    "BLACK",
+    "GRAY",
+    "GREY",
+    "BROWN",
+    "MAROON",
+    "LIME",
+    "VIOLET",
+    "MAGENTA",
+)
 
 
 def render(scene: dict, config: PipelineConfig, out_path: Path) -> Path:
@@ -61,7 +83,7 @@ def render(scene: dict, config: PipelineConfig, out_path: Path) -> Path:
         else:
             code = _call_claude_cli(model, system, description, last_error)
         try:
-            _ensure_text_only_code(code)
+            _ensure_safe_codegen(code)
             return _run_manim(code, out_path, timeout=120)
         except ManimRenderError as e:
             last_error = str(e)
@@ -118,6 +140,7 @@ CRITICAL — LaTeX is NOT installed. You MUST follow these rules:
 - For Brace labels: Text(...) only.
 - Everything else (Axes, Line, Arrow, Dot, DashedLine, Create, Write, etc.) is fine.
 - If the scene description mentions math, translate it into plain English or Unicode text instead of LaTeX syntax.
+- Use explicit hex color strings for all colors. Do not use named color constants like CYAN, TEAL, BLUE, or WHITE.
 
 The animation must complete within {duration_sec} seconds total. Do not call self.wait() beyond that.
 Output only valid Python code. No markdown fences, no explanation."""
@@ -256,10 +279,21 @@ def _extract_python_code(output: str) -> str:
     return text
 
 
-def _ensure_text_only_code(code: str) -> None:
+def _ensure_safe_codegen(code: str) -> None:
     if re.search(r"\b(?:MathTex|Tex)\s*\(", code):
         raise ManimRenderError(
             "Generated Manim code still uses MathTex/Tex. Rewrite the scene with Text(...) only."
+        )
+    color_pattern = r"\b(?:set_color|set_fill|set_stroke)\s*\(\s*(?:%s)\b" % "|".join(
+        NAMED_COLOR_NAMES
+    )
+    assignment_pattern = (
+        r"\b(?:color|fill_color|stroke_color|font_color)\s*=\s*(?:%s)\b"
+        % "|".join(NAMED_COLOR_NAMES)
+    )
+    if re.search(color_pattern, code) or re.search(assignment_pattern, code):
+        raise ManimRenderError(
+            "Generated Manim code uses named color constants. Use hex color strings only."
         )
 
 

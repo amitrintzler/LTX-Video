@@ -59,53 +59,50 @@ class ResearchStage:
         research_markdown = ""
         outline_markdown = ""
 
-        if evidence:
-            try:
-                prompt = self._build_prompt(topic, slug, queries, evidence)
-                schema = {
-                    "type": "object",
-                    "properties": {
-                        "title": {"type": "string"},
-                        "research_brief": {"type": "string"},
-                        "research_markdown": {"type": "string"},
-                        "outline_markdown": {"type": "string"},
-                    },
-                    "required": [
-                        "title",
-                        "research_brief",
-                        "research_markdown",
-                        "outline_markdown",
-                    ],
-                    "additionalProperties": False,
-                }
-                result = run_claude_json(
-                    prompt=prompt,
-                    model=self.cfg.llm_model_name(),
-                    system_prompt=self._system_prompt(),
-                    schema=schema,
-                    provider=self.cfg.llm_provider,
-                    base_url=self.cfg.lmstudio_base_url,
-                    api_key=self.cfg.lmstudio_api_key,
-                    timeout=180,
-                )
+        try:
+            prompt = self._build_prompt(topic, slug, queries, evidence)
+            schema = {
+                "type": "object",
+                "properties": {
+                    "title": {"type": "string"},
+                    "research_brief": {"type": "string"},
+                    "research_markdown": {"type": "string"},
+                    "outline_markdown": {"type": "string"},
+                },
+                "required": [
+                    "title",
+                    "research_brief",
+                    "research_markdown",
+                    "outline_markdown",
+                ],
+                "additionalProperties": False,
+            }
+            result = run_claude_json(
+                prompt=prompt,
+                model=self.cfg.llm_model_name(),
+                system_prompt=self._system_prompt(),
+                schema=schema,
+                provider=self.cfg.llm_provider,
+                base_url=self.cfg.lmstudio_base_url,
+                api_key=self.cfg.lmstudio_api_key,
+                timeout=180,
+            )
 
-                research_markdown = self._normalize_markdown(
-                    result.get("research_markdown")
-                    or result.get("research_brief")
-                    or ""
-                )
-                outline_markdown = self._normalize_markdown(
-                    result.get("outline_markdown")
-                    or result.get("research_markdown")
-                    or result.get("research_brief")
-                    or ""
-                )
-            except Exception as exc:
-                self.log.warning(f"  Research LLM failed ({exc}); using structured fallback")
+            research_markdown = self._normalize_markdown(
+                result.get("research_markdown")
+                or result.get("research_brief")
+                or ""
+            )
+            outline_markdown = self._normalize_markdown(
+                result.get("outline_markdown")
+                or result.get("research_markdown")
+                or result.get("research_brief")
+                or ""
+            )
+        except Exception as exc:
+            self.log.warning(f"  Research LLM failed ({exc}); using structured fallback")
 
         if not research_markdown.strip():
-            if not evidence:
-                self.log.warning("  No live evidence found — using structured topic fallback")
             research_markdown = self._fallback_research_markdown(topic, title, queries, evidence)
         if not outline_markdown.strip():
             outline_markdown = self._fallback_outline_markdown(topic, title, queries, evidence)
@@ -318,8 +315,17 @@ class ResearchStage:
     ) -> str:
         topic_block = topic_context_json(topic)
         topic_name = topic_title(topic)
-        evidence_block = json.dumps(evidence, indent=2, ensure_ascii=False)
         queries_block = "\n".join(f"- {q}" for q in queries)
+
+        if evidence:
+            evidence_block = json.dumps(evidence, indent=2, ensure_ascii=False)
+            evidence_section = f"Search evidence:\n{evidence_block}"
+        else:
+            evidence_section = (
+                "Search evidence: none available. "
+                "Synthesize from the topic document and your knowledge of the subject."
+            )
+
         return f"""
 Topic title: {topic_name}
 Slug: {slug}
@@ -328,26 +334,23 @@ Topic document:
 
 You are preparing research for a topic-driven educational video pipeline.
 Produce three fields:
-1. `research_markdown`: 400-600 words, markdown, grounded in the evidence, with a clear teaching arc.
+1. `research_markdown`: 400-600 words, markdown, with a clear teaching arc.
 2. `outline_markdown`: markdown outline with Act 1, Act 2, Act 3, Act 4 sections.
 3. `research_brief`: one concise paragraph summarising the topic and the teaching goal.
 
 Research constraints:
-- Use specific facts, names, numbers, and relationships from the evidence.
-- Include at least one worked example or concrete example if the topic permits.
-- Add a short "common misconceptions" section.
+- Use the topic document fields (learning_goals, key_terms, visual_hooks, misconceptions, teaching_notes) as the primary source.
+- Include at least one concrete worked example with specific numbers or values.
+- Add a short "common misconceptions" section drawn from the topic document.
 - Explain what the video should teach in each act.
 - Keep the outline suitable for later script generation.
-- Do not mention that you are an AI or that you were asked to use Claude.
-- Do not invent facts if the evidence does not support them; mark such items as inferences.
 - Prioritize useful teaching structure over prose polish.
 - Keep the output compact, precise, and easy for a script writer to reuse.
 
 Target search queries:
 {queries_block}
 
-Search evidence:
-{evidence_block}
+{evidence_section}
 """.strip()
 
     def _fallback_research_markdown(

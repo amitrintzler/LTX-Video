@@ -211,6 +211,35 @@ def test_render_stage_falls_back_to_manim_for_missing_renderer(tmp_path):
     fake_renderer.render.assert_called_once()
 
 
+def test_render_stage_falls_back_to_slides_when_latex_missing(tmp_path):
+    from stages.render import RenderStage
+
+    cfg = _manim_cfg()
+    stage = RenderStage(cfg, logging.getLogger("test"))
+    scene = {
+        "id": "s01",
+        "renderer": "manim",
+        "description": "Draw a simple title slide.",
+        "duration_sec": 8,
+        "style": "dark background #0a0a0a, white text",
+    }
+
+    fake_renderer = MagicMock()
+    fake_renderer.render = MagicMock(return_value=tmp_path / "scene_001.mp4")
+
+    def fake_get_renderer(name):
+        if name == "slides":
+            return fake_renderer
+        raise AssertionError(f"Unexpected renderer request: {name}")
+
+    with patch("stages.render.shutil.which", return_value=None), \
+         patch("stages.render.get_renderer", side_effect=fake_get_renderer) as mock_get:
+        stage._render_scene(0, scene, tmp_path, default_renderer="manim")
+
+    assert mock_get.call_args_list[0].args[0] == "slides"
+    fake_renderer.render.assert_called_once()
+
+
 def test_slides_render_success(tmp_path):
     from stages.renderers import slides as slides_mod
 
@@ -658,7 +687,8 @@ def test_pipeline_dispatches_manim_scene(tmp_path):
     cfg = PipelineConfig(work_dir=str(tmp_path), min_scenes=1)
     mock_render = MagicMock(return_value=tmp_path / "clips/test_mixed/scene_001.mp4")
 
-    with patch("stages.renderers.manim.render", mock_render), \
+    with patch("stages.render.shutil.which", return_value="/usr/bin/latex"), \
+         patch("stages.renderers.manim.render", mock_render), \
          patch("stages.video.DrawThingsClient"), \
          patch("stages.storyboard.DrawThingsClient"), \
          patch("stages.stitch.StitchStage.run"):

@@ -6,6 +6,7 @@ from __future__ import annotations
 
 import concurrent.futures
 import logging
+import shutil
 from pathlib import Path
 from typing import Optional
 
@@ -52,6 +53,11 @@ class RenderStage:
             return
 
         renderer_name = scene.get("renderer") or default_renderer or "manim"
+        if renderer_name == "manim" and shutil.which("latex") is None:
+            self.log.warning(
+                f"  [{scene_id}] latex not found on PATH; falling back from manim to slides"
+            )
+            renderer_name = "slides"
         try:
             renderer = get_renderer(renderer_name)
             resolved_name = renderer_name

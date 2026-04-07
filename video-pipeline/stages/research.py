@@ -17,7 +17,7 @@ from pathlib import Path
 from typing import Any
 
 from config import PipelineConfig
-from stages.claude_client import run_claude_json
+from stages.claude_client import run_claude_json, run_claude_research
 from stages.topic_utils import (
     TopicInput,
     topic_context_json,
@@ -53,54 +53,65 @@ class ResearchStage:
                 return research_path, outline_path
 
         queries = self._build_queries(topic)
-        evidence = self._collect_evidence(title, queries)
-        self.log.info(f"  Collected {len(evidence)} evidence snippets from {len(queries)} queries")
-
         research_markdown = ""
         outline_markdown = ""
 
-        try:
-            prompt = self._build_prompt(topic, slug, queries, evidence)
-            schema = {
-                "type": "object",
-                "properties": {
-                    "title": {"type": "string"},
-                    "research_brief": {"type": "string"},
-                    "research_markdown": {"type": "string"},
-                    "outline_markdown": {"type": "string"},
-                },
-                "required": [
-                    "title",
-                    "research_brief",
-                    "research_markdown",
-                    "outline_markdown",
-                ],
-                "additionalProperties": False,
-            }
-            result = run_claude_json(
-                prompt=prompt,
-                model=self.cfg.llm_model_name(),
-                system_prompt=self._system_prompt(),
-                schema=schema,
-                provider=self.cfg.llm_provider,
-                base_url=self.cfg.lmstudio_base_url,
-                api_key=self.cfg.lmstudio_api_key,
-                timeout=180,
-            )
+        schema = {
+            "type": "object",
+            "properties": {
+                "title": {"type": "string"},
+                "research_brief": {"type": "string"},
+                "research_markdown": {"type": "string"},
+                "outline_markdown": {"type": "string"},
+            },
+            "required": ["title", "research_brief", "research_markdown", "outline_markdown"],
+            "additionalProperties": False,
+        }
 
-            research_markdown = self._normalize_markdown(
-                result.get("research_markdown")
-                or result.get("research_brief")
-                or ""
-            )
-            outline_markdown = self._normalize_markdown(
-                result.get("outline_markdown")
-                or result.get("research_markdown")
-                or result.get("research_brief")
-                or ""
-            )
-        except Exception as exc:
-            self.log.warning(f"  Research LLM failed ({exc}); using structured fallback")
+        if self.cfg.llm_provider == "claude":
+            # Claude CLI: search + synthesize in one call using WebSearch tool
+            try:
+                self.log.info("  Using Claude CLI with WebSearch for research")
+                prompt = self._build_claude_research_prompt(topic, slug, queries)
+                result = run_claude_research(
+                    prompt=prompt,
+                    model=self.cfg.llm_model_name(),
+                    system_prompt=self._system_prompt(),
+                    schema=schema,
+                    timeout=300,
+                )
+                research_markdown = self._normalize_markdown(
+                    result.get("research_markdown") or result.get("research_brief") or ""
+                )
+                outline_markdown = self._normalize_markdown(
+                    result.get("outline_markdown") or result.get("research_markdown") or ""
+                )
+            except Exception as exc:
+                self.log.warning(f"  Claude CLI research failed ({exc}); using structured fallback")
+        else:
+            # LM Studio: collect evidence via HTTP, then synthesize
+            evidence = self._collect_evidence(title, queries)
+            self.log.info(f"  Collected {len(evidence)} evidence snippets from {len(queries)} queries")
+            try:
+                prompt = self._build_prompt(topic, slug, queries, evidence)
+                result = run_claude_json(
+                    prompt=prompt,
+                    model=self.cfg.llm_model_name(),
+                    system_prompt=self._system_prompt(),
+                    schema=schema,
+                    provider=self.cfg.llm_provider,
+                    base_url=self.cfg.lmstudio_base_url,
+                    api_key=self.cfg.lmstudio_api_key,
+                    timeout=180,
+                )
+                research_markdown = self._normalize_markdown(
+                    result.get("research_markdown") or result.get("research_brief") or ""
+                )
+                outline_markdown = self._normalize_markdown(
+                    result.get("outline_markdown") or result.get("research_markdown") or ""
+                )
+            except Exception as exc:
+                self.log.warning(f"  Research LLM failed ({exc}); using structured fallback")
 
         if not research_markdown.strip():
             research_markdown = self._fallback_research_markdown(topic, title, queries, evidence)
@@ -360,6 +371,39 @@ class ResearchStage:
             "url": page_url,
             "snippet": extract,
         }
+
+    def _build_claude_research_prompt(
+        self,
+        topic: TopicInput,
+        slug: str,
+        queries: list[str],
+    ) -> str:
+        topic_block = topic_context_json(topic)
+        topic_name = topic_title(topic)
+        queries_block = "\n".join(f"- {q}" for q in queries)
+        return f"""You are preparing research for a topic-driven educational video pipeline.
+
+Topic: {topic_name}
+Slug: {slug}
+
+Topic document:
+{topic_block}
+
+Step 1 — Use the WebSearch tool to search for each of the following queries (search all of them):
+{queries_block}
+
+Step 2 — Synthesize the search results into a JSON object with these four fields:
+- "title": string — the topic title
+- "research_brief": string — one concise paragraph summarising the topic and the teaching goal
+- "research_markdown": string — 400-600 words of markdown, with a clear teaching arc, grounded in what you found. Include at least one concrete worked example with specific numbers or values. Add a short "Common Misconceptions" section.
+- "outline_markdown": string — markdown outline with Act 1, Act 2, Act 3, Act 4 sections. Each act should have 3-6 bullet points describing what the video teaches in that act.
+
+Rules:
+- Search ALL queries before writing anything.
+- Use specific facts, names, and numbers from search results.
+- The outline must be suitable for later script generation — specific enough that a writer knows exactly what to cover.
+- Return ONLY the JSON object. No markdown fences, no explanation.
+""".strip()
 
     def _build_prompt(
         self,

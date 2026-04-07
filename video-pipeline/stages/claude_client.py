@@ -16,6 +16,53 @@ class ClaudeCLIError(RuntimeError):
     pass
 
 
+def run_claude_research(
+    *,
+    prompt: str,
+    model: str,
+    system_prompt: str,
+    schema: dict[str, Any],
+    timeout: int = 300,
+) -> dict[str, Any]:
+    """Call Claude CLI with WebSearch enabled for live research synthesis."""
+    cmd = [
+        "claude",
+        "--print",
+        "--output-format", "json",
+        "--model", model,
+        "--system-prompt", system_prompt,
+        "--allowedTools", "WebSearch",
+        "--dangerously-skip-permissions",
+        prompt,
+    ]
+    try:
+        result = subprocess.run(
+            cmd,
+            capture_output=True,
+            text=True,
+            timeout=timeout,
+        )
+    except FileNotFoundError as e:
+        raise ClaudeCLIError(
+            "Claude Code CLI not found on PATH."
+        ) from e
+    except subprocess.TimeoutExpired as e:
+        raise ClaudeCLIError("Claude Code CLI timed out during research") from e
+
+    if result.returncode != 0:
+        stderr = (result.stderr or result.stdout or "").strip()
+        raise ClaudeCLIError(stderr[-2000:] or "Claude Code CLI failed without output")
+
+    output = (result.stdout or "").strip()
+    if not output:
+        raise ClaudeCLIError("Claude Code CLI returned empty output")
+
+    payload = _extract_json_payload(output)
+    if isinstance(payload, dict):
+        return payload
+    raise ClaudeCLIError("Claude Code CLI did not return valid JSON for research")
+
+
 def run_claude_text(
     *,
     prompt: str,

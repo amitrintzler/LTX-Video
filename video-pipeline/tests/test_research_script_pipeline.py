@@ -38,6 +38,7 @@ def _script_payload(title: str, scene_count: int = 3) -> dict:
         "title": title,
         "brief": "Brief summary of the topic.",
         "research_brief": "Research brief.",
+        "primary_renderer": "manim",
         "global_style": {
             "background": "#0d1117",
             "primary": "#FFD700",
@@ -187,7 +188,7 @@ def test_topic_all_routes_through_new_flow(tmp_path, log, monkeypatch):
         cfg.research_dir / f"{slug}-outline.md",
     ))
     monkeypatch.setattr(ScriptStage, "run", lambda self, topic, mode="both": calls.append(("script", topic, mode)) or [narrated_path, companion_path])
-    monkeypatch.setattr(RenderStage, "run", lambda self, scenes, title: calls.append(("render", title, len(scenes))))
+    monkeypatch.setattr(RenderStage, "run", lambda self, script, scenes, title: calls.append(("render", title, script.get("primary_renderer"), len(scenes))))
     monkeypatch.setattr(TTSStage, "run", lambda self, scenes, title: calls.append(("tts", title, len(scenes))))
     monkeypatch.setattr(StitchStage, "run", lambda self, scenes, title, output_mode="narrated": calls.append(("stitch", title, output_mode, len(scenes))))
     monkeypatch.setattr(ValidationStage, "run", lambda self, script, scenes, title: calls.append(("validate", title, len(scenes))))
@@ -196,8 +197,8 @@ def test_topic_all_routes_through_new_flow(tmp_path, log, monkeypatch):
 
     assert calls[0] == ("research", topic)
     assert calls[1] == ("script", topic, "both")
-    assert ("render", f"{slug}-narrated", 3) in calls
-    assert ("render", f"{slug}-companion-long", 3) in calls
+    assert ("render", f"{slug}-narrated", "manim", 3) in calls
+    assert ("render", f"{slug}-companion-long", "manim", 3) in calls
     assert ("tts", f"{slug}-narrated", 3) in calls
     assert ("stitch", f"{slug}-narrated", "narrated", 3) in calls
     assert ("stitch", f"{slug}-narrated", "companion-short", 3) in calls

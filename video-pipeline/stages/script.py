@@ -81,6 +81,7 @@ class ScriptStage:
 
         research_text = research_path.read_text()
         outline_text = outline_path.read_text()
+        preferred_renderer = self._suggest_renderer(topic, research_text, outline_text)
 
         prompt = self._build_prompt(
             topic=topic,
@@ -89,13 +90,14 @@ class ScriptStage:
             acts=acts,
             scene_count=scene_count,
             duration_target=duration_target,
+            preferred_renderer=preferred_renderer,
             research_text=research_text,
             outline_text=outline_text,
         )
         schema = self._schema(scene_count)
         result = run_claude_json(
             prompt=prompt,
-            model=self.cfg.llm_model or self.cfg.claude_model,
+            model=self.cfg.llm_model_name(),
             system_prompt=self._system_prompt(),
             schema=schema,
             provider=self.cfg.llm_provider,
@@ -105,6 +107,7 @@ class ScriptStage:
         )
 
         script = self._normalize_script(result)
+        script = self._ensure_primary_renderer(script, preferred_renderer)
         script_path.write_text(json.dumps(script, indent=2, ensure_ascii=False) + "\n")
         self.log.info(f"  Script saved -> {script_path}")
         return script_path
@@ -130,11 +133,35 @@ class ScriptStage:
     def _is_valid_script(self, candidate: object) -> bool:
         return isinstance(candidate, dict) and isinstance(candidate.get("scenes"), list)
 
+    def _ensure_primary_renderer(self, script: dict, preferred_renderer: str) -> dict:
+        if not isinstance(script, dict):
+            return script
+
+        script = dict(script)
+        primary_renderer = script.get("primary_renderer") or preferred_renderer or "manim"
+        script["primary_renderer"] = primary_renderer
+
+        scenes = script.get("scenes")
+        if isinstance(scenes, list):
+            normalized_scenes = []
+            for scene in scenes:
+                if isinstance(scene, dict):
+                    normalized_scene = dict(scene)
+                    normalized_scene.setdefault("renderer", primary_renderer)
+                    normalized_scenes.append(normalized_scene)
+                else:
+                    normalized_scenes.append(scene)
+            script["scenes"] = normalized_scenes
+        return script
+
     def _system_prompt(self) -> str:
         return (
-            "You are a video script writer for a Manim-only educational pipeline. "
-            "You must return a single JSON object that exactly matches the schema. "
-            "Every scene must be visually specific, renderer-ready, and grounded in the research docs."
+            "You are a senior educational video writer and renderer planner for a topic-driven video pipeline. "
+            "Convert the research and outline into a script that is clear, visually specific, and easy to render. "
+            "Choose the renderer that best fits each scene based on the topic and research, not a fixed renderer for all scenes. "
+            "Every scene must be grounded in the supplied research, avoid filler, and include concrete visual intent. "
+            "Return exactly one JSON object that matches the schema. "
+            "Do not add explanation, markdown, or code fences."
         )
 
     def _schema(self, scene_count: int) -> dict:
@@ -144,6 +171,7 @@ class ScriptStage:
                 "title": {"type": "string"},
                 "brief": {"type": "string"},
                 "research_brief": {"type": "string"},
+                "primary_renderer": {"type": "string"},
                 "global_style": {
                     "type": "object",
                     "properties": {
@@ -198,7 +226,7 @@ class ScriptStage:
                     },
                 },
             },
-            "required": ["title", "brief", "research_brief", "global_style", "scenes"],
+            "required": ["title", "brief", "research_brief", "primary_renderer", "global_style", "scenes"],
             "additionalProperties": False,
         }
 
@@ -211,6 +239,7 @@ class ScriptStage:
         acts: str,
         scene_count: int,
         duration_target: int,
+        preferred_renderer: str,
         research_text: str,
         outline_text: str,
     ) -> str:
@@ -228,10 +257,18 @@ Research document:
 Outline document:
 {outline_text}
 
-Create a Manim-only JSON script.
+Create a JSON script for a topic-driven video pipeline.
 
 Rules:
-- All scenes must have renderer exactly "manim".
+- Choose one `primary_renderer` for the movie based on the topic and research.
+- Pick the best renderer per scene based on the topic and research.
+- Preferred renderer for this topic: "{preferred_renderer}".
+- Use "manim" for mathematical, diagrammatic, or derivation-heavy scenes.
+- Use "slides" for text-forward summaries, comparisons, or checklist scenes.
+- Use "d3" for chart-centric, data-centric, or statistical scenes.
+- Use "html_anim" for web-style interactions or UI-like scenes.
+- Use "animatediff" only for cinematic or character-driven legacy scenes.
+- If a chosen renderer is not implemented in this repo, the renderer stage will fall back to "manim".
 - The global_style object must use this contract:
   background #0d1117, primary #FFD700, danger #FF4444, success #00C896,
   text #FFFFFF, muted #8B949E, font "JetBrains Mono",
@@ -248,3 +285,28 @@ Rules:
 - Title should be "{slug}-{mode}".
 - Return JSON only.
 """.strip()
+
+    def _suggest_renderer(self, topic: str, research_text: str, outline_text: str) -> str:
+        haystack = " ".join([topic, research_text[:4000], outline_text[:2000]]).lower()
+
+        if any(word in haystack for word in [
+            "chart", "graph", "trend", "distribution", "histogram", "scatter", "bar chart", "data"
+        ]):
+            return "d3"
+
+        if any(word in haystack for word in [
+            "slide", "presentation", "bullet", "checklist", "comparison", "table", "summary"
+        ]):
+            return "slides"
+
+        if any(word in haystack for word in [
+            "interface", "ui", "dashboard", "interactive", "web", "browser", "click"
+        ]):
+            return "html_anim"
+
+        if any(word in haystack for word in [
+            "story", "narrative", "character", "cinematic", "scene", "dialogue"
+        ]):
+            return "animatediff"
+
+        return "manim"

@@ -165,12 +165,10 @@ def _run_lmstudio(
     timeout: int = 600,
 ) -> str:
     url = base_url.rstrip("/") + "/chat/completions"
+    messages = _build_lmstudio_messages(system_prompt=system_prompt, prompt=prompt, model=model)
     body: dict[str, Any] = {
         "model": model,
-        "messages": [
-            {"role": "system", "content": system_prompt},
-            {"role": "user", "content": prompt},
-        ],
+        "messages": messages,
         "temperature": 0.2,
     }
     if json_schema is not None:
@@ -224,6 +222,28 @@ def _run_lmstudio(
     if output_format == "json" and json_schema is not None:
         return choice.strip()
     return choice.strip()
+
+
+def _build_lmstudio_messages(*, system_prompt: str, prompt: str, model: str) -> list[dict[str, str]]:
+    """Build chat messages for LM Studio.
+
+    Gemma instruction-tuned models are documented as user/model-only, so we fold
+    the system instructions into the first user turn for those models. Other
+    chat-tuned models keep the standard system+user split.
+    """
+    if "gemma" in model.lower():
+        combined = (
+            "System instructions:\n"
+            f"{system_prompt.strip()}\n\n"
+            "Task:\n"
+            f"{prompt.strip()}\n"
+        )
+        return [{"role": "user", "content": combined}]
+
+    return [
+        {"role": "system", "content": system_prompt},
+        {"role": "user", "content": prompt},
+    ]
 
 
 def _extract_json_payload(output: str) -> Any:

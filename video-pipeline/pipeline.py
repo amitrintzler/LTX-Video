@@ -157,7 +157,7 @@ def _run_new_pipeline_for_script(
 
     if "render" in stages_to_run:
         log.info("━━━ Render stage ━━━")
-        RenderStage(cfg, log).run(scenes, title)
+        RenderStage(cfg, log).run(script, scenes, title)
 
     if "tts" in stages_to_run:
         log.info("━━━ TTS stage ━━━")
@@ -237,6 +237,13 @@ def run(
 ):
     log = setup_logging(cfg.log_dir)
     log.info(f"Loading input: {input_ref}")
+    log.info(
+        "LLM backend: provider=%s model=%s",
+        cfg.llm_provider,
+        cfg.llm_model_name(),
+    )
+    if cfg.llm_provider == "lmstudio":
+        log.info("LM Studio base URL: %s", cfg.lmstudio_base_url)
 
     if _is_existing_file(input_ref):
         script_path = Path(input_ref)

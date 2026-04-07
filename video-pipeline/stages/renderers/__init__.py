@@ -6,10 +6,11 @@ Each renderer module must expose:
 """
 
 # Registry of all known renderer names → module paths.
-# Modules for Sub-projects 2 and 3 will raise ModuleNotFoundError until implemented.
+# Implemented renderers should import cleanly; missing ones raise ModuleNotFoundError.
 RENDERERS: dict[str, str] = {
     "manim":        "stages.renderers.manim",
     "html_anim":    "stages.renderers.html_anim",
+    "d3":           "stages.renderers.d3",
     "animatediff":  "stages.renderers.animatediff",
     "slides":       "stages.renderers.slides",
 }

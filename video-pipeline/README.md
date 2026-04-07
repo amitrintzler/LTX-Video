@@ -1,6 +1,6 @@
-# AI Video Pipeline — Research-first Manim + Kokoro TTS
+# AI Video Pipeline — Research-first multi-renderer + Kokoro TTS
 
-End-to-end pipeline: **topic → final video**. Runs locally on your Mac. The current generator produces Manim scenes by default.
+End-to-end pipeline: **topic → final video**. Runs locally on your Mac. The script stage chooses a renderer from the topic and research, with `manim`, `slides`, `html_anim`, `d3`, and `animatediff` implemented today.
 
 Reference output: **black-scholes-narrated.mp4** — research-backed topic script rendered with Manim and stitched with local TTS.
 
@@ -17,7 +17,7 @@ scripts/<title>.json
 └──────────────┘
         │
         ▼
-┌──────────────┐   Manim Community + Claude CLI
+┌──────────────┐   Manim / Slides / HTML+CSS / Charts / Draw Things + Claude CLI / Python
 │ Output       │ ──► final MP4
 └──────────────┘
         │
@@ -42,7 +42,7 @@ scripts/<title>.json
 
 ```bash
 # Python deps (in venv)
-pip install manim kokoro soundfile playwright
+pip install pillow manim kokoro soundfile playwright
 playwright install chromium
 
 # Node deps (in video-pipeline/)
@@ -53,6 +53,9 @@ brew install ffmpeg
 
 # LM Studio is the default LLM backend.
 # Start LM Studio's local server on port 1234 and load the model named in config.json.
+
+# Optional for cinematic legacy scenes
+# Start Draw Things and enable its HTTP API if you want animatediff scenes.
 
 # Optional: Claude CLI backend
 claude --version
@@ -116,6 +119,7 @@ open output/<title>-final.mp4
 {
   "title": "kebab-case-slug",
   "brief": "2–3 sentences summarising the topic and what intuitions the video builds.",
+  "primary_renderer": "manim",
   "global_style": {
     "background": "#0d1117",
     "primary": "#FFD700",
@@ -142,12 +146,15 @@ open output/<title>-final.mp4
 }
 ```
 
+The example uses `manim`, but the pipeline now chooses a renderer per scene from the topic and research.
+
 ### Renderer selection
 
 | Content type | Renderer |
 |---|---|
-| Current generated scripts | `manim` |
-| Legacy / future renderers | `motion-canvas`, `d3`, `html_anim`, `slides` |
+| Renderer selection | Topic/research-driven, with fallback to `manim` |
+| Implemented renderers | `manim`, `slides`, `html_anim`, `d3`, `animatediff` |
+| Future/optional renderers | `motion-canvas` |
 
 ---
 
@@ -204,7 +211,7 @@ The stitch stage auto-extends clips with a freeze of the last frame when narrati
 | Stage | Per scene | 22 scenes |
 |---|---|---|
 | Render — manim | ~2–3 min | ~45 min |
-| Render — d3 / motion-canvas | ~45s–1 min | ~15 min |
+| Render — d3 / html_anim | ~45s–1 min | ~15 min |
 | TTS (Kokoro) | ~5s | ~2 min |
 | Stitch (FFmpeg) | — | ~1 min |
 
@@ -220,8 +227,10 @@ video-pipeline/
 ├── stages/
 │   ├── renderers/
 │   │   ├── manim.py         ← Manim renderer
-│   │   ├── motion_canvas.py ← Playwright/Canvas2D renderer
-│   │   └── d3.py            ← Node.js/canvas renderer
+│   │   ├── slides.py        ← Pillow slide renderer
+│   │   ├── html_anim.py     ← HTML/CSS + Playwright renderer
+│   │   ├── d3.py            ← Pillow chart renderer
+│   │   └── animatediff.py   ← Draw Things / AnimateDiff renderer
 │   ├── tts.py               ← Kokoro TTS stage
 │   ├── stitch.py            ← FFmpeg mux + stitch stage
 │   └── validate.py          ← script validation stage

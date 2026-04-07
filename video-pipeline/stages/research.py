@@ -61,7 +61,7 @@ class ResearchStage:
         }
         result = run_claude_json(
             prompt=prompt,
-            model=self.cfg.llm_model or self.cfg.claude_model,
+            model=self.cfg.llm_model_name(),
             system_prompt=self._system_prompt(),
             schema=schema,
             provider=self.cfg.llm_provider,
@@ -96,12 +96,12 @@ class ResearchStage:
 
     def _system_prompt(self) -> str:
         return (
-            "You are a research analyst and learning designer. "
-            "Use the supplied search evidence to produce grounded, topic-specific "
-            "research notes and an outline that can drive a video script. "
-            "Do not invent facts that are not supported by the evidence unless you "
-            "clearly label them as a reasonable inference. "
-            "Return only the JSON object required by the schema."
+            "You are a senior research analyst and instructional designer for an educational video pipeline. "
+            "Your job is to convert search evidence into a concise but high-signal research brief and an act-based outline. "
+            "Use only the supplied evidence for factual claims. If a detail is not supported, label it clearly as an inference or omit it. "
+            "Prefer specific names, numbers, examples, and causal relationships over generalities. "
+            "Write for a future script writer who needs topic accuracy, teaching sequence, and visual hooks. "
+            "Return only the JSON object required by the schema and make sure it contains no extra commentary."
         )
 
     def _build_queries(self, topic: str) -> list[str]:
@@ -258,8 +258,9 @@ class ResearchStage:
 Topic: {topic}
 Slug: {slug}
 
-You are preparing research for a video pipeline. Use the search evidence below to write:
-1. `research_markdown`: 400-600 words, markdown, grounded in the evidence.
+You are preparing research for a topic-driven educational video pipeline.
+Produce three fields:
+1. `research_markdown`: 400-600 words, markdown, grounded in the evidence, with a clear teaching arc.
 2. `outline_markdown`: markdown outline with Act 1, Act 2, Act 3, Act 4 sections.
 3. `research_brief`: one concise paragraph summarising the topic and the teaching goal.
 
@@ -271,6 +272,8 @@ Research constraints:
 - Keep the outline suitable for later script generation.
 - Do not mention that you are an AI or that you were asked to use Claude.
 - Do not invent facts if the evidence does not support them; mark such items as inferences.
+- Prioritize useful teaching structure over prose polish.
+- Keep the output compact, precise, and easy for a script writer to reuse.
 
 Target search queries:
 {queries_block}

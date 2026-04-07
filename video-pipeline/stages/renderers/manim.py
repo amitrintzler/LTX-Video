@@ -48,7 +48,7 @@ def render(scene: dict, config: PipelineConfig, out_path: Path) -> Path:
 
     last_error: Optional[str] = None
     for attempt in range(config.renderer_max_retries):
-        model = config.llm_model or config.claude_model
+        model = config.llm_model_name()
         if config.llm_provider == "lmstudio":
             code = _call_lmstudio_api(
                 model=model,
@@ -96,6 +96,8 @@ def _build_system_prompt(
     *, width: int, height: int, fps: int, duration_sec: int, bg_color: str
 ) -> str:
     return f"""You are a Manim Community v0.18 expert. Write a complete Python file with a single class VideoScene(Scene) that animates exactly as described.
+
+Prioritize pedagogical clarity over decoration. The scene should read like a teaching diagram, not a generic motion graphic. If the description implies a sequence, preserve that sequence exactly.
 
 At the top of the file, before the class, set the Manim config:
 

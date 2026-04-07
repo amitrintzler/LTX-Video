@@ -70,6 +70,14 @@ class PipelineConfig:
     lmstudio_base_url: str = "http://localhost:1234/v1"
     lmstudio_api_key: str = "lm-studio"
 
+    def llm_model_name(self) -> str:
+        """Return the exact model name the active LLM backend should use."""
+        if self.llm_provider == "lmstudio":
+            if not self.llm_model:
+                raise ValueError("llm_model must be set when llm_provider is lmstudio")
+            return self.llm_model
+        return self.claude_model
+
     # ── TTS (Kokoro) ─────────────────────────────────────────────────
     tts_enabled: bool = True
     tts_voice: str = "af_heart"

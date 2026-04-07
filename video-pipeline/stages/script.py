@@ -784,7 +784,7 @@ Return JSON only.
             f"{mode}\n"
             f"{scene_count}\n"
             f"{acts}\n"
-            "chunked-script-v2"
+            "chunked-script-v3"
         ).encode("utf-8")
         return hashlib.sha256(payload).hexdigest()
 
@@ -792,8 +792,15 @@ Return JSON only.
         haystack = " ".join([topic_context_json(topic), research_text[:4000], outline_text[:2000]]).lower()
 
         if any(word in haystack for word in [
-            "chart", "graph", "trend", "distribution", "histogram", "scatter", "bar chart", "data",
-            "dashboard", "table", "comparison", "panel",
+            "option", "options", "strike", "premium", "payoff", "breakeven",
+            "expiration", "expiry", "theta", "delta", "gamma", "vega",
+            "call", "put", "intrinsic", "extrinsic",
+        ]):
+            return "manim"
+
+        if any(word in haystack for word in [
+            "chart", "graph", "trend", "distribution", "histogram", "scatter",
+            "bar chart", "time-series", "timeseries", "data", "dashboard", "table",
         ]):
             return "d3"
 

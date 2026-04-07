@@ -135,7 +135,7 @@ def test_research_stage_falls_back_for_structured_topic_without_evidence(tmp_pat
 
     cfg = PipelineConfig(work_dir=str(tmp_path))
     stage = ResearchStage(cfg, log)
-    topic = _topic_payload("Basics Flow")
+    topic = _topic_payload("Sample Topic")
 
     monkeypatch.setattr(stage, "_collect_evidence", lambda topic, queries: [])
     monkeypatch.setattr(
@@ -150,7 +150,7 @@ def test_research_stage_falls_back_for_structured_topic_without_evidence(tmp_pat
 
     assert research_path.exists()
     assert outline_path.exists()
-    assert "Basics Flow" in research_text
+    assert "Sample Topic" in research_text
     assert "Teaching Notes" in research_text
     assert "Research Angles" in research_text
     assert "Act 1" in outline_text
@@ -262,7 +262,7 @@ def test_script_stage_falls_back_when_llm_fails(tmp_path, log, monkeypatch):
 
     cfg = PipelineConfig(work_dir=str(tmp_path))
     stage = ScriptStage(cfg, log)
-    topic = _topic_payload("Basics Flow")
+    topic = _topic_payload("Sample Topic")
     slug = topic_slug(topic)
     research_dir = cfg.research_dir
     research_dir.mkdir(parents=True, exist_ok=True)

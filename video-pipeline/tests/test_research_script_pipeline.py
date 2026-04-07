@@ -116,6 +116,50 @@ def test_script_stage_writes_both_modes(tmp_path, log, monkeypatch):
     assert (cfg.scripts_dir / f"{slug}-companion-long.json").exists()
 
 
+def test_script_stage_normalizes_wrapped_cache(tmp_path, log, monkeypatch):
+    from stages.script import ScriptStage
+
+    cfg = PipelineConfig(work_dir=str(tmp_path))
+    stage = ScriptStage(cfg, log)
+    topic = "Black-Scholes"
+    slug = safe_slug(topic)
+    research_dir = cfg.research_dir
+    research_dir.mkdir(parents=True, exist_ok=True)
+    research_path = research_dir / f"{slug}.md"
+    outline_path = research_dir / f"{slug}-outline.md"
+    research_path.write_text("# Research\n\nNotes.\n")
+    outline_path.write_text("# Outline\n\n- Act 1\n- Act 2\n- Act 3\n- Act 4\n")
+
+    monkeypatch.setattr(stage, "_ensure_research", lambda topic, slug: (research_path, outline_path))
+
+    payload = _script_payload(title="black-scholes-narrated")
+    wrapped_path = cfg.scripts_dir / f"{slug}-narrated.json"
+    wrapped_path.parent.mkdir(parents=True, exist_ok=True)
+    wrapped_path.write_text(
+        json.dumps(
+            {
+                "type": "result",
+                "structured_output": payload,
+                "result": "wrapped response",
+            },
+            indent=2,
+        )
+    )
+
+    def fail_if_called(**kwargs):
+        raise AssertionError("Claude should not be called when a wrapped cache can be normalized")
+
+    monkeypatch.setattr("stages.script.run_claude_json", fail_if_called)
+
+    outputs = stage.run(topic, mode="narrated")
+
+    assert outputs == [wrapped_path]
+    saved = json.loads(wrapped_path.read_text())
+    assert "structured_output" not in saved
+    assert saved["title"] == "black-scholes-narrated"
+    assert isinstance(saved["scenes"], list)
+
+
 def test_topic_all_routes_through_new_flow(tmp_path, log, monkeypatch):
     import pipeline as pipeline_mod
     from stages.research import ResearchStage

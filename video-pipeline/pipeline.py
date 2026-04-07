@@ -52,7 +52,10 @@ def load_json(path: Path) -> dict:
 
 
 def _is_existing_file(input_ref: str) -> bool:
-    return Path(input_ref).expanduser().is_file()
+    try:
+        return Path(input_ref).expanduser().is_file()
+    except OSError:
+        return False
 
 
 def _infer_output_mode(script: dict, script_path: Optional[Path], cfg: PipelineConfig) -> str:

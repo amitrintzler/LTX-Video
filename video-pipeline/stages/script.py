@@ -66,8 +66,17 @@ class ScriptStage:
         self.cfg.scripts_dir.mkdir(parents=True, exist_ok=True)
 
         if script_path.exists():
-            self.log.info(f"  Reusing existing script -> {script_path}")
-            return script_path
+            existing = self._load_existing_script(script_path)
+            if existing is not None:
+                if self._is_valid_script(existing):
+                    self.log.info(f"  Reusing existing script -> {script_path}")
+                    return script_path
+                if self._is_valid_script(existing.get("structured_output")):
+                    normalized = existing["structured_output"]
+                    script_path.write_text(json.dumps(normalized, indent=2, ensure_ascii=False) + "\n")
+                    self.log.warning(f"  Normalized wrapped script -> {script_path}")
+                    return script_path
+            self.log.warning(f"  Existing script is invalid, regenerating -> {script_path}")
 
         research_text = research_path.read_text()
         outline_text = outline_path.read_text()
@@ -85,15 +94,40 @@ class ScriptStage:
         schema = self._schema(scene_count)
         result = run_claude_json(
             prompt=prompt,
-            model=self.cfg.claude_model,
+            model=self.cfg.llm_model or self.cfg.claude_model,
             system_prompt=self._system_prompt(),
             schema=schema,
+            provider=self.cfg.llm_provider,
+            base_url=self.cfg.lmstudio_base_url,
+            api_key=self.cfg.lmstudio_api_key,
             timeout=1800,
         )
 
-        script_path.write_text(json.dumps(result, indent=2, ensure_ascii=False) + "\n")
+        script = self._normalize_script(result)
+        script_path.write_text(json.dumps(script, indent=2, ensure_ascii=False) + "\n")
         self.log.info(f"  Script saved -> {script_path}")
         return script_path
+
+    def _load_existing_script(self, script_path: Path) -> dict | None:
+        try:
+            data = json.loads(script_path.read_text())
+        except (OSError, json.JSONDecodeError):
+            return None
+        if isinstance(data, dict):
+            return data
+        return None
+
+    def _normalize_script(self, result: object) -> dict:
+        if self._is_valid_script(result):
+            return result
+        if isinstance(result, dict):
+            structured_output = result.get("structured_output")
+            if self._is_valid_script(structured_output):
+                return structured_output
+        raise ValueError("Claude output did not contain a valid script JSON object")
+
+    def _is_valid_script(self, candidate: object) -> bool:
+        return isinstance(candidate, dict) and isinstance(candidate.get("scenes"), list)
 
     def _system_prompt(self) -> str:
         return (

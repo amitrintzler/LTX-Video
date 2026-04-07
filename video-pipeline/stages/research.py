@@ -61,14 +61,31 @@ class ResearchStage:
         }
         result = run_claude_json(
             prompt=prompt,
-            model=self.cfg.claude_model,
+            model=self.cfg.llm_model or self.cfg.claude_model,
             system_prompt=self._system_prompt(),
             schema=schema,
+            provider=self.cfg.llm_provider,
+            base_url=self.cfg.lmstudio_base_url,
+            api_key=self.cfg.lmstudio_api_key,
             timeout=900,
         )
 
-        research_markdown = self._normalize_markdown(result["research_markdown"])
-        outline_markdown = self._normalize_markdown(result["outline_markdown"])
+        research_markdown = self._normalize_markdown(
+            result.get("research_markdown")
+            or result.get("research_brief")
+            or ""
+        )
+        outline_markdown = self._normalize_markdown(
+            result.get("outline_markdown")
+            or result.get("research_markdown")
+            or result.get("research_brief")
+            or ""
+        )
+
+        if not research_markdown.strip():
+            research_markdown = self._fallback_research_markdown(topic, evidence)
+        if not outline_markdown.strip():
+            outline_markdown = self._fallback_outline_markdown(topic, queries, evidence)
 
         research_path.write_text(research_markdown.rstrip() + "\n")
         outline_path.write_text(outline_markdown.rstrip() + "\n")
@@ -261,6 +278,52 @@ Target search queries:
 Search evidence:
 {evidence_block}
 """.strip()
+
+    def _fallback_research_markdown(self, topic: str, evidence: list[dict[str, str]]) -> str:
+        lines = [
+            f"# {topic}",
+            "",
+            "## Research Summary",
+            "No live evidence was collected for this seed, so this draft preserves the broad lesson context for downstream script generation.",
+            "",
+            "## Evidence Notes",
+        ]
+        if evidence:
+            for item in evidence[:6]:
+                lines.append(f"- {item.get('title', 'source')}: {item.get('snippet', '')}")
+        else:
+            lines.append("- No evidence snippets were returned.")
+        return "\n".join(lines)
+
+    def _fallback_outline_markdown(self, topic: str, queries: list[str], evidence: list[dict[str, str]]) -> str:
+        lines = [
+            f"# {topic}",
+            "",
+            "## Act 1",
+            "- Introduce the topic at a high level.",
+            "",
+            "## Act 2",
+            "- Expand the core mechanics and key terms.",
+            "",
+            "## Act 3",
+            "- Show a worked example or concrete use case.",
+            "",
+            "## Act 4",
+            "- Connect the lesson back to practice and common misconceptions.",
+        ]
+        if queries:
+            lines.extend([
+                "",
+                "## Search Queries",
+                *[f"- {query}" for query in queries[:6]],
+            ])
+        if evidence:
+            lines.extend([
+                "",
+                "## Evidence",
+                *[f"- {item.get('title', 'source')}: {item.get('snippet', '')}" for item in evidence[:6]],
+            ])
+        return "\n".join(lines)
 
     @staticmethod
     def _normalize_markdown(text: str) -> str:

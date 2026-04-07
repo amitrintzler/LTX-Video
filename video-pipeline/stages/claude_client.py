@@ -1,5 +1,5 @@
 """
-stages/claude_client.py — Shared Claude Code CLI helpers.
+stages/claude_client.py — Shared LLM helpers for Claude Code CLI and LM Studio.
 """
 
 from __future__ import annotations
@@ -7,6 +7,8 @@ from __future__ import annotations
 import json
 import re
 import subprocess
+import urllib.error
+import urllib.request
 from typing import Any, Optional
 
 
@@ -19,13 +21,19 @@ def run_claude_text(
     prompt: str,
     model: str,
     system_prompt: str,
+    provider: str = "claude",
+    base_url: str = "http://localhost:1234/v1",
+    api_key: str = "lm-studio",
     timeout: int = 600,
 ) -> str:
-    """Run Claude Code CLI and return the raw text output."""
-    result = _run_claude(
+    """Run the configured LLM backend and return raw text output."""
+    result = _run_llm(
         prompt=prompt,
         model=model,
         system_prompt=system_prompt,
+        provider=provider,
+        base_url=base_url,
+        api_key=api_key,
         output_format="text",
         timeout=timeout,
     )
@@ -38,21 +46,61 @@ def run_claude_json(
     model: str,
     system_prompt: str,
     schema: dict[str, Any],
+    provider: str = "claude",
+    base_url: str = "http://localhost:1234/v1",
+    api_key: str = "lm-studio",
     timeout: int = 600,
 ) -> dict[str, Any]:
-    """Run Claude Code CLI and parse a structured JSON response."""
-    result = _run_claude(
+    """Run the configured LLM backend and parse a structured JSON response."""
+    result = _run_llm(
         prompt=prompt,
         model=model,
         system_prompt=system_prompt,
+        provider=provider,
+        base_url=base_url,
+        api_key=api_key,
         output_format="json",
         json_schema=schema,
         timeout=timeout,
     )
     payload = _extract_json_payload(result)
     if not isinstance(payload, dict):
-        raise ClaudeCLIError("Claude CLI did not return a JSON object")
+        raise ClaudeCLIError("LLM backend did not return a JSON object")
     return payload
+
+
+def _run_llm(
+    *,
+    prompt: str,
+    model: str,
+    system_prompt: str,
+    provider: str,
+    base_url: str,
+    api_key: str,
+    output_format: str,
+    json_schema: Optional[dict[str, Any]] = None,
+    timeout: int = 600,
+) -> str:
+    if provider == "lmstudio":
+        return _run_lmstudio(
+            prompt=prompt,
+            model=model,
+            system_prompt=system_prompt,
+            base_url=base_url,
+            api_key=api_key,
+            output_format=output_format,
+            json_schema=json_schema,
+            timeout=timeout,
+        )
+
+    return _run_claude(
+        prompt=prompt,
+        model=model,
+        system_prompt=system_prompt,
+        output_format=output_format,
+        json_schema=json_schema,
+        timeout=timeout,
+    )
 
 
 def _run_claude(
@@ -105,6 +153,79 @@ def _run_claude(
     return output
 
 
+def _run_lmstudio(
+    *,
+    prompt: str,
+    model: str,
+    system_prompt: str,
+    base_url: str,
+    api_key: str,
+    output_format: str,
+    json_schema: Optional[dict[str, Any]] = None,
+    timeout: int = 600,
+) -> str:
+    url = base_url.rstrip("/") + "/chat/completions"
+    body: dict[str, Any] = {
+        "model": model,
+        "messages": [
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": prompt},
+        ],
+        "temperature": 0.2,
+    }
+    if json_schema is not None:
+        body["response_format"] = {
+            "type": "json_schema",
+            "json_schema": {
+                "name": "response",
+                "schema": json_schema,
+                "strict": True,
+            },
+        }
+
+    req = urllib.request.Request(
+        url,
+        data=json.dumps(body).encode("utf-8"),
+        headers={
+            "Content-Type": "application/json",
+            "Authorization": f"Bearer {api_key}",
+        },
+        method="POST",
+    )
+
+    try:
+        with urllib.request.urlopen(req, timeout=timeout) as resp:
+            payload = json.loads(resp.read().decode("utf-8"))
+    except urllib.error.HTTPError as e:
+        details = e.read().decode("utf-8", errors="ignore") if e.fp else ""
+        raise ClaudeCLIError(
+            f"LM Studio API returned HTTP {e.code} at {url}: {details[-2000:] or e.reason}"
+        ) from e
+    except urllib.error.URLError as e:
+        raise ClaudeCLIError(
+            f"Cannot reach LM Studio API at {url}. Start LM Studio's local server on port 1234."
+        ) from e
+
+    try:
+        choice = payload["choices"][0]["message"]["content"]
+    except (KeyError, IndexError, TypeError) as e:
+        raise ClaudeCLIError("LM Studio returned an unexpected response shape") from e
+
+    if isinstance(choice, list):
+        choice = "".join(
+            part.get("text", "")
+            for part in choice
+            if isinstance(part, dict)
+        )
+
+    if not isinstance(choice, str):
+        choice = str(choice)
+
+    if output_format == "json" and json_schema is not None:
+        return choice.strip()
+    return choice.strip()
+
+
 def _extract_json_payload(output: str) -> Any:
     text = output.strip()
 
@@ -118,10 +239,9 @@ def _extract_json_payload(output: str) -> Any:
         start = text.find("{")
         end = text.rfind("}")
         if start == -1 or end == -1 or end <= start:
-            raise ClaudeCLIError("Claude CLI did not return valid JSON")
+            raise ClaudeCLIError("LLM backend did not return valid JSON")
         data = json.loads(text[start : end + 1])
 
-    # Claude Code JSON output may wrap the text result in a content array.
     if isinstance(data, dict) and "content" in data and isinstance(data["content"], list):
         chunks = []
         for chunk in data["content"]:

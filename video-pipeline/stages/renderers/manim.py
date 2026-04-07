@@ -8,10 +8,13 @@ Install deps:  pip install manim
 """
 
 from __future__ import annotations
+import json
 import re
 import shutil
 import subprocess
 import tempfile
+import urllib.error
+import urllib.request
 from pathlib import Path
 from typing import Optional
 
@@ -20,6 +23,9 @@ from config import PipelineConfig
 
 class ManimRenderError(RuntimeError):
     pass
+
+
+CLAUDE_CODEGEN_TIMEOUT = 600
 
 
 def render(scene: dict, config: PipelineConfig, out_path: Path) -> Path:
@@ -42,7 +48,18 @@ def render(scene: dict, config: PipelineConfig, out_path: Path) -> Path:
 
     last_error: Optional[str] = None
     for attempt in range(config.renderer_max_retries):
-        code = _call_claude_cli(config.claude_model, system, description, last_error)
+        model = config.llm_model or config.claude_model
+        if config.llm_provider == "lmstudio":
+            code = _call_lmstudio_api(
+                model=model,
+                system=system,
+                description=description,
+                error=last_error,
+                base_url=config.lmstudio_base_url,
+                api_key=config.lmstudio_api_key,
+            )
+        else:
+            code = _call_claude_cli(model, system, description, last_error)
         try:
             return _run_manim(code, out_path, timeout=120)
         except ManimRenderError as e:
@@ -132,7 +149,7 @@ def _call_claude_cli(
             cmd,
             capture_output=True,
             text=True,
-            timeout=180,
+            timeout=CLAUDE_CODEGEN_TIMEOUT,
         )
     except FileNotFoundError as e:
         raise ManimRenderError(
@@ -148,6 +165,76 @@ def _call_claude_cli(
     code = _extract_python_code(result.stdout)
     if not code.strip():
         raise ManimRenderError("Claude Code CLI returned empty code")
+    return code
+
+
+def _call_lmstudio_api(
+    *,
+    model: str,
+    system: str,
+    description: str,
+    error: Optional[str],
+    base_url: str,
+    api_key: str,
+) -> str:
+    user_content = description
+    if error:
+        user_content += (
+            f"\n\nThe previous attempt failed with this error:\n"
+            f"{error[-2000:]}\n\nPlease fix the code."
+        )
+
+    body = {
+        "model": model,
+        "messages": [
+            {"role": "system", "content": system},
+            {"role": "user", "content": user_content},
+        ],
+        "temperature": 0.2,
+    }
+    url = base_url.rstrip("/") + "/chat/completions"
+    req = urllib.request.Request(
+        url,
+        data=json.dumps(body).encode("utf-8"),
+        headers={
+            "Content-Type": "application/json",
+            "Authorization": f"Bearer {api_key}",
+        },
+        method="POST",
+    )
+
+    try:
+        with urllib.request.urlopen(req, timeout=CLAUDE_CODEGEN_TIMEOUT) as resp:
+            payload = json.loads(resp.read().decode("utf-8"))
+    except urllib.error.HTTPError as e:
+        details = e.read().decode("utf-8", errors="ignore") if e.fp else ""
+        raise ManimRenderError(
+            f"LM Studio API returned HTTP {e.code} at {url}: {details[-2000:] or e.reason}"
+        ) from e
+    except urllib.error.URLError as e:
+        raise ManimRenderError(
+            "Cannot reach LM Studio API at "
+            f"{url}. Start LM Studio's local server on port 1234."
+        ) from e
+
+    try:
+        content = payload["choices"][0]["message"]["content"]
+    except (KeyError, IndexError, TypeError) as e:
+        raise ManimRenderError("LM Studio returned an unexpected response shape") from e
+
+    if isinstance(content, list):
+        content = "".join(
+            part.get("text", "")
+            for part in content
+            if isinstance(part, dict)
+        )
+
+    if not isinstance(content, str):
+        content = str(content)
+
+    code = _extract_python_code(content)
+    if not code.strip():
+        raise ManimRenderError("LM Studio returned empty code")
     return code
 
 

@@ -15,6 +15,8 @@ def test_config_new_fields_have_correct_defaults():
     assert cfg.claude_model == "claude-sonnet-4-6"
     assert cfg.renderer_max_retries == 3
     assert cfg.render_workers == 1
+    assert cfg.llm_provider == "claude"
+    assert cfg.lmstudio_base_url == "http://localhost:1234/v1"
     assert cfg.animatediff_checkpoint == "frankjoshua/toonyou_beta6"
     assert cfg.animatediff_num_frames == 16
     assert cfg.animatediff_guidance_scale == 7.5
@@ -147,6 +149,25 @@ def test_manim_claude_cli_invocation_uses_print_and_system_prompt():
     assert "--system-prompt" in cmd
     assert "--tools" in cmd
     assert "DRAW A CURVE" in cmd
+
+
+def test_manim_uses_lmstudio_when_configured(tmp_path):
+    import stages.renderers.manim as manim_mod
+
+    cfg = _manim_cfg()
+    cfg.llm_provider = "lmstudio"
+    cfg.llm_model = "local-model"
+    out_path = tmp_path / "scene_001.mp4"
+
+    with patch("stages.renderers.manim._check_imports"), \
+         patch("stages.renderers.manim._call_lmstudio_api", return_value="from manim import *\nclass VideoScene(Scene): pass") as lm_call, \
+         patch("stages.renderers.manim._run_manim", return_value=out_path), \
+         patch("stages.renderers.manim._call_claude_cli") as claude_call:
+        result = manim_mod.render(_manim_scene(), cfg, out_path)
+
+    assert result == out_path
+    lm_call.assert_called_once()
+    claude_call.assert_not_called()
 
 
 def test_manim_run_uses_timeout(tmp_path):

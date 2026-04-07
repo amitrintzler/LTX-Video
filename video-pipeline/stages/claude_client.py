@@ -28,11 +28,12 @@ def run_claude_research(
     cmd = [
         "claude",
         "--print",
-        "--output-format", "text",
+        "--output-format", "json",
         "--model", model,
         "--system-prompt", system_prompt,
         "--allowedTools", "WebSearch",
         "--dangerously-skip-permissions",
+        "--json-schema", json.dumps(schema),
         prompt,
     ]
     try:
@@ -56,6 +57,30 @@ def run_claude_research(
     output = (result.stdout or "").strip()
     if not output:
         raise ClaudeCLIError("Claude Code CLI returned empty output")
+
+    # Claude CLI --output-format json wraps output in an envelope:
+    # {"type":"result","subtype":"success","result":"...","is_error":false,...}
+    # Try to unwrap it, then extract the actual research JSON.
+    try:
+        envelope = json.loads(output)
+    except json.JSONDecodeError:
+        envelope = None
+
+    if isinstance(envelope, dict):
+        # Unwrap the CLI envelope to get the actual text Claude returned
+        inner = envelope.get("result") or envelope.get("content") or ""
+        if isinstance(inner, list):
+            inner = "".join(
+                c.get("text", "") for c in inner
+                if isinstance(c, dict) and c.get("type") == "text"
+            )
+        if isinstance(inner, str) and inner.strip():
+            payload = _extract_json_payload(inner.strip())
+            if isinstance(payload, dict):
+                return payload
+        # Maybe the envelope itself is the payload (--json-schema forced it)
+        if all(k in envelope for k in ("research_markdown", "outline_markdown")):
+            return envelope
 
     payload = _extract_json_payload(output)
     if isinstance(payload, dict):

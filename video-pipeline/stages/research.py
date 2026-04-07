@@ -53,19 +53,14 @@ class ResearchStage:
                 return research_path, outline_path
 
         queries = self._build_queries(topic)
-        if isinstance(topic, dict):
-            self.log.info("  Structured topic document — using deterministic research fallback")
-            research_markdown = self._fallback_research_markdown(topic, title, queries, [])
-            outline_markdown = self._fallback_outline_markdown(topic, title, queries, [])
-        else:
-            evidence = self._collect_evidence(title, queries)
-            self.log.info(f"  Collected {len(evidence)} evidence snippets from {len(queries)} queries")
+        evidence = self._collect_evidence(title, queries)
+        self.log.info(f"  Collected {len(evidence)} evidence snippets from {len(queries)} queries")
 
-            if not evidence:
-                self.log.warning("  No live evidence found — using structured topic fallback")
-                research_markdown = self._fallback_research_markdown(topic, title, queries, evidence)
-                outline_markdown = self._fallback_outline_markdown(topic, title, queries, evidence)
-            else:
+        research_markdown = ""
+        outline_markdown = ""
+
+        if evidence:
+            try:
                 prompt = self._build_prompt(topic, slug, queries, evidence)
                 schema = {
                     "type": "object",
@@ -105,11 +100,15 @@ class ResearchStage:
                     or result.get("research_brief")
                     or ""
                 )
+            except Exception as exc:
+                self.log.warning(f"  Research LLM failed ({exc}); using structured fallback")
 
-                if not research_markdown.strip():
-                    research_markdown = self._fallback_research_markdown(topic, title, queries, evidence)
-                if not outline_markdown.strip():
-                    outline_markdown = self._fallback_outline_markdown(topic, title, queries, evidence)
+        if not research_markdown.strip():
+            if not evidence:
+                self.log.warning("  No live evidence found — using structured topic fallback")
+            research_markdown = self._fallback_research_markdown(topic, title, queries, evidence)
+        if not outline_markdown.strip():
+            outline_markdown = self._fallback_outline_markdown(topic, title, queries, evidence)
 
         research_path.write_text(research_markdown.rstrip() + "\n")
         outline_path.write_text(outline_markdown.rstrip() + "\n")

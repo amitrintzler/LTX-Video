@@ -211,6 +211,36 @@ def test_render_stage_falls_back_to_manim_for_missing_renderer(tmp_path):
     fake_renderer.render.assert_called_once()
 
 
+def test_render_stage_sanitizes_manim_scene_description(tmp_path):
+    from stages.render import RenderStage
+
+    cfg = _manim_cfg()
+    stage = RenderStage(cfg, logging.getLogger("test"))
+    scene = {
+        "id": "s01",
+        "renderer": "manim",
+        "description": "Show payoff $S_T - K$ with strike_100 and x^2.",
+        "duration_sec": 8,
+        "style": "dark background #0a0a0a, white text",
+    }
+
+    fake_renderer = MagicMock()
+    fake_renderer.render = MagicMock(return_value=tmp_path / "scene_001.mp4")
+
+    def fake_get_renderer(name):
+        if name == "manim":
+            return fake_renderer
+        raise AssertionError(f"Unexpected renderer request: {name}")
+
+    with patch("stages.render.shutil.which", return_value="/usr/bin/latex"), \
+         patch("stages.render.get_renderer", side_effect=fake_get_renderer):
+        stage._render_scene(0, scene, tmp_path, default_renderer="manim")
+
+    sanitized_scene = fake_renderer.render.call_args.args[0]
+    assert sanitized_scene["description"].startswith("Show payoff S T - K with strike 100 and x 2.")
+    assert "plain-text labels only" in sanitized_scene["description"]
+
+
 def test_render_stage_falls_back_to_slides_when_latex_missing(tmp_path):
     from stages.render import RenderStage
 
@@ -462,6 +492,32 @@ def test_manim_uses_lmstudio_when_configured(tmp_path):
     assert result == out_path
     lm_call.assert_called_once()
     claude_call.assert_not_called()
+
+
+def test_manim_rejects_tex_codegen_before_running_manim(tmp_path):
+    import stages.renderers.manim as manim_mod
+    from stages.renderers.manim import ManimRenderError
+
+    cfg = _manim_cfg()
+    cfg.llm_provider = "lmstudio"
+    cfg.llm_model = "local-model"
+    cfg.renderer_max_retries = 2
+    out_path = tmp_path / "scene_001.mp4"
+
+    bad_code = """from manim import *
+class VideoScene(Scene):
+    def construct(self):
+        label = MathTex("x^2")
+"""
+
+    with patch("stages.renderers.manim._check_imports"), \
+         patch("stages.renderers.manim._call_lmstudio_api", return_value=bad_code) as lm_call, \
+         patch("stages.renderers.manim._run_manim") as run_call:
+        with pytest.raises(ManimRenderError, match="MathTex/Tex"):
+            manim_mod.render(_manim_scene(), cfg, out_path)
+
+    assert lm_call.call_count == 2
+    run_call.assert_not_called()
 
 
 def test_manim_run_uses_timeout(tmp_path):

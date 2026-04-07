@@ -6,6 +6,7 @@ from __future__ import annotations
 
 import concurrent.futures
 import logging
+import re
 import shutil
 from pathlib import Path
 from typing import Optional
@@ -69,5 +70,32 @@ class RenderStage:
             renderer = get_renderer("manim")
 
         self.log.info(f"  [{scene_id}] renderer={renderer_name} -> {resolved_name}")
-        renderer.render(scene, self.cfg, out_path)
+        render_scene = self._scene_for_renderer(scene, resolved_name)
+        renderer.render(render_scene, self.cfg, out_path)
         self.log.info(f"  [{scene_id}] saved -> {out_path}")
+
+    def _scene_for_renderer(self, scene: dict, renderer_name: str) -> dict:
+        if renderer_name != "manim" or not isinstance(scene, dict):
+            return scene
+
+        sanitized = dict(scene)
+        description = sanitized.get("description")
+        if isinstance(description, str) and description.strip():
+            sanitized["description"] = self._sanitize_manim_description(description)
+        return sanitized
+
+    @staticmethod
+    def _sanitize_manim_description(description: str) -> str:
+        text = description.strip()
+        text = re.sub(r"\$([^$]+)\$", r"\1", text)
+        text = re.sub(r"\\[a-zA-Z]+", " ", text)
+        text = text.replace("_", " ")
+        text = text.replace("^", " ")
+        text = re.sub(r"\s+", " ", text).strip()
+
+        safety_note = (
+            " Use plain-text labels only. Do not use MathTex, Tex, or any LaTeX syntax."
+        )
+        if safety_note.strip() not in text:
+            text = f"{text.rstrip('.')}." + safety_note
+        return text

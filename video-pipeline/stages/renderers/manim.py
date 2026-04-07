@@ -61,6 +61,7 @@ def render(scene: dict, config: PipelineConfig, out_path: Path) -> Path:
         else:
             code = _call_claude_cli(model, system, description, last_error)
         try:
+            _ensure_text_only_code(code)
             return _run_manim(code, out_path, timeout=120)
         except ManimRenderError as e:
             last_error = str(e)
@@ -116,6 +117,7 @@ CRITICAL — LaTeX is NOT installed. You MUST follow these rules:
     operators: ≥→"\u2265" ≤→"\u2264" ×→"\u00d7" ±→"\u00b1"
 - For Brace labels: Text(...) only.
 - Everything else (Axes, Line, Arrow, Dot, DashedLine, Create, Write, etc.) is fine.
+- If the scene description mentions math, translate it into plain English or Unicode text instead of LaTeX syntax.
 
 The animation must complete within {duration_sec} seconds total. Do not call self.wait() beyond that.
 Output only valid Python code. No markdown fences, no explanation."""
@@ -252,6 +254,13 @@ def _extract_python_code(output: str) -> str:
         if idx != -1:
             return text[idx:].strip()
     return text
+
+
+def _ensure_text_only_code(code: str) -> None:
+    if re.search(r"\b(?:MathTex|Tex)\s*\(", code):
+        raise ManimRenderError(
+            "Generated Manim code still uses MathTex/Tex. Rewrite the scene with Text(...) only."
+        )
 
 
 def _run_manim(code: str, out_path: Path, timeout: int = 120) -> Path:

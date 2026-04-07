@@ -16,8 +16,10 @@ def test_config_new_fields_have_correct_defaults():
     assert cfg.claude_model == "claude-sonnet-4-6"
     assert cfg.renderer_max_retries == 3
     assert cfg.render_workers == 1
+    assert cfg.script_timeout_sec == 180
+    assert cfg.script_chunk_size == 5
     assert cfg.llm_provider == "lmstudio"
-    assert cfg.llm_model == "google/gemma-4-26b-a4b"
+    assert cfg.llm_model == "qwen/qwen3.5-35b-a3b"
     assert cfg.lmstudio_base_url == "http://localhost:1234/v1"
     assert cfg.animatediff_checkpoint == "frankjoshua/toonyou_beta6"
     assert cfg.animatediff_num_frames == 16
@@ -108,9 +110,9 @@ def test_script_suggests_renderer_from_topic_and_research():
 
     stage = ScriptStage(PipelineConfig(), logging.getLogger("test"))
     assert stage._suggest_renderer("option pricing", "This topic uses formulas and diagrams.", "") == "manim"
-    assert stage._suggest_renderer("quarterly earnings deck", "summary comparison table and bullet list", "") == "slides"
+    assert stage._suggest_renderer("quarterly earnings deck", "summary comparison table and bullet list", "") == "d3"
     assert stage._suggest_renderer("market data trends", "chart and histogram analysis", "") == "d3"
-    assert stage._suggest_renderer("product walkthrough", "browser UI click interaction", "") == "html_anim"
+    assert stage._suggest_renderer("product walkthrough", "browser UI click interaction", "") == "motion-canvas"
 
 
 def test_script_ensure_primary_renderer_sets_root_and_scene_defaults():

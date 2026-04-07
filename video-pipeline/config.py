@@ -68,8 +68,10 @@ class PipelineConfig:
     claude_model: str = "claude-sonnet-4-6"
     renderer_max_retries: int = 3
     render_workers: int = 1
+    script_timeout_sec: int = 180
+    script_chunk_size: int = 5
     llm_provider: str = "lmstudio"   # claude | lmstudio
-    llm_model: str = "google/gemma-4-26b-a4b"
+    llm_model: str = "qwen/qwen3.5-35b-a3b"
     lmstudio_base_url: str = "http://localhost:1234/v1"
     lmstudio_api_key: str = "lm-studio"
 

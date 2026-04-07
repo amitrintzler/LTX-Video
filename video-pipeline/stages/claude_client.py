@@ -7,12 +7,18 @@ from __future__ import annotations
 import json
 import re
 import subprocess
+import tempfile
 import urllib.error
 import urllib.request
+from pathlib import Path
 from typing import Any, Optional
 
 
 class ClaudeCLIError(RuntimeError):
+    pass
+
+
+class CodexCLIError(RuntimeError):
     pass
 
 
@@ -86,6 +92,70 @@ def run_claude_research(
     if isinstance(payload, dict):
         return payload
     raise ClaudeCLIError("Claude Code CLI did not return valid JSON for research")
+
+
+def run_codex_research(
+    *,
+    prompt: str,
+    schema: dict[str, Any],
+    model: Optional[str] = None,
+    timeout: int = 300,
+    work_dir: str | Path | None = None,
+) -> dict[str, Any]:
+    """Call Codex CLI with web search enabled for live research synthesis."""
+    cmd = ["codex", "--search", "exec", "--full-auto"]
+    if model:
+        cmd.extend(["--model", model])
+
+    with tempfile.TemporaryDirectory() as tmpdir:
+        tmp_path = Path(tmpdir)
+        schema_path = tmp_path / "schema.json"
+        output_path = tmp_path / "output.json"
+        schema_path.write_text(json.dumps(schema, indent=2, ensure_ascii=False) + "\n")
+        cmd.extend(
+            [
+                "--output-schema",
+                str(schema_path),
+                "--output-last-message",
+                str(output_path),
+            ]
+        )
+        if work_dir is not None:
+            cmd.extend(["--cd", str(work_dir)])
+        cmd.append(prompt)
+
+        try:
+            result = subprocess.run(
+                cmd,
+                capture_output=True,
+                text=True,
+                timeout=timeout,
+            )
+        except FileNotFoundError as e:
+            raise CodexCLIError("Codex CLI not found on PATH.") from e
+        except subprocess.TimeoutExpired as e:
+            raise CodexCLIError("Codex CLI timed out during research") from e
+
+        if result.returncode != 0:
+            stderr = (result.stderr or result.stdout or "").strip()
+            raise CodexCLIError(stderr[-2000:] or "Codex CLI failed without output")
+
+        if not output_path.exists():
+            output = (result.stdout or "").strip()
+            if output:
+                payload = _extract_json_payload(output)
+                if isinstance(payload, dict):
+                    return payload
+            raise CodexCLIError("Codex CLI did not produce an output file")
+
+        output = output_path.read_text().strip()
+        if not output:
+            raise CodexCLIError("Codex CLI returned empty output")
+
+        payload = _extract_json_payload(output)
+        if isinstance(payload, dict):
+            return payload
+        raise CodexCLIError("Codex CLI did not return valid JSON for research")
 
 
 def run_claude_text(

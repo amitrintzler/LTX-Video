@@ -56,6 +56,19 @@ def _script_payload(title: str, scene_count: int = 3) -> dict:
     }
 
 
+def _chunk_payload_from_prompt(prompt: str, title: str) -> dict:
+    import re
+
+    match = re.search(r"scenes s(\d{2}) through s(\d{2})", prompt)
+    if match:
+        start = int(match.group(1))
+        end = int(match.group(2))
+        scene_count = end - start + 1
+    else:
+        scene_count = 3
+    return _script_payload(title=title, scene_count=scene_count)
+
+
 def _topic_payload(title: str, slug: str = "black-scholes-pricing") -> dict:
     return {
         "kind": "topic",
@@ -106,7 +119,7 @@ def test_research_stage_writes_docs(tmp_path, log, monkeypatch):
     slug = safe_slug("Black-Scholes")
 
     monkeypatch.setattr(
-        "stages.research.run_claude_json",
+        "stages.research.run_codex_research",
         lambda **kwargs: {
             "title": slug,
             "research_brief": "A concise research brief.",
@@ -130,7 +143,7 @@ def test_research_stage_writes_docs(tmp_path, log, monkeypatch):
     assert "Act 4" in outline_path.read_text()
 
 
-def test_research_stage_falls_back_for_structured_topic_without_evidence(tmp_path, log, monkeypatch):
+def test_research_stage_forces_codex_without_local_evidence(tmp_path, log, monkeypatch):
     from stages.research import ResearchStage
 
     cfg = PipelineConfig(work_dir=str(tmp_path))
@@ -138,10 +151,18 @@ def test_research_stage_falls_back_for_structured_topic_without_evidence(tmp_pat
     topic = _topic_payload("Sample Topic")
 
     monkeypatch.setattr(stage, "_collect_evidence", lambda topic, queries: [])
-    monkeypatch.setattr(
-        "stages.research.run_claude_json",
-        lambda **kwargs: (_ for _ in ()).throw(AssertionError("LLM should not be called when there is no evidence")),
-    )
+    called = []
+
+    def fake_run_codex_research(**kwargs):
+        called.append(kwargs)
+        return {
+            "title": "sample-topic",
+            "research_brief": "Research brief",
+            "research_markdown": "# Research\n\nGrounded notes.\n",
+            "outline_markdown": "# Outline\n\n- Act 1\n- Act 2\n- Act 3\n- Act 4\n",
+        }
+
+    monkeypatch.setattr("stages.research.run_codex_research", fake_run_codex_research)
 
     research_path, outline_path = stage.run(topic)
 
@@ -150,9 +171,8 @@ def test_research_stage_falls_back_for_structured_topic_without_evidence(tmp_pat
 
     assert research_path.exists()
     assert outline_path.exists()
-    assert "Sample Topic" in research_text
-    assert "Teaching Notes" in research_text
-    assert "Research Angles" in research_text
+    assert called
+    assert "Grounded notes" in research_text
     assert "Act 1" in outline_text
     assert "Act 4" in outline_text
 
@@ -184,13 +204,15 @@ def test_script_stage_writes_both_modes(tmp_path, log, monkeypatch):
     )
 
     monkeypatch.setattr(stage, "_ensure_research", lambda topic, slug: (research_path, outline_path))
-    monkeypatch.setattr(
-        "stages.script.run_claude_json",
-        lambda **kwargs: _script_payload(
-            title="black-scholes-narrated" if "Target scene count: 22" in kwargs["prompt"] else "black-scholes-companion-long",
-            scene_count=3,
-        ),
-    )
+
+    def fake_run_claude_json(**kwargs):
+        assert kwargs["provider"] == "lmstudio"
+        assert kwargs["model"] == "qwen/qwen3.5-35b-a3b"
+        assert kwargs["timeout"] == cfg.script_timeout_sec
+        title = "black-scholes-narrated" if "Mode: narrated" in kwargs["prompt"] else "black-scholes-companion-long"
+        return _chunk_payload_from_prompt(kwargs["prompt"], title)
+
+    monkeypatch.setattr("stages.script.run_claude_json", fake_run_claude_json)
 
     outputs = stage.run(topic, mode="both")
 
@@ -216,7 +238,7 @@ def test_script_stage_normalizes_wrapped_cache(tmp_path, log, monkeypatch):
 
     monkeypatch.setattr(stage, "_ensure_research", lambda topic, slug: (research_path, outline_path))
 
-    payload = _script_payload(title="black-scholes-narrated")
+    payload = _script_payload(title="black-scholes-narrated", scene_count=22)
     wrapped_path = cfg.scripts_dir / f"{slug}-narrated.json"
     script_meta_path = cfg.scripts_dir / f"{slug}-narrated.meta.json"
     wrapped_path.parent.mkdir(parents=True, exist_ok=True)
@@ -235,6 +257,12 @@ def test_script_stage_normalizes_wrapped_cache(tmp_path, log, monkeypatch):
             {
                 "topic_signature": topic_signature(topic),
                 "research_signature": research_signature,
+                "script_signature": stage._script_signature(
+                    research_signature=research_signature,
+                    mode="narrated",
+                    scene_count=22,
+                    acts="Acts 1-3",
+                ),
                 "topic_title": topic,
             },
             indent=2,
@@ -271,10 +299,14 @@ def test_script_stage_uses_deterministic_generator_for_structured_topic(tmp_path
     outline_path.write_text("# Outline\n\n- Act 1\n- Act 2\n- Act 3\n- Act 4\n")
 
     monkeypatch.setattr(stage, "_ensure_research", lambda topic, slug: (research_path, outline_path))
-    monkeypatch.setattr(
-        "stages.script.run_claude_json",
-        lambda **kwargs: (_ for _ in ()).throw(AssertionError("LLM should not be called for structured topics")),
-    )
+
+    def fake_run_claude_json(**kwargs):
+        assert kwargs["provider"] == "lmstudio"
+        assert kwargs["model"] == "qwen/qwen3.5-35b-a3b"
+        assert kwargs["timeout"] == cfg.script_timeout_sec
+        return _chunk_payload_from_prompt(kwargs["prompt"], f"{slug}-narrated")
+
+    monkeypatch.setattr("stages.script.run_claude_json", fake_run_claude_json)
 
     outputs = stage.run(topic, mode="narrated")
 

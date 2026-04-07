@@ -84,6 +84,12 @@ class ScriptStage:
         outline_text = outline_path.read_text()
         research_signature = self._research_signature(research_text, outline_text)
         current_topic_signature = topic_signature(topic)
+        current_script_signature = self._script_signature(
+            research_signature=research_signature,
+            mode=mode,
+            scene_count=scene_count,
+            acts=acts,
+        )
 
         if script_path.exists():
             if meta_path.exists():
@@ -95,6 +101,7 @@ class ScriptStage:
                     isinstance(meta, dict)
                     and meta.get("topic_signature") == current_topic_signature
                     and meta.get("research_signature") == research_signature
+                    and meta.get("script_signature") == current_script_signature
                 ):
                     existing = self._load_existing_script(script_path)
                     if existing is not None:
@@ -109,32 +116,18 @@ class ScriptStage:
             self.log.warning(f"  Existing script is invalid, regenerating -> {script_path}")
 
         preferred_renderer = self._suggest_renderer(topic, research_text, outline_text)
-
-        prompt = self._build_prompt(
-            topic=topic,
-            slug=slug,
-            mode=mode,
-            acts=acts,
-            scene_count=scene_count,
-            duration_target=duration_target,
-            preferred_renderer=preferred_renderer,
-            research_text=research_text,
-            outline_text=outline_text,
-        )
-        schema = self._schema(scene_count)
         try:
-            # Script generation always uses Claude CLI regardless of llm_provider
-            result = run_claude_json(
-                prompt=prompt,
-                model=self.cfg.claude_model,
-                system_prompt=self._system_prompt(),
-                schema=schema,
-                provider="claude",
-                timeout=600,
-                max_tokens=scene_count * 1500,
+            script = self._generate_script_chunked(
+                topic=topic,
+                slug=slug,
+                mode=mode,
+                acts=acts,
+                scene_count=scene_count,
+                duration_target=duration_target,
+                preferred_renderer=preferred_renderer,
+                research_text=research_text,
+                outline_text=outline_text,
             )
-
-            script = self._normalize_script(result)
             script = self._ensure_primary_renderer(script, preferred_renderer)
         except (ClaudeCLIError, ValueError, TimeoutError) as exc:
             self.log.warning(f"  Script LLM failed ({exc}); using deterministic fallback script")
@@ -152,6 +145,7 @@ class ScriptStage:
                 {
                     "topic_signature": current_topic_signature,
                     "research_signature": research_signature,
+                    "script_signature": current_script_signature,
                     "topic_title": topic_title(topic),
                 },
                 indent=2,
@@ -161,6 +155,104 @@ class ScriptStage:
         )
         self.log.info(f"  Script saved -> {script_path}")
         return script_path
+
+    def _generate_script_chunked(
+        self,
+        *,
+        topic: TopicInput,
+        slug: str,
+        mode: str,
+        acts: str,
+        scene_count: int,
+        duration_target: int,
+        preferred_renderer: str,
+        research_text: str,
+        outline_text: str,
+    ) -> dict:
+        chunk_size = max(1, int(getattr(self.cfg, "script_chunk_size", scene_count)))
+        ranges = self._scene_ranges(scene_count, chunk_size)
+        merged_script: dict | None = None
+        scenes: list[dict] = []
+        completed_summaries: list[str] = []
+
+        for chunk_index, (start, end) in enumerate(ranges, start=1):
+            chunk_scene_count = end - start + 1
+            prompt = self._build_chunk_prompt(
+                topic=topic,
+                slug=slug,
+                mode=mode,
+                acts=acts,
+                scene_count=scene_count,
+                duration_target=duration_target,
+                preferred_renderer=preferred_renderer,
+                research_text=research_text,
+                outline_text=outline_text,
+                chunk_index=chunk_index,
+                chunk_total=len(ranges),
+                chunk_start=start,
+                chunk_end=end,
+                completed_scene_summaries=completed_summaries,
+            )
+            schema = self._schema(chunk_scene_count)
+            result = run_claude_json(
+                prompt=prompt,
+                model=self.cfg.llm_model_name(),
+                system_prompt=self._system_prompt(),
+                schema=schema,
+                provider=self.cfg.llm_provider,
+                base_url=self.cfg.lmstudio_base_url,
+                api_key=self.cfg.lmstudio_api_key,
+                timeout=self.cfg.script_timeout_sec,
+                max_tokens=max(2500, chunk_scene_count * 1000),
+            )
+
+            chunk_script = self._normalize_script(result)
+            chunk_scenes = chunk_script.get("scenes")
+            if not isinstance(chunk_scenes, list) or len(chunk_scenes) != chunk_scene_count:
+                raise ValueError(
+                    f"Chunk {chunk_index} returned {len(chunk_scenes) if isinstance(chunk_scenes, list) else 0} scenes; expected {chunk_scene_count}"
+                )
+
+            if merged_script is None:
+                merged_script = {
+                    "title": chunk_script.get("title") or f"{slug}-{mode}",
+                    "brief": chunk_script.get("brief") or "",
+                    "research_brief": chunk_script.get("research_brief") or chunk_script.get("brief") or "",
+                    "primary_renderer": chunk_script.get("primary_renderer") or preferred_renderer or "manim",
+                    "global_style": chunk_script.get("global_style") if isinstance(chunk_script.get("global_style"), dict) else {},
+                }
+
+            for offset, scene in enumerate(chunk_scenes, start=0):
+                if not isinstance(scene, dict):
+                    raise ValueError(f"Chunk {chunk_index} returned a non-object scene")
+                normalized_scene = dict(scene)
+                normalized_scene["id"] = f"s{start + offset:02d}"
+                normalized_scene.setdefault("renderer", merged_script["primary_renderer"])
+                scenes.append(normalized_scene)
+                completed_summaries.append(self._scene_summary(normalized_scene))
+
+        if merged_script is None:
+            raise ValueError("No script chunks were generated")
+
+        merged_script["scenes"] = scenes
+        if not merged_script.get("brief"):
+            merged_script["brief"] = self._fallback_brief(topic, topic_title(topic), research_text, outline_text)
+        if not merged_script.get("research_brief"):
+            merged_script["research_brief"] = merged_script["brief"]
+        if not isinstance(merged_script.get("global_style"), dict) or not merged_script["global_style"]:
+            merged_script["global_style"] = {
+                "background": "#0d1117",
+                "primary": "#FFD700",
+                "danger": "#FF4444",
+                "success": "#00C896",
+                "text": "#FFFFFF",
+                "muted": "#8B949E",
+                "font": "JetBrains Mono",
+                "transition": "fade_black_0.3s",
+                "resolution": "1920x1080",
+                "fps": 60,
+            }
+        return merged_script
 
     def _load_existing_script(self, script_path: Path) -> Optional[dict]:
         try:
@@ -443,7 +535,7 @@ class ScriptStage:
             "additionalProperties": False,
         }
 
-    def _build_prompt(
+    def _build_chunk_prompt(
         self,
         *,
         topic: TopicInput,
@@ -455,27 +547,40 @@ class ScriptStage:
         preferred_renderer: str,
         research_text: str,
         outline_text: str,
+        chunk_index: int,
+        chunk_total: int,
+        chunk_start: int,
+        chunk_end: int,
+        completed_scene_summaries: list[str],
     ) -> str:
         topic_block = topic_context_json(topic)
         topic_name = topic_title(topic)
+        research_excerpt = self._truncate_text(research_text, 2200)
+        outline_excerpt = self._truncate_text(outline_text, 1800)
+        previous_block = "\n".join(f"- {item}" for item in completed_scene_summaries[-4:]) or "- None yet"
         return f"""
 Topic title: {topic_name}
 Slug: {slug}
 Mode: {mode}
 Target scene count: {scene_count}
+Chunk: {chunk_index}/{chunk_total}
+This chunk must produce scenes s{chunk_start:02d} through s{chunk_end:02d}.
 Average duration target per scene: {duration_target} seconds
 Use only {acts} from the outline.
 
 Topic document:
 {topic_block}
 
-Research document:
-{research_text}
+Research excerpt:
+{research_excerpt}
 
-Outline document:
-{outline_text}
+Outline excerpt:
+{outline_excerpt}
 
-Create a JSON script for a topic-driven video pipeline.
+Completed scene summaries for continuity:
+{previous_block}
+
+Create a JSON script chunk for a topic-driven video pipeline.
 
 Rules:
 - Choose one `primary_renderer` for the movie based on the topic and research.
@@ -485,12 +590,12 @@ Rules:
 - Use "manim" for equations, curves, payoff diagrams, axes plots, mathematical proofs, probability distributions.
 - Use "motion-canvas" for step-by-step concept walkthroughs, text-driven explainers, animated cards, story panels, formula builds.
 - Use "d3" for data charts, bar charts, time-series, multi-panel financial dashboards, tables with animation, comparison panels.
-- Mix all three renderers across the scenes to give the video visual variety.
+- Mix renderers across the chunk to give the video visual variety.
 - The global_style object must use this contract:
   background #0d1117, primary #FFD700, danger #FF4444, success #00C896,
   text #FFFFFF, muted #8B949E, font "JetBrains Mono",
   transition "fade_black_0.3s", resolution "1920x1080", fps 60.
-- Scene ids must be sequential s01, s02, ... with no gaps.
+- Scene ids in this chunk must be sequential and begin at s{chunk_start:02d}.
 - Narration must be 2-4 sentences and self-contained.
 - Description must be 150-300 words, explicit enough that Claude can generate the Manim code without guessing.
 - Every description must name exact objects, colors, animation order, timing, and final hold time.
@@ -503,8 +608,51 @@ Rules:
 - Return JSON only.
 """.strip()
 
+    @staticmethod
+    def _scene_ranges(scene_count: int, chunk_size: int) -> list[tuple[int, int]]:
+        ranges: list[tuple[int, int]] = []
+        start = 1
+        while start <= scene_count:
+            end = min(scene_count, start + chunk_size - 1)
+            ranges.append((start, end))
+            start = end + 1
+        return ranges
+
+    @staticmethod
+    def _scene_summary(scene: dict) -> str:
+        title = str(scene.get("title") or scene.get("id") or "scene").strip()
+        narration = " ".join(str(scene.get("narration") or "").split())
+        if narration:
+            narration = narration[:120]
+            return f"{title}: {narration}"
+        description = " ".join(str(scene.get("description") or "").split())
+        if description:
+            return f"{title}: {description[:120]}"
+        return title
+
+    @staticmethod
+    def _truncate_text(text: str, limit: int) -> str:
+        cleaned = " ".join(text.split()).strip()
+        if len(cleaned) <= limit:
+            return cleaned
+        return cleaned[: limit - 3].rstrip() + "..."
+
     def _research_signature(self, research_text: str, outline_text: str) -> str:
         payload = f"{research_text}\n---outline---\n{outline_text}".encode("utf-8")
+        return hashlib.sha256(payload).hexdigest()
+
+    def _script_signature(self, *, research_signature: str, mode: str, scene_count: int, acts: str) -> str:
+        payload = (
+            f"{research_signature}\n"
+            f"{self.cfg.llm_provider}\n"
+            f"{self.cfg.llm_model_name()}\n"
+            f"{self.cfg.script_timeout_sec}\n"
+            f"{self.cfg.script_chunk_size}\n"
+            f"{mode}\n"
+            f"{scene_count}\n"
+            f"{acts}\n"
+            "chunked-script-v2"
+        ).encode("utf-8")
         return hashlib.sha256(payload).hexdigest()
 
     def _suggest_renderer(self, topic: TopicInput, research_text: str, outline_text: str) -> str:

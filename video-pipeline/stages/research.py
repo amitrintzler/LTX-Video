@@ -1,7 +1,7 @@
 """
 stages/research.py — Topic research stage.
 
-Collects a small bundle of live search evidence, then uses Claude Code CLI
+Collects a small bundle of live search evidence, then uses Codex CLI
 to synthesize:
   - research/<slug>.md
   - research/<slug>-outline.md
@@ -17,7 +17,7 @@ from pathlib import Path
 from typing import Any
 
 from config import PipelineConfig
-from stages.claude_client import run_claude_json, run_claude_research
+from stages.claude_client import CodexCLIError, run_codex_research
 from stages.topic_utils import (
     TopicInput,
     topic_context_json,
@@ -53,6 +53,7 @@ class ResearchStage:
                 return research_path, outline_path
 
         queries = self._build_queries(topic)
+        evidence = self._collect_evidence(title, queries)
         research_markdown = ""
         outline_markdown = ""
 
@@ -68,16 +69,17 @@ class ResearchStage:
             "additionalProperties": False,
         }
 
-        # Research always uses Claude CLI with WebSearch regardless of llm_provider
         try:
-            self.log.info("  Using Claude CLI with WebSearch for research")
-            prompt = self._build_claude_research_prompt(topic, slug, queries)
-            result = run_claude_research(
+            if evidence:
+                self.log.info("  Using Codex CLI with WebSearch for research")
+            else:
+                self.log.info("  No local evidence collected; forcing Codex CLI with WebSearch for research")
+            prompt = self._build_prompt(topic, slug, queries, evidence)
+            result = run_codex_research(
                 prompt=prompt,
-                model=self.cfg.claude_model,
-                system_prompt=self._system_prompt(),
                 schema=schema,
                 timeout=300,
+                work_dir=self.cfg.work_dir,
             )
             research_markdown = self._normalize_markdown(
                 result.get("research_markdown") or result.get("research_brief") or ""
@@ -85,13 +87,13 @@ class ResearchStage:
             outline_markdown = self._normalize_markdown(
                 result.get("outline_markdown") or result.get("research_markdown") or ""
             )
-        except Exception as exc:
-            self.log.warning(f"  Claude CLI research failed ({exc}); using structured fallback")
+        except (CodexCLIError, ValueError, TimeoutError, OSError) as exc:
+            self.log.warning(f"  Codex CLI research failed ({exc}); using structured fallback")
 
         if not research_markdown.strip():
-            research_markdown = self._fallback_research_markdown(topic, title, queries, [])
+            research_markdown = self._fallback_research_markdown(topic, title, queries, evidence)
         if not outline_markdown.strip():
-            outline_markdown = self._fallback_outline_markdown(topic, title, queries, [])
+            outline_markdown = self._fallback_outline_markdown(topic, title, queries, evidence)
 
         research_path.write_text(research_markdown.rstrip() + "\n")
         outline_path.write_text(outline_markdown.rstrip() + "\n")
@@ -111,16 +113,6 @@ class ResearchStage:
         self.log.info(f"  Research saved -> {research_path}")
         self.log.info(f"  Outline saved  -> {outline_path}")
         return research_path, outline_path
-
-    def _system_prompt(self) -> str:
-        return (
-            "You are a senior research analyst and instructional designer for an educational video pipeline. "
-            "Your job is to convert search evidence into a concise but high-signal research brief and an act-based outline. "
-            "Use only the supplied evidence for factual claims. If a detail is not supported, label it clearly as an inference or omit it. "
-            "Prefer specific names, numbers, examples, and causal relationships over generalities. "
-            "Write for a future script writer who needs topic accuracy, teaching sequence, and visual hooks. "
-            "Return only the JSON object required by the schema and make sure it contains no extra commentary."
-        )
 
     def _build_queries(self, topic: TopicInput) -> list[str]:
         if isinstance(topic, dict):
@@ -346,39 +338,6 @@ class ResearchStage:
             "url": page_url,
             "snippet": extract,
         }
-
-    def _build_claude_research_prompt(
-        self,
-        topic: TopicInput,
-        slug: str,
-        queries: list[str],
-    ) -> str:
-        topic_block = topic_context_json(topic)
-        topic_name = topic_title(topic)
-        queries_block = "\n".join(f"- {q}" for q in queries)
-        return f"""You are preparing research for a topic-driven educational video pipeline.
-
-Topic: {topic_name}
-Slug: {slug}
-
-Topic document:
-{topic_block}
-
-Step 1 — Use the WebSearch tool to search for each of the following queries (search all of them):
-{queries_block}
-
-Step 2 — Synthesize the search results into a JSON object with these four fields:
-- "title": string — the topic title
-- "research_brief": string — one concise paragraph summarising the topic and the teaching goal
-- "research_markdown": string — 400-600 words of markdown, with a clear teaching arc, grounded in what you found. Include at least one concrete worked example with specific numbers or values. Add a short "Common Misconceptions" section.
-- "outline_markdown": string — markdown outline with Act 1, Act 2, Act 3, Act 4 sections. Each act should have 3-6 bullet points describing what the video teaches in that act.
-
-Rules:
-- Search ALL queries before writing anything.
-- Use specific facts, names, and numbers from search results.
-- The outline must be suitable for later script generation — specific enough that a writer knows exactly what to cover.
-- Return ONLY the JSON object. No markdown fences, no explanation.
-""".strip()
 
     def _build_prompt(
         self,

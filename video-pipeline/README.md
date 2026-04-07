@@ -17,7 +17,7 @@ scripts/<title>.json
 └──────────────┘
         │
         ▼
-┌──────────────┐   Manim / Slides / HTML+CSS / Charts / Draw Things + Claude CLI / Python
+┌──────────────┐   Manim / Slides / HTML+CSS / Charts / Draw Things + Codex CLI / Python
 │ Output       │ ──► final MP4
 └──────────────┘
         │
@@ -59,8 +59,8 @@ brew install ffmpeg
 # Optional for cinematic legacy scenes
 # Start Draw Things and enable its HTTP API if you want animatediff scenes.
 
-# Optional: Claude CLI backend
-claude --version
+# Optional: Codex CLI backend
+codex --version
 ```
 
 ---
@@ -205,11 +205,13 @@ The stitch stage auto-extends clips with a freeze of the last frame when narrati
 | `tts_enabled` | `true` | Enable local narration |
 | `output_mode` | `narrated` | Stitch mode |
 | `llm_provider` | `lmstudio` | `claude` or `lmstudio` |
-| `llm_model` | `google/gemma-4-26b-a4b` | Local model name for LM Studio |
+| `llm_model` | `qwen/qwen3.5-35b-a3b` | Local model name for LM Studio |
 | `lmstudio_base_url` | `http://localhost:1234/v1` | LM Studio OpenAI-compatible base URL |
 | `crossfade_sec` | `0.5` | Dissolve between scenes |
 | `output_crf` | `18` | Quality (lower = better) |
 | `renderer_max_retries` | `3` | Auto-retry failed scenes |
+| `script_timeout_sec` | `180` | Max seconds allowed for script generation before fallback |
+| `script_chunk_size` | `5` | Number of scenes generated per script LLM call |
 | `claude_model` | `claude-sonnet-4-6` | Model for code generation |
 
 ---

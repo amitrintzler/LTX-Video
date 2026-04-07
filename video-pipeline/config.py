@@ -65,8 +65,8 @@ class PipelineConfig:
     claude_model: str = "claude-sonnet-4-6"
     renderer_max_retries: int = 3
     render_workers: int = 1
-    llm_provider: str = "claude"   # claude | lmstudio
-    llm_model: str = ""            # empty = fall back to claude_model
+    llm_provider: str = "lmstudio"   # claude | lmstudio
+    llm_model: str = "openai/gpt-oss-20b"
     lmstudio_base_url: str = "http://localhost:1234/v1"
     lmstudio_api_key: str = "lm-studio"
 

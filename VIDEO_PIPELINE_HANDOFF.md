@@ -8,8 +8,8 @@ Run this from any repo:
 
 Note:
 - The Manim renderer uses the configured LLM backend.
-- If `llm_provider` is set to `lmstudio`, set `llm_model` to your local model name and start LM Studio's server on port `1234`.
-- In that mode, Claude Code CLI is not required for the LLM backend.
+- LM Studio is the default backend, so start its server on port `1234` and keep `llm_model` set to the local model name.
+- Claude Code CLI is still supported if you switch `llm_provider` back to `claude`.
 - Draw Things is only needed for legacy `ltx` / `animatediff` scenes.
 - The only input the user needs to provide is a topic.
 - The pipeline handles the rest automatically.

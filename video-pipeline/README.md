@@ -51,13 +51,11 @@ npm install canvas
 # System
 brew install ffmpeg
 
-# Choose one backend:
-# - Claude CLI must be on PATH
-# - or LM Studio's local server must be running on port 1234
-claude --version
+# LM Studio is the default LLM backend.
+# Start LM Studio's local server on port 1234 and load the model named in config.json.
 
-# Optional: LM Studio local server on port 1234
-# If you set llm_provider="lmstudio" in config.json, start LM Studio first.
+# Optional: Claude CLI backend
+claude --version
 ```
 
 ---
@@ -191,8 +189,8 @@ The stitch stage auto-extends clips with a freeze of the last frame when narrati
 | `tts_voice` | `af_heart` | Kokoro voice |
 | `tts_enabled` | `true` | Enable local narration |
 | `output_mode` | `narrated` | Stitch mode |
-| `llm_provider` | `claude` | `claude` or `lmstudio` |
-| `llm_model` | `` | Local model name for LM Studio |
+| `llm_provider` | `lmstudio` | `claude` or `lmstudio` |
+| `llm_model` | `openai/gpt-oss-20b` | Local model name for LM Studio |
 | `lmstudio_base_url` | `http://localhost:1234/v1` | LM Studio OpenAI-compatible base URL |
 | `crossfade_sec` | `0.5` | Dissolve between scenes |
 | `output_crf` | `18` | Quality (lower = better) |

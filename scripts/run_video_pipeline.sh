@@ -1,7 +1,9 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-PIPELINE_DIR="/Users/amitri/Projects/LTX-Video/video-pipeline"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+PIPELINE_DIR="$REPO_ROOT/video-pipeline"
 PIPELINE_PY="$PIPELINE_DIR/pipeline.py"
 DEFAULT_CONFIG="$PIPELINE_DIR/config.json"
 PYTHON_BIN="${PYTHON_BIN:-}"
@@ -11,8 +13,10 @@ if [[ -z "$PYTHON_BIN" ]]; then
     PYTHON_BIN="python3.11"
   elif [[ -n "${VIRTUAL_ENV:-}" && -x "$VIRTUAL_ENV/bin/python" ]]; then
     PYTHON_BIN="$VIRTUAL_ENV/bin/python"
-  elif [[ -x "/Users/amitri/Projects/LTX-Video/.venv/bin/python" ]]; then
-    PYTHON_BIN="/Users/amitri/Projects/LTX-Video/.venv/bin/python"
+  elif [[ -x "$PWD/.venv/bin/python" ]]; then
+    PYTHON_BIN="$PWD/.venv/bin/python"
+  elif [[ -x "$REPO_ROOT/.venv/bin/python" ]]; then
+    PYTHON_BIN="$REPO_ROOT/.venv/bin/python"
   elif [[ -x "$PIPELINE_DIR/.venv/bin/python" ]]; then
     PYTHON_BIN="$PIPELINE_DIR/.venv/bin/python"
   else

@@ -45,7 +45,7 @@
   "renderer_max_retries": 3,
   "render_workers": 1,
   "script_timeout_sec": 180,
-  "script_chunk_size": 5,
+  "script_chunk_size": 3,
   "llm_provider": "lmstudio",
   "llm_model": "qwen/qwen3.5-35b-a3b",
   "lmstudio_base_url": "http://localhost:1234/v1",

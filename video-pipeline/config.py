@@ -69,7 +69,7 @@ class PipelineConfig:
     renderer_max_retries: int = 3
     render_workers: int = 1
     script_timeout_sec: int = 180
-    script_chunk_size: int = 5
+    script_chunk_size: int = 3
     llm_provider: str = "lmstudio"   # claude | lmstudio
     llm_model: str = "qwen/qwen3.5-35b-a3b"
     lmstudio_base_url: str = "http://localhost:1234/v1"

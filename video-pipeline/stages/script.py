@@ -207,6 +207,25 @@ class ScriptStage:
             )
 
             chunk_script = self._normalize_script(result)
+            if not self._chunk_has_expected_scene_count(chunk_script, chunk_scene_count):
+                chunk_script = self._repair_chunk_script(
+                    topic=topic,
+                    slug=slug,
+                    mode=mode,
+                    acts=acts,
+                    scene_count=scene_count,
+                    duration_target=duration_target,
+                    preferred_renderer=preferred_renderer,
+                    research_text=research_text,
+                    outline_text=outline_text,
+                    chunk_index=chunk_index,
+                    chunk_total=len(ranges),
+                    chunk_start=start,
+                    chunk_end=end,
+                    completed_scene_summaries=completed_summaries,
+                    invalid_chunk=chunk_script,
+                    chunk_scene_count=chunk_scene_count,
+                )
             chunk_scenes = chunk_script.get("scenes")
             if not isinstance(chunk_scenes, list) or len(chunk_scenes) != chunk_scene_count:
                 raise ValueError(
@@ -253,6 +272,67 @@ class ScriptStage:
                 "fps": 60,
             }
         return merged_script
+
+    def _repair_chunk_script(
+        self,
+        *,
+        topic: TopicInput,
+        slug: str,
+        mode: str,
+        acts: str,
+        scene_count: int,
+        duration_target: int,
+        preferred_renderer: str,
+        research_text: str,
+        outline_text: str,
+        chunk_index: int,
+        chunk_total: int,
+        chunk_start: int,
+        chunk_end: int,
+        completed_scene_summaries: list[str],
+        invalid_chunk: dict,
+        chunk_scene_count: int,
+    ) -> dict:
+        repair_prompt = self._build_chunk_repair_prompt(
+            topic=topic,
+            slug=slug,
+            mode=mode,
+            acts=acts,
+            scene_count=scene_count,
+            duration_target=duration_target,
+            preferred_renderer=preferred_renderer,
+            research_text=research_text,
+            outline_text=outline_text,
+            chunk_index=chunk_index,
+            chunk_total=chunk_total,
+            chunk_start=chunk_start,
+            chunk_end=chunk_end,
+            completed_scene_summaries=completed_scene_summaries,
+            invalid_chunk=invalid_chunk,
+            chunk_scene_count=chunk_scene_count,
+        )
+        repaired = run_claude_json(
+            prompt=repair_prompt,
+            model=self.cfg.llm_model_name(),
+            system_prompt=self._system_prompt(),
+            schema=self._schema(chunk_scene_count),
+            provider=self.cfg.llm_provider,
+            base_url=self.cfg.lmstudio_base_url,
+            api_key=self.cfg.lmstudio_api_key,
+            timeout=self.cfg.script_timeout_sec,
+            max_tokens=max(2500, chunk_scene_count * 1000),
+        )
+        repaired_script = self._normalize_script(repaired)
+        if not self._chunk_has_expected_scene_count(repaired_script, chunk_scene_count):
+            raise ValueError(
+                f"Repair attempt for chunk {chunk_index} still returned the wrong scene count"
+            )
+        return repaired_script
+
+    @staticmethod
+    def _chunk_has_expected_scene_count(script: dict, expected_count: int) -> bool:
+        scenes = script.get("scenes") if isinstance(script, dict) else None
+        return isinstance(scenes, list) and len(scenes) == expected_count
 
     def _load_existing_script(self, script_path: Path) -> Optional[dict]:
         try:
@@ -606,6 +686,59 @@ Rules:
 - For companion-long mode, cover the full outline including Act 4 synthesis.
 - Title should be "{slug}-{mode}".
 - Return JSON only.
+""".strip()
+
+    def _build_chunk_repair_prompt(
+        self,
+        *,
+        topic: TopicInput,
+        slug: str,
+        mode: str,
+        acts: str,
+        scene_count: int,
+        duration_target: int,
+        preferred_renderer: str,
+        research_text: str,
+        outline_text: str,
+        chunk_index: int,
+        chunk_total: int,
+        chunk_start: int,
+        chunk_end: int,
+        completed_scene_summaries: list[str],
+        invalid_chunk: dict,
+        chunk_scene_count: int,
+    ) -> str:
+        base_prompt = self._build_chunk_prompt(
+            topic=topic,
+            slug=slug,
+            mode=mode,
+            acts=acts,
+            scene_count=scene_count,
+            duration_target=duration_target,
+            preferred_renderer=preferred_renderer,
+            research_text=research_text,
+            outline_text=outline_text,
+            chunk_index=chunk_index,
+            chunk_total=chunk_total,
+            chunk_start=chunk_start,
+            chunk_end=chunk_end,
+            completed_scene_summaries=completed_scene_summaries,
+        )
+        invalid_json = json.dumps(invalid_chunk, indent=2, ensure_ascii=False)
+        return f"""
+The previous JSON chunk was invalid for this exact chunk.
+
+Required scene count for this chunk: {chunk_scene_count}
+Return a corrected JSON object that matches the schema and contains exactly {chunk_scene_count} scenes.
+Keep the same topic, style, and continuity from the prompt below.
+
+Prompt:
+{base_prompt}
+
+Invalid JSON:
+{invalid_json}
+
+Return JSON only.
 """.strip()
 
     @staticmethod

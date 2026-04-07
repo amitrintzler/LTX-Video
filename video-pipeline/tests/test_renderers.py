@@ -17,7 +17,7 @@ def test_config_new_fields_have_correct_defaults():
     assert cfg.renderer_max_retries == 3
     assert cfg.render_workers == 1
     assert cfg.script_timeout_sec == 180
-    assert cfg.script_chunk_size == 5
+    assert cfg.script_chunk_size == 3
     assert cfg.llm_provider == "lmstudio"
     assert cfg.llm_model == "qwen/qwen3.5-35b-a3b"
     assert cfg.lmstudio_base_url == "http://localhost:1234/v1"

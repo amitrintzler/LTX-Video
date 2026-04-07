@@ -211,7 +211,7 @@ The stitch stage auto-extends clips with a freeze of the last frame when narrati
 | `output_crf` | `18` | Quality (lower = better) |
 | `renderer_max_retries` | `3` | Auto-retry failed scenes |
 | `script_timeout_sec` | `180` | Max seconds allowed for script generation before fallback |
-| `script_chunk_size` | `5` | Number of scenes generated per script LLM call |
+| `script_chunk_size` | `3` | Number of scenes generated per script LLM call |
 | `claude_model` | `claude-sonnet-4-6` | Model for code generation |
 
 ---

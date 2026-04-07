@@ -61,6 +61,9 @@ class PipelineConfig:
     max_retries: int = 3
     retry_delay: int = 10           # seconds between retries
 
+    # ── Search ───────────────────────────────────────────────────────
+    brave_api_key: str = ""            # Brave Search API key (optional; falls back to DuckDuckGo)
+
     # ── Renderers ────────────────────────────────────────────────────
     claude_model: str = "claude-sonnet-4-6"
     renderer_max_retries: int = 3

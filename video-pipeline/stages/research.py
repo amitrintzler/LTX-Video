@@ -212,16 +212,28 @@ class ResearchStage:
         evidence: list[dict[str, str]] = []
         seen_urls: set[str] = set()
 
-        for query in queries:
-            snippets = self._duckduckgo_instant_answer(query)
-            for item in snippets:
-                url = item.get("url", "").strip()
-                if url and url in seen_urls:
-                    continue
-                if url:
-                    seen_urls.add(url)
-                item["query"] = query
-                evidence.append(item)
+        if self.cfg.brave_api_key:
+            for query in queries:
+                snippets = self._brave_search(query)
+                for item in snippets:
+                    url = item.get("url", "").strip()
+                    if url and url in seen_urls:
+                        continue
+                    if url:
+                        seen_urls.add(url)
+                    item["query"] = query
+                    evidence.append(item)
+        else:
+            for query in queries:
+                snippets = self._duckduckgo_instant_answer(query)
+                for item in snippets:
+                    url = item.get("url", "").strip()
+                    if url and url in seen_urls:
+                        continue
+                    if url:
+                        seen_urls.add(url)
+                    item["query"] = query
+                    evidence.append(item)
 
         wiki = self._wikipedia_summary(topic)
         if wiki:
@@ -231,7 +243,50 @@ class ResearchStage:
                     seen_urls.add(url)
                 evidence.append({"query": topic, **wiki})
 
-        return evidence[:18]
+        return evidence[:24]
+
+    def _brave_search(self, query: str, count: int = 5) -> list[dict[str, str]]:
+        url = (
+            "https://api.search.brave.com/res/v1/web/search"
+            f"?q={urllib.parse.quote_plus(query)}&count={count}&text_decorations=0&search_lang=en"
+        )
+        req = urllib.request.Request(
+            url,
+            headers={
+                "Accept": "application/json",
+                "Accept-Encoding": "gzip",
+                "X-Subscription-Token": self.cfg.brave_api_key,
+            },
+        )
+        try:
+            with urllib.request.urlopen(req, timeout=15) as resp:
+                raw = resp.read()
+                # Brave may return gzip-encoded data
+                import gzip as _gzip
+                try:
+                    raw = _gzip.decompress(raw)
+                except Exception:
+                    pass
+                data = json.loads(raw.decode("utf-8"))
+        except Exception as e:
+            self.log.warning(f"  Brave search failed for '{query}': {e}")
+            return []
+
+        results: list[dict[str, str]] = []
+        for item in (data.get("web") or {}).get("results") or []:
+            title = (item.get("title") or "").strip()
+            page_url = (item.get("url") or "").strip()
+            description = (item.get("description") or "").strip()
+            extra = " ".join(item.get("extra_snippets") or []).strip()
+            snippet = f"{description} {extra}".strip() if extra else description
+            if snippet:
+                results.append({
+                    "source": "brave",
+                    "title": title,
+                    "url": page_url,
+                    "snippet": snippet,
+                })
+        return results
 
     def _duckduckgo_instant_answer(self, query: str) -> list[dict[str, str]]:
         url = (

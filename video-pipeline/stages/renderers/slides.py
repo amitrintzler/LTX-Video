@@ -140,17 +140,6 @@ def _render_slide_image(
         body_color=text_color,
     )
 
-    footer_y = int(height * 0.84)
-    draw.line((margin_x, footer_y, width - margin_x, footer_y), fill=card_edge, width=2)
-    footer_text = "Topic-driven slide renderer"
-    draw.text((margin_x, footer_y + 16), footer_text, font=small_font, fill=muted_color)
-    draw.text(
-        (width - margin_x - 260, footer_y + 16),
-        "render: slides",
-        font=small_font,
-        fill=muted_color,
-    )
-
     out_path.parent.mkdir(parents=True, exist_ok=True)
     image.save(out_path)
 

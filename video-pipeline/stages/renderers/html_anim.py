@@ -215,19 +215,6 @@ def _build_html(*, title: str, narration: str, description: str, style: str, wid
       font-size: 16px;
       line-height: 1.45;
     }}
-    .footer {{
-      position: absolute;
-      left: 6vw;
-      right: 6vw;
-      bottom: 4.6vh;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      color: var(--muted);
-      font-size: 14px;
-      letter-spacing: 0.06em;
-      text-transform: uppercase;
-    }}
     @keyframes float {{
       0%, 100% {{ transform: translateY(0px) scale(1); }}
       50% {{ transform: translateY(-10px) scale(1.04); }}
@@ -263,10 +250,6 @@ def _build_html(*, title: str, narration: str, description: str, style: str, wid
           Browser-rendered scene. The HTML/CSS stack lets the script choose a web-style output when the research calls for it.
         </div>
       </section>
-    </div>
-    <div class="footer">
-      <span>renderer: html_anim</span>
-      <span>{html.escape(style[:120] or "topic-driven visual system")}</span>
     </div>
   </div>
 </body>

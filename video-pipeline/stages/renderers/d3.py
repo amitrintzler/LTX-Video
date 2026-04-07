@@ -98,7 +98,7 @@ def _capture_html_frame(
         min_size=max(16, int(width * 0.014)),
     )
 
-    draw.text((pad_x + 28, pad_y + 20), "Chart-centric data story", fill=muted_color, font=eyebrow_font)
+    draw.text((pad_x + 28, pad_y + 20), title, fill=muted_color, font=eyebrow_font)
     _draw_multiline_text(draw, pad_x + 28, pad_y + 56, title_lines, title_font, fill=text_color, spacing=int(title_font.size * 0.14))
     title_block_height = _text_block_height(draw, title_lines, title_font, spacing=int(title_font.size * 0.14))
     narration_y = pad_y + 56 + title_block_height + 16
@@ -126,13 +126,6 @@ def _capture_html_frame(
     if not bullets:
         bullets = ["Chart-driven scene.", "The visual language stays data-first.", "Each signal is grounded in the research."]
     _draw_bullet_list(draw, card_x, bullets_top, card_w, panel_y + panel_h - 34, bullets, text_color, muted_color)
-
-    footer_font = _load_font(max(14, int(width * 0.008)), bold=False)
-    footer_y = height - int(height * 0.04)
-    draw.text((pad_x, footer_y), "renderer: d3", fill=muted_color, font=footer_font)
-    footer_text = style[:120] or "topic-driven chart system"
-    footer_bbox = draw.textbbox((0, 0), footer_text, font=footer_font)
-    draw.text((width - pad_x - (footer_bbox[2] - footer_bbox[0]), footer_y), footer_text, fill=muted_color, font=footer_font)
 
     png_path.parent.mkdir(parents=True, exist_ok=True)
     frame.convert("RGB").save(png_path, format="PNG")

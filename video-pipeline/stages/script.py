@@ -7,6 +7,7 @@ from __future__ import annotations
 import json
 import logging
 from pathlib import Path
+from typing import Optional
 
 from config import PipelineConfig
 from stages.claude_client import run_claude_json
@@ -108,7 +109,7 @@ class ScriptStage:
         self.log.info(f"  Script saved -> {script_path}")
         return script_path
 
-    def _load_existing_script(self, script_path: Path) -> dict | None:
+    def _load_existing_script(self, script_path: Path) -> Optional[dict]:
         try:
             data = json.loads(script_path.read_text())
         except (OSError, json.JSONDecodeError):

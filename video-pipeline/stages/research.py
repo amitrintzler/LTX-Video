@@ -18,7 +18,13 @@ from typing import Any
 
 from config import PipelineConfig
 from stages.claude_client import run_claude_json
-from stages.scene_utils import safe_slug
+from stages.topic_utils import (
+    TopicInput,
+    topic_context_json,
+    topic_signature,
+    topic_slug,
+    topic_title,
+)
 
 
 class ResearchStage:
@@ -26,69 +32,94 @@ class ResearchStage:
         self.cfg = cfg
         self.log = log.getChild("research")
 
-    def run(self, topic: str) -> tuple[Path, Path]:
-        slug = safe_slug(topic)
+    def run(self, topic: TopicInput) -> tuple[Path, Path]:
+        slug = topic_slug(topic)
+        signature = topic_signature(topic)
+        title = topic_title(topic)
         research_dir = self.cfg.research_dir
         research_dir.mkdir(parents=True, exist_ok=True)
 
         research_path = research_dir / f"{slug}.md"
         outline_path = research_dir / f"{slug}-outline.md"
+        meta_path = research_dir / f"{slug}.meta.json"
 
-        if research_path.exists() and outline_path.exists():
-            self.log.info(f"  Reusing existing research docs for '{topic}'")
-            return research_path, outline_path
+        if research_path.exists() and outline_path.exists() and meta_path.exists():
+            try:
+                meta = json.loads(meta_path.read_text())
+            except json.JSONDecodeError:
+                meta = {}
+            if isinstance(meta, dict) and meta.get("topic_signature") == signature:
+                self.log.info(f"  Reusing existing research docs for '{title}'")
+                return research_path, outline_path
 
         queries = self._build_queries(topic)
-        evidence = self._collect_evidence(topic, queries)
+        evidence = self._collect_evidence(title, queries)
         self.log.info(f"  Collected {len(evidence)} evidence snippets from {len(queries)} queries")
 
-        prompt = self._build_prompt(topic, slug, queries, evidence)
-        schema = {
-            "type": "object",
-            "properties": {
-                "title": {"type": "string"},
-                "research_brief": {"type": "string"},
-                "research_markdown": {"type": "string"},
-                "outline_markdown": {"type": "string"},
-            },
-            "required": [
-                "title",
-                "research_brief",
-                "research_markdown",
-                "outline_markdown",
-            ],
-            "additionalProperties": False,
-        }
-        result = run_claude_json(
-            prompt=prompt,
-            model=self.cfg.llm_model_name(),
-            system_prompt=self._system_prompt(),
-            schema=schema,
-            provider=self.cfg.llm_provider,
-            base_url=self.cfg.lmstudio_base_url,
-            api_key=self.cfg.lmstudio_api_key,
-            timeout=900,
-        )
+        if not evidence:
+            self.log.warning("  No live evidence found — using structured topic fallback")
+            research_markdown = self._fallback_research_markdown(topic, title, queries, evidence)
+            outline_markdown = self._fallback_outline_markdown(topic, title, queries, evidence)
+        else:
+            prompt = self._build_prompt(topic, slug, queries, evidence)
+            schema = {
+                "type": "object",
+                "properties": {
+                    "title": {"type": "string"},
+                    "research_brief": {"type": "string"},
+                    "research_markdown": {"type": "string"},
+                    "outline_markdown": {"type": "string"},
+                },
+                "required": [
+                    "title",
+                    "research_brief",
+                    "research_markdown",
+                    "outline_markdown",
+                ],
+                "additionalProperties": False,
+            }
+            result = run_claude_json(
+                prompt=prompt,
+                model=self.cfg.llm_model_name(),
+                system_prompt=self._system_prompt(),
+                schema=schema,
+                provider=self.cfg.llm_provider,
+                base_url=self.cfg.lmstudio_base_url,
+                api_key=self.cfg.lmstudio_api_key,
+                timeout=900,
+            )
 
-        research_markdown = self._normalize_markdown(
-            result.get("research_markdown")
-            or result.get("research_brief")
-            or ""
-        )
-        outline_markdown = self._normalize_markdown(
-            result.get("outline_markdown")
-            or result.get("research_markdown")
-            or result.get("research_brief")
-            or ""
-        )
+            research_markdown = self._normalize_markdown(
+                result.get("research_markdown")
+                or result.get("research_brief")
+                or ""
+            )
+            outline_markdown = self._normalize_markdown(
+                result.get("outline_markdown")
+                or result.get("research_markdown")
+                or result.get("research_brief")
+                or ""
+            )
 
-        if not research_markdown.strip():
-            research_markdown = self._fallback_research_markdown(topic, evidence)
-        if not outline_markdown.strip():
-            outline_markdown = self._fallback_outline_markdown(topic, queries, evidence)
+            if not research_markdown.strip():
+                research_markdown = self._fallback_research_markdown(topic, title, queries, evidence)
+            if not outline_markdown.strip():
+                outline_markdown = self._fallback_outline_markdown(topic, title, queries, evidence)
 
         research_path.write_text(research_markdown.rstrip() + "\n")
         outline_path.write_text(outline_markdown.rstrip() + "\n")
+        meta_path.write_text(
+            json.dumps(
+                {
+                    "topic_signature": signature,
+                    "topic_title": title,
+                    "topic_slug": slug,
+                },
+                indent=2,
+                ensure_ascii=False,
+            )
+            + "\n"
+        )
 
         self.log.info(f"  Research saved -> {research_path}")
         self.log.info(f"  Outline saved  -> {outline_path}")
@@ -104,7 +135,25 @@ class ResearchStage:
             "Return only the JSON object required by the schema and make sure it contains no extra commentary."
         )
 
-    def _build_queries(self, topic: str) -> list[str]:
+    def _build_queries(self, topic: TopicInput) -> list[str]:
+        if isinstance(topic, dict):
+            title = topic_title(topic)
+            queries = [
+                *(query.strip() for query in topic.get("search_queries", []) if isinstance(query, str)),
+                f"{title} definition and intuition",
+                f"{title} worked example",
+                f"{title} visual intuition",
+                f"{title} common misconceptions",
+                f"{title} real world application",
+            ]
+            for angle in topic.get("research_angles", []):
+                if isinstance(angle, str) and angle.strip():
+                    queries.append(f"{title} {angle}")
+            for term in topic.get("key_terms", [])[:4]:
+                if isinstance(term, str) and term.strip():
+                    queries.append(f"{title} {term}")
+            return self._dedupe_queries(queries)
+
         topic_clean = topic.strip()
         lower = topic_clean.lower()
 
@@ -146,6 +195,17 @@ class ResearchStage:
             f"{topic_clean} visual intuition",
             f"{topic_clean} common misconceptions",
         ]
+
+    def _dedupe_queries(self, queries: list[str]) -> list[str]:
+        seen: set[str] = set()
+        deduped: list[str] = []
+        for query in queries:
+            normalized = " ".join(query.split()).strip()
+            if not normalized or normalized in seen:
+                continue
+            seen.add(normalized)
+            deduped.append(normalized)
+        return deduped[:10]
 
     def _collect_evidence(self, topic: str, queries: list[str]) -> list[dict[str, str]]:
         evidence: list[dict[str, str]] = []
@@ -247,16 +307,20 @@ class ResearchStage:
 
     def _build_prompt(
         self,
-        topic: str,
+        topic: TopicInput,
         slug: str,
         queries: list[str],
         evidence: list[dict[str, str]],
     ) -> str:
+        topic_block = topic_context_json(topic)
+        topic_name = topic_title(topic)
         evidence_block = json.dumps(evidence, indent=2, ensure_ascii=False)
         queries_block = "\n".join(f"- {q}" for q in queries)
         return f"""
-Topic: {topic}
+Topic title: {topic_name}
 Slug: {slug}
+Topic document:
+{topic_block}
 
 You are preparing research for a topic-driven educational video pipeline.
 Produce three fields:
@@ -282,38 +346,108 @@ Search evidence:
 {evidence_block}
 """.strip()
 
-    def _fallback_research_markdown(self, topic: str, evidence: list[dict[str, str]]) -> str:
+    def _fallback_research_markdown(
+        self,
+        topic: TopicInput,
+        title: str,
+        queries: list[str],
+        evidence: list[dict[str, str]],
+    ) -> str:
         lines = [
-            f"# {topic}",
+            f"# {title}",
             "",
             "## Research Summary",
-            "No live evidence was collected for this seed, so this draft preserves the broad lesson context for downstream script generation.",
-            "",
-            "## Evidence Notes",
         ]
-        if evidence:
-            for item in evidence[:6]:
-                lines.append(f"- {item.get('title', 'source')}: {item.get('snippet', '')}")
+        if isinstance(topic, dict):
+            brief = str(topic.get("brief") or topic.get("prompt_summary") or "").strip()
+            description = str(topic.get("description") or "").strip()
+            if brief:
+                lines.append(brief)
+            if description:
+                lines.extend(["", description])
+            goals = self._topic_list(topic.get("learning_goals"))
+            if goals:
+                lines.extend(["", "## Learning Goals", *[f"- {item}" for item in goals]])
+            notes = topic.get("teaching_notes")
+            if isinstance(notes, dict):
+                opener = str(notes.get("opener") or "").strip()
+                explanation = str(notes.get("explanation") or "").strip()
+                practice = str(notes.get("practice") or "").strip()
+                close = str(notes.get("close") or "").strip()
+                teaching_bits = [bit for bit in [opener, explanation, practice, close] if bit]
+                if teaching_bits:
+                    lines.extend(["", "## Teaching Notes", *[f"- {bit}" for bit in teaching_bits]])
+            key_terms = self._topic_list(topic.get("key_terms"))
+            if key_terms:
+                lines.extend(["", "## Key Terms", *[f"- {item}" for item in key_terms]])
+            visual_hooks = self._topic_list(topic.get("visual_hooks"))
+            if visual_hooks:
+                lines.extend(["", "## Visual Hooks", *[f"- {item}" for item in visual_hooks]])
+            misconceptions = self._topic_list(topic.get("misconceptions"))
+            if misconceptions:
+                lines.extend(["", "## Common Misconceptions", *[f"- {item}" for item in misconceptions]])
+            research_angles = self._topic_list(topic.get("research_angles"))
+            if research_angles:
+                lines.extend(["", "## Research Angles", *[f"- {item}" for item in research_angles]])
         else:
+            lines.append(
+                "No live evidence was collected for this seed, so this draft preserves the broad lesson context for downstream script generation."
+            )
+            lines.append("")
+            lines.append("## Research Notes")
+            lines.append("- No evidence snippets were returned.")
+
+        if queries:
+            lines.extend([
+                "",
+                "## Search Queries",
+                *[f"- {query}" for query in queries[:6]],
+            ])
+        if evidence:
+            lines.extend([
+                "",
+                "## Evidence Notes",
+                *[f"- {item.get('title', 'source')}: {item.get('snippet', '')}" for item in evidence[:6]],
+            ])
+        elif not isinstance(topic, dict):
             lines.append("- No evidence snippets were returned.")
         return "\n".join(lines)
 
-    def _fallback_outline_markdown(self, topic: str, queries: list[str], evidence: list[dict[str, str]]) -> str:
+    def _fallback_outline_markdown(
+        self,
+        topic: TopicInput,
+        title: str,
+        queries: list[str],
+        evidence: list[dict[str, str]],
+    ) -> str:
         lines = [
-            f"# {topic}",
+            f"# {title}",
             "",
             "## Act 1",
-            "- Introduce the topic at a high level.",
+            f"- Introduce {title} at a high level.",
             "",
             "## Act 2",
-            "- Expand the core mechanics and key terms.",
+            "- Expand the core mechanics, vocabulary, and visual intuition.",
             "",
             "## Act 3",
-            "- Show a worked example or concrete use case.",
+            "- Show a worked example or concrete use case grounded in the topic document.",
             "",
             "## Act 4",
-            "- Connect the lesson back to practice and common misconceptions.",
+            "- Connect the lesson back to practice, common misconceptions, and next steps.",
         ]
+        if isinstance(topic, dict):
+            goals = self._topic_list(topic.get("learning_goals"))
+            if goals:
+                lines.extend(["", "## Learning Goals", *[f"- {item}" for item in goals]])
+            teaching_notes = topic.get("teaching_notes")
+            if isinstance(teaching_notes, dict):
+                notes_lines = []
+                for key in ("opener", "explanation", "practice", "close"):
+                    value = str(teaching_notes.get(key) or "").strip()
+                    if value:
+                        notes_lines.append(f"- {value}")
+                if notes_lines:
+                    lines.extend(["", "## Teaching Notes", *notes_lines])
         if queries:
             lines.extend([
                 "",
@@ -327,6 +461,14 @@ Search evidence:
                 *[f"- {item.get('title', 'source')}: {item.get('snippet', '')}" for item in evidence[:6]],
             ])
         return "\n".join(lines)
+
+    @staticmethod
+    def _topic_list(value: Any) -> list[str]:
+        if isinstance(value, list):
+            return [str(item).strip() for item in value if isinstance(item, str) and item.strip()]
+        if isinstance(value, str) and value.strip():
+            return [value.strip()]
+        return []
 
     @staticmethod
     def _normalize_markdown(text: str) -> str:

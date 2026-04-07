@@ -13,6 +13,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from config import PipelineConfig
 from stages.scene_utils import safe_slug
+from stages.topic_utils import topic_signature
 
 
 @pytest.fixture
@@ -55,6 +56,48 @@ def _script_payload(title: str, scene_count: int = 3) -> dict:
     }
 
 
+def _topic_payload(title: str, slug: str = "black-scholes-pricing") -> dict:
+    return {
+        "kind": "topic",
+        "schema_version": 1,
+        "signature": "0" * 64,
+        "lesson_id": slug,
+        "slug": slug,
+        "title": title,
+        "brief": f"A broad lesson seed for {title}.",
+        "description": "Explain the core idea in practical terms.",
+        "topic_id": "options",
+        "subject_id": "options",
+        "level": "beginner",
+        "audience": "adult",
+        "media_mode": "localAsset",
+        "skills": ["foundations-options-contracts"],
+        "prereqs": ["foundations-stocks"],
+        "beginner_story_ready": True,
+        "practice_mode": {
+            "label": "Practice mode",
+            "path": "/practice",
+            "description": "Practice the concept.",
+            "mode_id": "practice-mode",
+            "objectives": ["Apply the idea", "Check the result"],
+            "completion_text": "Done",
+        },
+        "learning_goals": ["Understand the concept"],
+        "key_terms": ["key term"],
+        "visual_hooks": ["visual hook"],
+        "misconceptions": ["common misconception"],
+        "research_angles": ["definition and intuition"],
+        "search_queries": [f"{title} definition and intuition"],
+        "teaching_notes": {
+            "opener": "Open well.",
+            "explanation": "Explain clearly.",
+            "practice": "Practice carefully.",
+            "close": "Close with a check.",
+        },
+        "prompt_summary": "Topic summary.",
+    }
+
+
 def test_research_stage_writes_docs(tmp_path, log, monkeypatch):
     from stages.research import ResearchStage
 
@@ -87,6 +130,33 @@ def test_research_stage_writes_docs(tmp_path, log, monkeypatch):
     assert "Act 4" in outline_path.read_text()
 
 
+def test_research_stage_falls_back_for_structured_topic_without_evidence(tmp_path, log, monkeypatch):
+    from stages.research import ResearchStage
+
+    cfg = PipelineConfig(work_dir=str(tmp_path))
+    stage = ResearchStage(cfg, log)
+    topic = _topic_payload("Basics Flow")
+
+    monkeypatch.setattr(stage, "_collect_evidence", lambda topic, queries: [])
+    monkeypatch.setattr(
+        "stages.research.run_claude_json",
+        lambda **kwargs: (_ for _ in ()).throw(AssertionError("LLM should not be called when there is no evidence")),
+    )
+
+    research_path, outline_path = stage.run(topic)
+
+    research_text = research_path.read_text()
+    outline_text = outline_path.read_text()
+
+    assert research_path.exists()
+    assert outline_path.exists()
+    assert "Basics Flow" in research_text
+    assert "Teaching Notes" in research_text
+    assert "Research Angles" in research_text
+    assert "Act 1" in outline_text
+    assert "Act 4" in outline_text
+
+
 def test_script_stage_writes_both_modes(tmp_path, log, monkeypatch):
     from stages.script import ScriptStage
 
@@ -100,6 +170,18 @@ def test_script_stage_writes_both_modes(tmp_path, log, monkeypatch):
     outline_path = research_dir / f"{slug}-outline.md"
     research_path.write_text("# Research\n\nNotes.\n")
     outline_path.write_text("# Outline\n\n- Act 1\n- Act 2\n- Act 3\n- Act 4\n")
+    research_signature = stage._research_signature(research_path.read_text(), outline_path.read_text())
+    (research_dir / f"{slug}.meta.json").write_text(
+        json.dumps(
+            {
+                "topic_signature": topic_signature(topic),
+                "topic_title": topic,
+                "topic_slug": slug,
+            },
+            indent=2,
+        )
+        + "\n"
+    )
 
     monkeypatch.setattr(stage, "_ensure_research", lambda topic, slug: (research_path, outline_path))
     monkeypatch.setattr(
@@ -130,11 +212,13 @@ def test_script_stage_normalizes_wrapped_cache(tmp_path, log, monkeypatch):
     outline_path = research_dir / f"{slug}-outline.md"
     research_path.write_text("# Research\n\nNotes.\n")
     outline_path.write_text("# Outline\n\n- Act 1\n- Act 2\n- Act 3\n- Act 4\n")
+    research_signature = stage._research_signature(research_path.read_text(), outline_path.read_text())
 
     monkeypatch.setattr(stage, "_ensure_research", lambda topic, slug: (research_path, outline_path))
 
     payload = _script_payload(title="black-scholes-narrated")
     wrapped_path = cfg.scripts_dir / f"{slug}-narrated.json"
+    script_meta_path = cfg.scripts_dir / f"{slug}-narrated.meta.json"
     wrapped_path.parent.mkdir(parents=True, exist_ok=True)
     wrapped_path.write_text(
         json.dumps(
@@ -145,6 +229,17 @@ def test_script_stage_normalizes_wrapped_cache(tmp_path, log, monkeypatch):
             },
             indent=2,
         )
+    )
+    script_meta_path.write_text(
+        json.dumps(
+            {
+                "topic_signature": topic_signature(topic),
+                "research_signature": research_signature,
+                "topic_title": topic,
+            },
+            indent=2,
+        )
+        + "\n"
     )
 
     def fail_if_called(**kwargs):
@@ -193,6 +288,11 @@ def test_topic_all_routes_through_new_flow(tmp_path, log, monkeypatch):
     monkeypatch.setattr(StitchStage, "run", lambda self, scenes, title, output_mode="narrated": calls.append(("stitch", title, output_mode, len(scenes))))
     monkeypatch.setattr(ValidationStage, "run", lambda self, script, scenes, title: calls.append(("validate", title, len(scenes))))
 
+    narrated_path = scripts_dir / f"{slug}-narrated.json"
+    companion_path = scripts_dir / f"{slug}-companion-long.json"
+    narrated_path.write_text(json.dumps(_script_payload(f"{slug}-narrated"), indent=2))
+    companion_path.write_text(json.dumps(_script_payload(f"{slug}-companion-long"), indent=2))
+
     pipeline_mod.run(topic, None, cfg)
 
     assert calls[0] == ("research", topic)
@@ -203,3 +303,50 @@ def test_topic_all_routes_through_new_flow(tmp_path, log, monkeypatch):
     assert ("stitch", f"{slug}-narrated", "narrated", 3) in calls
     assert ("stitch", f"{slug}-narrated", "companion-short", 3) in calls
     assert ("stitch", f"{slug}-companion-long", "companion-long", 3) in calls
+
+
+def test_topic_document_file_routes_through_new_flow(tmp_path, log, monkeypatch):
+    import pipeline as pipeline_mod
+    from stages.research import ResearchStage
+    from stages.script import ScriptStage
+    from stages.render import RenderStage
+    from stages.tts import TTSStage
+    from stages.stitch import StitchStage
+    from stages.validate import ValidationStage
+
+    cfg = PipelineConfig(work_dir=str(tmp_path))
+    topic = _topic_payload("Black-Scholes pricing model")
+    topic_path = tmp_path / "black-scholes-topic.json"
+    topic_path.write_text(json.dumps(topic, indent=2))
+
+    calls = []
+
+    monkeypatch.setattr(ResearchStage, "run", lambda self, topic: calls.append(("research", topic)) or (
+        cfg.research_dir / "black-scholes-pricing.md",
+        cfg.research_dir / "black-scholes-pricing-outline.md",
+    ))
+    monkeypatch.setattr(
+        ScriptStage,
+        "run",
+        lambda self, topic, mode="both": calls.append(("script", topic, mode)) or [
+            cfg.scripts_dir / "black-scholes-pricing-narrated.json",
+            cfg.scripts_dir / "black-scholes-pricing-companion-long.json",
+        ],
+    )
+    monkeypatch.setattr(RenderStage, "run", lambda self, script, scenes, title: calls.append(("render", title, script.get("primary_renderer"), len(scenes))))
+    monkeypatch.setattr(TTSStage, "run", lambda self, scenes, title: calls.append(("tts", title, len(scenes))))
+    monkeypatch.setattr(StitchStage, "run", lambda self, scenes, title, output_mode="narrated": calls.append(("stitch", title, output_mode, len(scenes))))
+    monkeypatch.setattr(ValidationStage, "run", lambda self, script, scenes, title: calls.append(("validate", title, len(scenes))))
+
+    narrated_path = cfg.scripts_dir / "black-scholes-pricing-narrated.json"
+    companion_path = cfg.scripts_dir / "black-scholes-pricing-companion-long.json"
+    narrated_path.parent.mkdir(parents=True, exist_ok=True)
+    narrated_path.write_text(json.dumps(_script_payload("black-scholes-pricing-narrated"), indent=2))
+    companion_path.write_text(json.dumps(_script_payload("black-scholes-pricing-companion-long"), indent=2))
+
+    pipeline_mod.run(str(topic_path), None, cfg)
+
+    assert calls[0] == ("research", topic)
+    assert calls[1] == ("script", topic, "both")
+    assert ("render", "black-scholes-pricing-narrated", "manim", 3) in calls
+    assert ("render", "black-scholes-pricing-companion-long", "manim", 3) in calls

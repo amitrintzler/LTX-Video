@@ -72,6 +72,37 @@ def test_lmstudio_messages_keep_system_role_for_other_models():
     ]
 
 
+def test_run_claude_json_repairs_invalid_lmstudio_output():
+    from stages.claude_client import run_claude_json
+
+    schema = {
+        "type": "object",
+        "properties": {
+            "title": {"type": "string"},
+        },
+        "required": ["title"],
+        "additionalProperties": False,
+    }
+
+    with patch("stages.claude_client._run_llm", side_effect=[
+        "Here is your answer: title = basics-flow",
+        '{"title":"basics-flow"}',
+    ]) as mock_run:
+        payload = run_claude_json(
+            prompt="Generate JSON only",
+            model="google/gemma-4-26b-a4b",
+            system_prompt="SYSTEM",
+            schema=schema,
+            provider="lmstudio",
+            base_url="http://localhost:1234/v1",
+            api_key="lm-studio",
+            timeout=30,
+        )
+
+    assert payload == {"title": "basics-flow"}
+    assert mock_run.call_count == 2
+
+
 def test_script_suggests_renderer_from_topic_and_research():
     from stages.script import ScriptStage
 

@@ -63,9 +63,27 @@ def run_claude_json(
         json_schema=schema,
         timeout=timeout,
     )
-    payload = _extract_json_payload(result)
+    try:
+        payload = _extract_json_payload(result)
+    except Exception:
+        payload = None
+    if isinstance(payload, dict):
+        return payload
+
+    repaired = _repair_json_response(
+        prompt=prompt,
+        raw_output=result,
+        model=model,
+        system_prompt=system_prompt,
+        provider=provider,
+        base_url=base_url,
+        api_key=api_key,
+        schema=schema,
+        timeout=timeout,
+    )
+    payload = _extract_json_payload(repaired)
     if not isinstance(payload, dict):
-        raise ClaudeCLIError("LLM backend did not return a JSON object")
+        raise ClaudeCLIError("LLM backend did not return valid JSON")
     return payload
 
 
@@ -169,7 +187,7 @@ def _run_lmstudio(
     body: dict[str, Any] = {
         "model": model,
         "messages": messages,
-        "temperature": 0.2,
+        "temperature": 0.0 if json_schema is not None else 0.2,
     }
     if json_schema is not None:
         body["response_format"] = {
@@ -275,3 +293,36 @@ def _extract_json_payload(output: str) -> Any:
         return _extract_json_payload(data)
 
     return data
+
+
+def _repair_json_response(
+    *,
+    prompt: str,
+    raw_output: str,
+    model: str,
+    system_prompt: str,
+    provider: str,
+    base_url: str,
+    api_key: str,
+    schema: dict[str, Any],
+    timeout: int,
+) -> str:
+    repair_prompt = (
+        "The previous response was not valid JSON.\n"
+        "Return exactly one JSON object that matches the schema below.\n"
+        "Do not add markdown, explanation, or code fences.\n\n"
+        f"Schema:\n{json.dumps(schema, indent=2, ensure_ascii=False)}\n\n"
+        f"Original task:\n{prompt}\n\n"
+        f"Invalid response:\n{raw_output}\n"
+    )
+    return _run_llm(
+        prompt=repair_prompt,
+        model=model,
+        system_prompt=system_prompt,
+        provider=provider,
+        base_url=base_url,
+        api_key=api_key,
+        output_format="json",
+        json_schema=schema,
+        timeout=timeout,
+    )

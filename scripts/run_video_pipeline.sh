@@ -9,8 +9,16 @@ PYTHON_BIN="${PYTHON_BIN:-}"
 if [[ -z "$PYTHON_BIN" ]]; then
   if command -v python3.11 >/dev/null 2>&1; then
     PYTHON_BIN="python3.11"
+  elif [[ -n "${VIRTUAL_ENV:-}" && -x "$VIRTUAL_ENV/bin/python" ]]; then
+    PYTHON_BIN="$VIRTUAL_ENV/bin/python"
+  elif [[ -x "/Users/amitri/Projects/LTX-Video/.venv/bin/python" ]]; then
+    PYTHON_BIN="/Users/amitri/Projects/LTX-Video/.venv/bin/python"
+  elif [[ -x "$PIPELINE_DIR/.venv/bin/python" ]]; then
+    PYTHON_BIN="$PIPELINE_DIR/.venv/bin/python"
   else
-    PYTHON_BIN="python3"
+    echo "No Python 3.11 interpreter found. Install python3.11 or activate a venv with Python 3.10+." >&2
+    echo "You can also set PYTHON_BIN=/path/to/python before running this launcher." >&2
+    exit 1
   fi
 fi
 

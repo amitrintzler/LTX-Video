@@ -41,7 +41,7 @@ scripts/<title>.json
 ## Prerequisites
 
 ```bash
-# Python deps (in venv)
+# Python deps (in a Python 3.11+ venv)
 pip install pillow manim kokoro soundfile playwright
 playwright install chromium
 
@@ -53,6 +53,8 @@ brew install ffmpeg
 
 # LM Studio is the default LLM backend.
 # Start LM Studio's local server on port 1234 and load the model named in config.json.
+
+# Use Python 3.11 or a repo venv. The launcher will not fall back to system Python 3.9.
 
 # Optional for cinematic legacy scenes
 # Start Draw Things and enable its HTTP API if you want animatediff scenes.
@@ -69,7 +71,7 @@ claude --version
 
 ```bash
 cd video-pipeline
-python3 pipeline.py "Black-Scholes options pricing"
+python3.11 pipeline.py "Black-Scholes options pricing"
 ```
 
 That runs the full pipeline in one go.
@@ -92,16 +94,16 @@ By default, outputs go to your current directory. Override that with `--work-dir
 
 ```bash
 # Validate a generated script
-python3 pipeline.py scripts/<title>-narrated.json --stage validate
+python3.11 pipeline.py scripts/<title>-narrated.json --stage validate
 
 # Render a generated script
-python3 pipeline.py scripts/<title>-narrated.json --stage render
+python3.11 pipeline.py scripts/<title>-narrated.json --stage render
 
 # Generate TTS narration for a generated script
-python3 pipeline.py scripts/<title>-narrated.json --stage tts
+python3.11 pipeline.py scripts/<title>-narrated.json --stage tts
 
 # Stitch the final video for a generated script
-python3 pipeline.py scripts/<title>-narrated.json --stage stitch
+python3.11 pipeline.py scripts/<title>-narrated.json --stage stitch
 ```
 
 ### Remux for fast-start playback

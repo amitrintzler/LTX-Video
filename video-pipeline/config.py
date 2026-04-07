@@ -66,7 +66,7 @@ class PipelineConfig:
     renderer_max_retries: int = 3
     render_workers: int = 1
     llm_provider: str = "lmstudio"   # claude | lmstudio
-    llm_model: str = "openai/gpt-oss-20b"
+    llm_model: str = "google/gemma-4-26b-a4b"
     lmstudio_base_url: str = "http://localhost:1234/v1"
     lmstudio_api_key: str = "lm-studio"
 

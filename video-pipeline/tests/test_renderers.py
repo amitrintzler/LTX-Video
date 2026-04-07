@@ -16,7 +16,7 @@ def test_config_new_fields_have_correct_defaults():
     assert cfg.renderer_max_retries == 3
     assert cfg.render_workers == 1
     assert cfg.llm_provider == "lmstudio"
-    assert cfg.llm_model == "openai/gpt-oss-20b"
+    assert cfg.llm_model == "google/gemma-4-26b-a4b"
     assert cfg.lmstudio_base_url == "http://localhost:1234/v1"
     assert cfg.animatediff_checkpoint == "frankjoshua/toonyou_beta6"
     assert cfg.animatediff_num_frames == 16

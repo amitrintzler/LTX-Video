@@ -190,7 +190,7 @@ The stitch stage auto-extends clips with a freeze of the last frame when narrati
 | `tts_enabled` | `true` | Enable local narration |
 | `output_mode` | `narrated` | Stitch mode |
 | `llm_provider` | `lmstudio` | `claude` or `lmstudio` |
-| `llm_model` | `openai/gpt-oss-20b` | Local model name for LM Studio |
+| `llm_model` | `google/gemma-4-26b-a4b` | Local model name for LM Studio |
 | `lmstudio_base_url` | `http://localhost:1234/v1` | LM Studio OpenAI-compatible base URL |
 | `crossfade_sec` | `0.5` | Dissolve between scenes |
 | `output_crf` | `18` | Quality (lower = better) |

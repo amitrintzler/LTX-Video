@@ -421,6 +421,46 @@ def test_script_stage_falls_back_when_llm_fails(tmp_path, log, monkeypatch):
     assert len(script["scenes"]) >= 3
 
 
+def test_script_stage_persists_invalid_llm_json_for_debugging(tmp_path, log, monkeypatch):
+    from stages.script import ScriptStage
+    from stages.claude_client import StructuredLLMResponseError
+
+    cfg = PipelineConfig(work_dir=str(tmp_path))
+    stage = ScriptStage(cfg, log)
+    topic = _topic_payload("Sample Topic")
+    slug = topic_slug(topic)
+    research_dir = cfg.research_dir
+    research_dir.mkdir(parents=True, exist_ok=True)
+    research_path = research_dir / f"{slug}.md"
+    outline_path = research_dir / f"{slug}-outline.md"
+    research_path.write_text("# Research\n\nCore lesson notes.\n")
+    outline_path.write_text("# Outline\n\n- Act 1\n- Act 2\n- Act 3\n- Act 4\n")
+
+    monkeypatch.setattr(stage, "_ensure_research", lambda topic, slug: (research_path, outline_path))
+    monkeypatch.setattr(
+        "stages.script.run_claude_json",
+        lambda **kwargs: (_ for _ in ()).throw(
+            StructuredLLMResponseError(
+                "LLM backend did not return valid JSON",
+                prompt="Return JSON",
+                raw_output="not json at all",
+                repaired_output="still not json",
+            )
+        ),
+    )
+
+    outputs = stage.run(topic, mode="narrated")
+
+    assert len(outputs) == 1
+    debug_path = cfg.log_dir / f"{slug}-narrated-script-llm-debug.json"
+    assert debug_path.exists()
+    saved = json.loads(debug_path.read_text())
+    assert saved["provider"] == cfg.llm_provider
+    assert saved["model"] == cfg.llm_model_name()
+    assert saved["raw_output"] == "not json at all"
+    assert saved["repaired_output"] == "still not json"
+
+
 def test_topic_all_routes_through_new_flow(tmp_path, log, monkeypatch):
     import pipeline as pipeline_mod
     from stages.research import ResearchStage

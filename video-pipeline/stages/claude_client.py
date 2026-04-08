@@ -18,6 +18,21 @@ class ClaudeCLIError(RuntimeError):
     pass
 
 
+class StructuredLLMResponseError(ClaudeCLIError):
+    def __init__(
+        self,
+        message: str,
+        *,
+        prompt: str,
+        raw_output: str,
+        repaired_output: str | None = None,
+    ) -> None:
+        super().__init__(message)
+        self.prompt = prompt
+        self.raw_output = raw_output
+        self.repaired_output = repaired_output
+
+
 class CodexCLIError(RuntimeError):
     pass
 
@@ -214,21 +229,35 @@ def run_claude_json(
     if isinstance(payload, dict):
         return payload
 
-    repaired = _repair_json_response(
-        prompt=prompt,
-        raw_output=result,
-        model=model,
-        system_prompt=system_prompt,
-        provider=provider,
-        base_url=base_url,
-        api_key=api_key,
-        schema=schema,
-        timeout=timeout,
-        max_tokens=max_tokens,
-    )
-    payload = _extract_json_payload(repaired)
+    repaired = None
+    try:
+        repaired = _repair_json_response(
+            prompt=prompt,
+            raw_output=result,
+            model=model,
+            system_prompt=system_prompt,
+            provider=provider,
+            base_url=base_url,
+            api_key=api_key,
+            schema=schema,
+            timeout=timeout,
+            max_tokens=max_tokens,
+        )
+        payload = _extract_json_payload(repaired)
+    except ClaudeCLIError as exc:
+        raise StructuredLLMResponseError(
+            str(exc),
+            prompt=prompt,
+            raw_output=result,
+            repaired_output=repaired,
+        ) from exc
     if not isinstance(payload, dict):
-        raise ClaudeCLIError("LLM backend did not return valid JSON")
+        raise StructuredLLMResponseError(
+            "LLM backend did not return valid JSON",
+            prompt=prompt,
+            raw_output=result,
+            repaired_output=repaired,
+        )
     return payload
 
 

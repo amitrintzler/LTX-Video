@@ -11,7 +11,7 @@ from pathlib import Path
 from typing import Optional
 
 from config import PipelineConfig
-from stages.claude_client import ClaudeCLIError, run_claude_json
+from stages.claude_client import ClaudeCLIError, StructuredLLMResponseError, run_claude_json
 from stages.research import ResearchStage
 from stages.topic_utils import (
     TopicInput,
@@ -130,6 +130,13 @@ class ScriptStage:
             )
             script = self._ensure_primary_renderer(script, preferred_renderer)
         except (ClaudeCLIError, ValueError, TimeoutError) as exc:
+            if isinstance(exc, StructuredLLMResponseError):
+                debug_path = self._persist_llm_debug_artifact(
+                    slug=slug,
+                    mode=mode,
+                    exc=exc,
+                )
+                self.log.warning(f"  Script LLM debug saved -> {debug_path}")
             self.log.warning(f"  Script LLM failed ({exc}); using deterministic fallback script")
             script = self._fallback_script(
                 topic=topic,
@@ -155,6 +162,26 @@ class ScriptStage:
         )
         self.log.info(f"  Script saved -> {script_path}")
         return script_path
+
+    def _persist_llm_debug_artifact(
+        self,
+        *,
+        slug: str,
+        mode: str,
+        exc: StructuredLLMResponseError,
+    ) -> Path:
+        self.cfg.log_dir.mkdir(parents=True, exist_ok=True)
+        debug_path = self.cfg.log_dir / f"{slug}-{mode}-script-llm-debug.json"
+        payload = {
+            "error": str(exc),
+            "provider": self.cfg.llm_provider,
+            "model": self.cfg.llm_model_name(),
+            "prompt": exc.prompt,
+            "raw_output": exc.raw_output,
+            "repaired_output": exc.repaired_output,
+        }
+        debug_path.write_text(json.dumps(payload, indent=2, ensure_ascii=False) + "\n")
+        return debug_path
 
     def _generate_script_chunked(
         self,

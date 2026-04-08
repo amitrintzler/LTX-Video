@@ -18,7 +18,12 @@ import urllib.request
 from pathlib import Path
 from typing import Optional
 
+import numpy as np
+from PIL import Image, ImageFilter, ImageOps
+
 from config import PipelineConfig
+
+RESAMPLING = getattr(Image, "Resampling", Image)
 
 
 class ManimRenderError(RuntimeError):
@@ -94,7 +99,9 @@ def render(scene: dict, config: PipelineConfig, out_path: Path) -> Path:
             code = _call_claude_cli(model, system, description, last_error)
         try:
             _ensure_safe_codegen(code)
-            return _run_manim(code, out_path, timeout=120)
+            rendered = _run_manim(code, out_path, timeout=120)
+            _audit_rendered_video(rendered, duration_sec=duration_sec)
+            return rendered
         except ManimRenderError as e:
             last_error = str(e)
             if attempt == config.renderer_max_retries - 1:
@@ -157,6 +164,7 @@ CRITICAL — LaTeX is NOT installed. You MUST follow these rules:
 - Keep the layout sparse: use one title zone, one primary diagram, and at most one or two short callouts at a time.
 - Do not stack multiple large Text blocks on the same region of the screen.
 - Place supporting text in a margin or side panel, not directly over the main geometry.
+- Keep all text out of the central 55% of the frame. Titles belong in the top band; annotations belong in the outer edges or side panels.
 
 The animation must complete within {duration_sec} seconds total. Do not call self.wait() beyond that.
 Output only valid Python code. No markdown fences, no explanation."""
@@ -317,6 +325,155 @@ def _ensure_safe_codegen(code: str) -> None:
         raise ManimRenderError(
             "Generated Manim code uses named color constants. Use hex color strings only."
         )
+
+
+def _audit_rendered_video(video_path: Path, duration_sec: int) -> None:
+    if duration_sec <= 0:
+        duration_sec = 8
+
+    sample_times = _audit_sample_times(duration_sec)
+    with tempfile.TemporaryDirectory(prefix="manim_audit_") as tmp_dir:
+        tmp_dir_path = Path(tmp_dir)
+        for idx, sample_time in enumerate(sample_times, start=1):
+            frame_path = tmp_dir_path / f"frame_{idx:02d}.png"
+            _extract_frame(video_path, sample_time, frame_path)
+            violations = _find_center_text_like_regions(frame_path)
+            if violations:
+                detail = violations[0]
+                raise ManimRenderError(
+                    f"Layout audit found likely text in the center band at t={sample_time:.2f}s: {detail}. "
+                    "Move titles and callouts to the top band, outer edges, or side panels."
+                )
+
+
+def _audit_sample_times(duration_sec: int) -> list[float]:
+    points = [0.4, duration_sec * 0.5, max(duration_sec - 0.4, 0.4)]
+    unique: list[float] = []
+    for point in points:
+        point = max(0.1, min(point, max(duration_sec - 0.1, 0.1)))
+        if not any(abs(point - existing) < 0.05 for existing in unique):
+            unique.append(point)
+    return unique
+
+
+def _extract_frame(video_path: Path, sample_time: float, out_path: Path) -> None:
+    cmd = [
+        "ffmpeg",
+        "-hide_banner",
+        "-loglevel",
+        "error",
+        "-ss",
+        f"{sample_time:.3f}",
+        "-i",
+        str(video_path),
+        "-frames:v",
+        "1",
+        "-y",
+        str(out_path),
+    ]
+    try:
+        subprocess.run(cmd, capture_output=True, text=True, timeout=60, check=True)
+    except FileNotFoundError as e:
+        raise ManimRenderError(
+            "ffmpeg is required for the Manim layout audit but was not found on PATH."
+        ) from e
+    except subprocess.CalledProcessError as e:
+        stderr = (e.stderr or e.stdout or "").strip()
+        raise ManimRenderError(
+            f"Failed to extract frame for layout audit at t={sample_time:.2f}s: {stderr[-2000:]}"
+        ) from e
+    except subprocess.TimeoutExpired as e:
+        raise ManimRenderError(
+            f"Timed out extracting frame for layout audit at t={sample_time:.2f}s"
+        ) from e
+
+
+def _find_center_text_like_regions(image_path: Path) -> list[str]:
+    with Image.open(image_path) as image:
+        gray = image.convert("L")
+        if gray.width > 640:
+            ratio = 640 / float(gray.width)
+            gray = gray.resize(
+                (640, max(1, int(round(gray.height * ratio)))),
+                RESAMPLING.LANCZOS,
+            )
+        edges = ImageOps.autocontrast(gray.filter(ImageFilter.FIND_EDGES))
+        arr = np.asarray(edges, dtype=np.uint8)
+
+    threshold = int(max(60, np.percentile(arr, 92)))
+    mask = arr >= threshold
+    components = _connected_components(mask)
+    h, w = mask.shape
+    center_x0 = int(w * 0.18)
+    center_x1 = int(w * 0.82)
+    center_y0 = int(h * 0.18)
+    center_y1 = int(h * 0.82)
+
+    violations: list[str] = []
+    for comp in components:
+        if not _is_text_like_component(comp, w, h):
+            continue
+        cx = (comp["x0"] + comp["x1"]) / 2.0
+        cy = (comp["y0"] + comp["y1"]) / 2.0
+        if center_x0 <= cx <= center_x1 and center_y0 <= cy <= center_y1:
+            violations.append(
+                f"bbox=({comp['x0']},{comp['y0']})-({comp['x1']},{comp['y1']}), area={comp['area']}"
+            )
+    return violations
+
+
+def _connected_components(mask: np.ndarray) -> list[dict]:
+    h, w = mask.shape
+    visited = np.zeros_like(mask, dtype=bool)
+    components: list[dict] = []
+
+    for y in range(h):
+        for x in range(w):
+            if not mask[y, x] or visited[y, x]:
+                continue
+
+            stack = [(y, x)]
+            visited[y, x] = True
+            area = 0
+            x0 = x1 = x
+            y0 = y1 = y
+
+            while stack:
+                cy, cx = stack.pop()
+                area += 1
+                x0 = min(x0, cx)
+                x1 = max(x1, cx)
+                y0 = min(y0, cy)
+                y1 = max(y1, cy)
+
+                for ny in range(max(0, cy - 1), min(h, cy + 2)):
+                    for nx in range(max(0, cx - 1), min(w, cx + 2)):
+                        if mask[ny, nx] and not visited[ny, nx]:
+                            visited[ny, nx] = True
+                            stack.append((ny, nx))
+
+            components.append({"area": area, "x0": x0, "x1": x1, "y0": y0, "y1": y1})
+
+    return components
+
+
+def _is_text_like_component(component: dict, frame_w: int, frame_h: int) -> bool:
+    area = int(component["area"])
+    width = int(component["x1"] - component["x0"] + 1)
+    height = int(component["y1"] - component["y0"] + 1)
+    if area < 24 or area > 5000:
+        return False
+    if width < 3 or height < 3:
+        return False
+    if width > frame_w * 0.35 or height > frame_h * 0.18:
+        return False
+
+    fill_ratio = area / float(width * height)
+    if fill_ratio < 0.05:
+        return False
+
+    aspect_ratio = width / float(height)
+    return 0.15 <= aspect_ratio <= 12.0
 
 
 def _run_manim(code: str, out_path: Path, timeout: int = 120) -> Path:

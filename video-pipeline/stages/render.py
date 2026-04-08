@@ -96,6 +96,8 @@ class RenderStage:
         safety_note = (
             " Use plain-text labels only. Do not use MathTex, Tex, or any LaTeX syntax."
             " Use explicit hex color strings only; avoid named colors like CYAN."
+            " Keep all labels, titles, and callouts in the top band, side panels, or outer edges."
+            " Leave the center of the frame clear for the main visual."
         )
         if safety_note.strip() not in text:
             text = f"{text.rstrip('.')}." + safety_note

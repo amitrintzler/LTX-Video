@@ -403,6 +403,7 @@ def test_manim_render_success(tmp_path):
 
     with patch("stages.renderers.manim._check_imports"), \
          patch("stages.renderers.manim._call_claude_cli", mock_call), \
+         patch("stages.renderers.manim._audit_rendered_video"), \
          patch("stages.renderers.manim._run_manim", return_value=out_path):
         result = manim_mod.render(_manim_scene(), _manim_cfg(), out_path)
 
@@ -485,6 +486,7 @@ def test_manim_uses_lmstudio_when_configured(tmp_path):
 
     with patch("stages.renderers.manim._check_imports"), \
          patch("stages.renderers.manim._call_lmstudio_api", return_value="from manim import *\nclass VideoScene(Scene): pass") as lm_call, \
+         patch("stages.renderers.manim._audit_rendered_video"), \
          patch("stages.renderers.manim._run_manim", return_value=out_path), \
          patch("stages.renderers.manim._call_claude_cli") as claude_call:
         result = manim_mod.render(_manim_scene(), cfg, out_path)
@@ -575,6 +577,48 @@ class VideoScene(Scene):
 
     assert lm_call.call_count == 2
     run_call.assert_not_called()
+
+
+def test_manim_layout_audit_detects_center_text_like_regions(tmp_path):
+    from PIL import Image, ImageDraw
+    from stages.renderers.manim import _find_center_text_like_regions
+
+    center_image = tmp_path / "center.png"
+    img = Image.new("RGB", (1280, 720), "black")
+    draw = ImageDraw.Draw(img)
+    draw.rectangle((520, 320, 760, 380), fill="white")
+    img.save(center_image)
+
+    edge_image = tmp_path / "edge.png"
+    img2 = Image.new("RGB", (1280, 720), "black")
+    draw2 = ImageDraw.Draw(img2)
+    draw2.rectangle((20, 20, 260, 80), fill="white")
+    img2.save(edge_image)
+
+    center_violations = _find_center_text_like_regions(center_image)
+    edge_violations = _find_center_text_like_regions(edge_image)
+
+    assert center_violations
+    assert not edge_violations
+
+
+def test_manim_render_calls_layout_audit_after_success(tmp_path):
+    import stages.renderers.manim as manim_mod
+
+    cfg = _manim_cfg()
+    cfg.llm_provider = "lmstudio"
+    cfg.llm_model = "local-model"
+    out_path = tmp_path / "scene_001.mp4"
+
+    with patch("stages.renderers.manim._check_imports"), \
+         patch("stages.renderers.manim._call_lmstudio_api", return_value="from manim import *\nclass VideoScene(Scene): pass"), \
+         patch("stages.renderers.manim._run_manim", return_value=out_path), \
+         patch("stages.renderers.manim._audit_rendered_video") as audit_call:
+        result = manim_mod.render(_manim_scene(), cfg, out_path)
+
+    assert result == out_path
+    audit_call.assert_called_once()
+    assert audit_call.call_args.args[0] == out_path
 
 
 def test_manim_run_uses_timeout(tmp_path):

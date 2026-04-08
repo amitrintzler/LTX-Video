@@ -606,14 +606,12 @@ class VideoScene(Scene):
     run_call.assert_not_called()
 
 
-def test_manim_rejects_alignment_keyword_before_running_manim(tmp_path):
+def test_manim_normalizes_alignment_keyword_before_running_manim(tmp_path):
     import stages.renderers.manim as manim_mod
-    from stages.renderers.manim import ManimRenderError
 
     cfg = _manim_cfg()
     cfg.llm_provider = "lmstudio"
     cfg.llm_model = "local-model"
-    cfg.renderer_max_retries = 2
     out_path = tmp_path / "scene_001.mp4"
 
     bad_code = """from manim import *
@@ -624,22 +622,23 @@ class VideoScene(Scene):
 
     with patch("stages.renderers.manim._check_imports"), \
          patch("stages.renderers.manim._call_lmstudio_api", return_value=bad_code) as lm_call, \
-         patch("stages.renderers.manim._run_manim") as run_call:
-        with pytest.raises(ManimRenderError, match="alignment="):
-            manim_mod.render(_manim_scene(), cfg, out_path)
+         patch("stages.renderers.manim._audit_rendered_video"), \
+         patch("stages.renderers.manim._run_manim", return_value=out_path) as run_call:
+        result = manim_mod.render(_manim_scene(), cfg, out_path)
 
-    assert lm_call.call_count == 2
-    run_call.assert_not_called()
+    assert result == out_path
+    assert lm_call.call_count == 1
+    rewritten = run_call.call_args[0][0]
+    assert "alignment=" not in rewritten
+    assert "Text(" in rewritten
 
 
-def test_manim_rejects_width_keyword_on_constructors_before_running_manim(tmp_path):
+def test_manim_rewrites_width_keyword_on_constructors_before_running_manim(tmp_path):
     import stages.renderers.manim as manim_mod
-    from stages.renderers.manim import ManimRenderError
 
     cfg = _manim_cfg()
     cfg.llm_provider = "lmstudio"
     cfg.llm_model = "local-model"
-    cfg.renderer_max_retries = 2
     out_path = tmp_path / "scene_001.mp4"
 
     bad_code = """from manim import *
@@ -650,12 +649,15 @@ class VideoScene(Scene):
 
     with patch("stages.renderers.manim._check_imports"), \
          patch("stages.renderers.manim._call_lmstudio_api", return_value=bad_code) as lm_call, \
-         patch("stages.renderers.manim._run_manim") as run_call:
-        with pytest.raises(ManimRenderError, match="width="):
-            manim_mod.render(_manim_scene(), cfg, out_path)
+         patch("stages.renderers.manim._audit_rendered_video"), \
+         patch("stages.renderers.manim._run_manim", return_value=out_path) as run_call:
+        result = manim_mod.render(_manim_scene(), cfg, out_path)
 
-    assert lm_call.call_count == 2
-    run_call.assert_not_called()
+    assert result == out_path
+    assert lm_call.call_count == 1
+    rewritten = run_call.call_args[0][0]
+    assert "width=3" not in rewritten
+    assert "scale_to_fit_width(3)" in rewritten
 
 
 def test_manim_rejects_axes_helpers_before_running_manim(tmp_path):

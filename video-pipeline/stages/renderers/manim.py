@@ -8,6 +8,8 @@ Install deps:  pip install manim
 """
 
 from __future__ import annotations
+
+import ast
 import json
 import re
 import shutil
@@ -98,6 +100,7 @@ def render(scene: dict, config: PipelineConfig, out_path: Path) -> Path:
         else:
             code = _call_claude_cli(model, system, description, last_error)
         try:
+            code = _normalize_manim_code(code)
             _ensure_safe_codegen(code)
             rendered = _run_manim(code, out_path, timeout=120)
             _audit_rendered_video(rendered, duration_sec=duration_sec)
@@ -334,17 +337,106 @@ def _ensure_safe_codegen(code: str) -> None:
         raise ManimRenderError(
             "Generated Manim code passes stroke_width to set_stroke(). Use width= instead."
         )
-    constructor_safe_code = re.sub(r"set_stroke\s*\((?:[^()]|\n)*?\)", "", code, flags=re.S)
-    if re.search(r"\bwidth\s*=", constructor_safe_code):
-        raise ManimRenderError(
-            "Generated Manim code passes width= to a Manim object constructor. "
-            "Use scale(), stretch_to_fit_width(), or arrange instead."
+
+
+class _ManimCodeNormalizer(ast.NodeTransformer):
+    def __init__(self) -> None:
+        self.changed = False
+
+    def visit_Assign(self, node: ast.Assign):  # type: ignore[override]
+        node = self.generic_visit(node)
+        extra_nodes = self._rewrite_constructor_width(node.value, node.targets)
+        if extra_nodes:
+            self.changed = True
+            return [node, *extra_nodes]
+        return node
+
+    def visit_AnnAssign(self, node: ast.AnnAssign):  # type: ignore[override]
+        node = self.generic_visit(node)
+        targets = [node.target] if node.value is not None else []
+        extra_nodes = self._rewrite_constructor_width(node.value, targets)
+        if extra_nodes:
+            self.changed = True
+            return [node, *extra_nodes]
+        return node
+
+    def visit_Expr(self, node: ast.Expr):  # type: ignore[override]
+        node = self.generic_visit(node)
+        if isinstance(node.value, ast.Call) and self._strip_redundant_kwargs(node.value):
+            self.changed = True
+        return node
+
+    def _rewrite_constructor_width(
+        self, value: ast.AST | None, targets: list[ast.expr]
+    ) -> list[ast.stmt]:
+        if not isinstance(value, ast.Call):
+            return []
+
+        width_expr = self._extract_kwarg(value, {"width"})
+        if width_expr is None:
+            if self._strip_redundant_kwargs(value):
+                self.changed = True
+            return []
+
+        if self._strip_redundant_kwargs(value):
+            self.changed = True
+        scale_target = next((t for t in targets if isinstance(t, ast.Name)), None)
+        if scale_target is None:
+            return []
+
+        self.changed = True
+        scale_stmt = ast.Expr(
+            value=ast.Call(
+                func=ast.Attribute(
+                    value=ast.Name(id=scale_target.id, ctx=ast.Load()),
+                    attr="scale_to_fit_width",
+                    ctx=ast.Load(),
+                ),
+                args=[width_expr],
+                keywords=[],
+            )
         )
-    if re.search(r"\balignment\s*=", code):
-        raise ManimRenderError(
-            "Generated Manim code passes alignment= to a Manim object. "
-            "Use next_to, to_edge, or arrange instead."
-        )
+        ast.copy_location(scale_stmt, value)
+        return [scale_stmt]
+
+    def _strip_redundant_kwargs(self, call: ast.Call) -> bool:
+        changed = False
+        kept = []
+        for kw in call.keywords:
+            if kw.arg in {"alignment", "align"}:
+                changed = True
+                continue
+            kept.append(kw)
+        if changed:
+            call.keywords = kept
+        return changed
+
+    @staticmethod
+    def _extract_kwarg(call: ast.Call, names: set[str]) -> ast.expr | None:
+        kept = []
+        found = None
+        for kw in call.keywords:
+            if kw.arg in names and found is None:
+                found = kw.value
+                continue
+            kept.append(kw)
+        if found is not None:
+            call.keywords = kept
+        return found
+
+
+def _normalize_manim_code(code: str) -> str:
+    try:
+        tree = ast.parse(code)
+    except SyntaxError:
+        return code
+
+    normalizer = _ManimCodeNormalizer()
+    tree = normalizer.visit(tree)
+    ast.fix_missing_locations(tree)
+    if not normalizer.changed:
+        return code
+    return ast.unparse(tree)
 
 
 def _audit_rendered_video(video_path: Path, duration_sec: int) -> None:

@@ -48,6 +48,16 @@ NAMED_COLOR_NAMES = (
     "VIOLET",
     "MAGENTA",
 )
+BLOCKED_MANIM_PATTERNS = (
+    r"\bAxes\s*\(",
+    r"\bNumberPlane\s*\(",
+    r"\bNumberLine\s*\(",
+    r"\bGraphScene\b",
+    r"\.get_axis_labels\s*\(",
+    r"\.add_coordinates\s*\(",
+    r"\.plot_line_graph\s*\(",
+    r"\.plot\s*\(",
+)
 
 
 def render(scene: dict, config: PipelineConfig, out_path: Path) -> Path:
@@ -141,8 +151,9 @@ CRITICAL — LaTeX is NOT installed. You MUST follow these rules:
 - Everything else (Axes, Line, Arrow, Dot, DashedLine, Create, Write, etc.) is fine.
 - If the scene description mentions math, translate it into plain English or Unicode text instead of LaTeX syntax.
 - Use explicit hex color strings for all colors. Do not use named color constants like CYAN, TEAL, BLUE, or WHITE.
-- When using Axes or NumberPlane, define each axis config dictionary once and pass it once.
-  Do not repeat keyword arguments like x_axis_config or y_axis_config in the same call.
+- Do not use Axes, NumberPlane, NumberLine, GraphScene, plot, or any coordinate-axis helper.
+  Build payoff curves and charts manually with Line, Dot, Arrow, and Text instead.
+- If you must draw a curve or chart, use explicit points and line segments, not axis helpers or tick labels.
 
 The animation must complete within {duration_sec} seconds total. Do not call self.wait() beyond that.
 Output only valid Python code. No markdown fences, no explanation."""
@@ -286,6 +297,12 @@ def _ensure_safe_codegen(code: str) -> None:
         raise ManimRenderError(
             "Generated Manim code still uses MathTex/Tex. Rewrite the scene with Text(...) only."
         )
+    for pattern in BLOCKED_MANIM_PATTERNS:
+        if re.search(pattern, code):
+            raise ManimRenderError(
+                "Generated Manim code uses coordinate-axis helpers that can trigger LaTeX. "
+                "Use manual Line/Dot/Text geometry instead of Axes/NumberPlane/NumberLine."
+            )
     color_pattern = r"\b(?:set_color|set_fill|set_stroke)\s*\(\s*(?:%s)\b" % "|".join(
         NAMED_COLOR_NAMES
     )

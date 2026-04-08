@@ -52,7 +52,9 @@ def load_json(path: Path) -> dict:
         return json.load(f)
 
 
-def _is_existing_file(input_ref: str) -> bool:
+def _is_existing_file(input_ref: object) -> bool:
+    if not isinstance(input_ref, (str, bytes, Path)):
+        return False
     try:
         return Path(input_ref).expanduser().is_file()
     except OSError:
@@ -133,6 +135,7 @@ def _run_new_pipeline_for_script(
     stage: Optional[str],
     skip_validation: bool,
     output_mode_override: Optional[str],
+    max_scenes: Optional[int],
 ):
     if stage == "storyboard":
         raise ValueError(
@@ -141,6 +144,18 @@ def _run_new_pipeline_for_script(
 
     title = script.get("title", "untitled")
     scenes = script["scenes"]
+    runtime_title = title
+    runtime_scenes = scenes
+    if max_scenes is not None:
+        max_scenes = max(1, int(max_scenes))
+        runtime_scenes = scenes[:max_scenes]
+        runtime_title = f"{title}-smoke-{len(runtime_scenes):02d}"
+        log.info(
+            "Smoke run enabled: executing first %s/%s scenes -> %s",
+            len(runtime_scenes),
+            len(scenes),
+            runtime_title,
+        )
     output_mode = output_mode_override or _infer_output_mode(script, script_path, cfg)
 
     stages_to_run = {
@@ -158,22 +173,22 @@ def _run_new_pipeline_for_script(
 
     if "render" in stages_to_run:
         log.info("━━━ Render stage ━━━")
-        RenderStage(cfg, log).run(script, scenes, title)
+        RenderStage(cfg, log).run(script, runtime_scenes, runtime_title)
 
     if "tts" in stages_to_run:
         log.info("━━━ TTS stage ━━━")
         if output_mode == "narrated":
-            TTSStage(cfg, log).run(scenes, title)
+            TTSStage(cfg, log).run(runtime_scenes, runtime_title)
         else:
             log.info("  TTS skipped — companion-long output is silent")
 
     if "stitch" in stages_to_run:
         log.info("━━━ Stitch stage ━━━")
         if output_mode == "narrated":
-            StitchStage(cfg, log).run(scenes, title, output_mode="narrated")
-            StitchStage(cfg, log).run(scenes, title, output_mode="companion-short")
+            StitchStage(cfg, log).run(runtime_scenes, runtime_title, output_mode="narrated")
+            StitchStage(cfg, log).run(runtime_scenes, runtime_title, output_mode="companion-short")
         else:
-            StitchStage(cfg, log).run(scenes, title, output_mode="companion-long")
+            StitchStage(cfg, log).run(runtime_scenes, runtime_title, output_mode="companion-long")
 
 
 def _run_topic_pipeline(
@@ -183,6 +198,7 @@ def _run_topic_pipeline(
     stage: Optional[str],
     skip_validation: bool,
     script_mode: str,
+    max_scenes: Optional[int],
 ):
     stages_to_run = {
         None: ["research", "script", "render", "tts", "stitch"],
@@ -224,6 +240,7 @@ def _run_topic_pipeline(
             stage="all" if stage in (None, "all") else stage,
             skip_validation=skip_validation,
             output_mode_override=None,
+            max_scenes=max_scenes,
         )
 
 
@@ -234,6 +251,7 @@ def run(
     skip_validation: bool = False,
     script_mode: str = "both",
     output_mode: Optional[str] = None,
+    max_scenes: Optional[int] = None,
 ):
     log = setup_logging(cfg.log_dir)
     log.info(f"Loading input: {input_ref}")
@@ -263,6 +281,7 @@ def run(
                 stage,
                 skip_validation,
                 script_mode,
+                max_scenes,
             )
             log.info("✅ Pipeline complete.")
             return
@@ -284,6 +303,7 @@ def run(
                     None,
                     skip_validation,
                     output_mode,
+                    max_scenes,
                 )
             log.info("✅ Pipeline complete.")
             return
@@ -299,6 +319,7 @@ def run(
                 stage,
                 skip_validation,
                 output_mode,
+                max_scenes,
             )
 
         log.info("✅ Pipeline complete.")
@@ -317,6 +338,7 @@ def run(
             stage,
             skip_validation,
             script_mode,
+            max_scenes,
         )
         log.info("✅ Pipeline complete.")
         return
@@ -352,6 +374,12 @@ if __name__ == "__main__":
         help="Skip validation (for re-runs of known-good scripts)",
     )
     parser.add_argument(
+        "--max-scenes",
+        type=int,
+        default=None,
+        help="Execute only the first N scenes during render/TTS/stitch. Validation still checks the full script.",
+    )
+    parser.add_argument(
         "--config",
         default="config.json",
         help="Path to config JSON (default: config.json)",
@@ -367,4 +395,5 @@ if __name__ == "__main__":
         skip_validation=args.skip_validation,
         script_mode=args.mode,
         output_mode=args.output_mode,
+        max_scenes=args.max_scenes,
     )

@@ -515,3 +515,47 @@ def test_topic_document_file_routes_through_new_flow(tmp_path, log, monkeypatch)
     assert calls[1] == ("script", topic, "both")
     assert ("render", "black-scholes-pricing-narrated", "manim", 3) in calls
     assert ("render", "black-scholes-pricing-companion-long", "manim", 3) in calls
+
+
+def test_topic_pipeline_max_scenes_only_limits_runtime_execution(tmp_path, log, monkeypatch):
+    import pipeline as pipeline_mod
+    from stages.research import ResearchStage
+    from stages.script import ScriptStage
+    from stages.render import RenderStage
+    from stages.tts import TTSStage
+    from stages.stitch import StitchStage
+    from stages.validate import ValidationStage
+
+    cfg = PipelineConfig(work_dir=str(tmp_path))
+    topic = _topic_payload("Black-Scholes pricing model")
+    slug = "black-scholes-pricing-model"
+    scripts_dir = cfg.scripts_dir
+    scripts_dir.mkdir(parents=True, exist_ok=True)
+
+    calls = []
+
+    monkeypatch.setattr(ResearchStage, "run", lambda self, topic: calls.append(("research", topic)) or (
+        cfg.research_dir / f"{slug}.md",
+        cfg.research_dir / f"{slug}-outline.md",
+    ))
+    monkeypatch.setattr(
+        ScriptStage,
+        "run",
+        lambda self, topic, mode="both": calls.append(("script", topic, mode)) or [
+            scripts_dir / f"{slug}-narrated.json",
+        ],
+    )
+    monkeypatch.setattr(RenderStage, "run", lambda self, script, scenes, title: calls.append(("render", title, len(scenes))))
+    monkeypatch.setattr(TTSStage, "run", lambda self, scenes, title: calls.append(("tts", title, len(scenes))))
+    monkeypatch.setattr(StitchStage, "run", lambda self, scenes, title, output_mode="narrated": calls.append(("stitch", title, output_mode, len(scenes))))
+    monkeypatch.setattr(ValidationStage, "run", lambda self, script, scenes, title: calls.append(("validate", title, len(scenes))))
+
+    narrated_path = scripts_dir / f"{slug}-narrated.json"
+    narrated_path.write_text(json.dumps(_script_payload(f"{slug}-narrated"), indent=2))
+
+    pipeline_mod.run(topic, None, cfg, max_scenes=2)
+
+    assert ("validate", f"{slug}-narrated", 3) in calls
+    assert ("render", f"{slug}-narrated-smoke-02", 2) in calls
+    assert ("tts", f"{slug}-narrated-smoke-02", 2) in calls
+    assert ("stitch", f"{slug}-narrated-smoke-02", "narrated", 2) in calls

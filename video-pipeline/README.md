@@ -105,6 +105,9 @@ python3.11 pipeline.py scripts/<title>-narrated.json --stage validate
 # Render a generated script
 python3.11 pipeline.py scripts/<title>-narrated.json --stage render
 
+# Smoke-render only the first 2 scenes into a separate *-smoke-02 output
+python3.11 pipeline.py scripts/<title>-narrated.json --stage render --max-scenes 2
+
 # Generate TTS narration for a generated script
 python3.11 pipeline.py scripts/<title>-narrated.json --stage tts
 

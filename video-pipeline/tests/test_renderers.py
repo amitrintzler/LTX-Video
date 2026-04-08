@@ -1043,3 +1043,32 @@ def test_pipeline_skips_existing_clip(tmp_path):
         pl.run(str(script_path), "video", cfg, skip_validation=True)
 
     mock_render.assert_not_called()
+
+
+def test_pipeline_max_scenes_limits_runtime_render(tmp_path):
+    import pipeline as pl
+
+    script_path = tmp_path / "test.json"
+    script_path.write_text("""{
+        "title": "test-limit",
+        "global_style": "cinematic",
+        "scenes": [
+            {"id": "s01", "renderer": "manim", "description": "Scene 1", "duration_sec": 4},
+            {"id": "s02", "renderer": "manim", "description": "Scene 2", "duration_sec": 4},
+            {"id": "s03", "renderer": "manim", "description": "Scene 3", "duration_sec": 4}
+        ]
+    }""")
+
+    cfg = PipelineConfig(work_dir=str(tmp_path), min_scenes=1)
+    render_calls = []
+
+    def fake_render_run(self, script, scenes, title):
+        render_calls.append((title, [scene["id"] for scene in scenes]))
+
+    with patch("stages.render.RenderStage.run", fake_render_run), \
+         patch("stages.video.DrawThingsClient"), \
+         patch("stages.storyboard.DrawThingsClient"), \
+         patch("stages.stitch.StitchStage.run"):
+        pl.run(str(script_path), "render", cfg, skip_validation=True, max_scenes=2)
+
+    assert render_calls == [("test-limit-smoke-02", ["s01", "s02"])]

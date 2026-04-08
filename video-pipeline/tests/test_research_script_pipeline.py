@@ -356,6 +356,36 @@ def test_script_stage_repairs_chunked_json_before_fallback(tmp_path, log, monkey
     assert calls["count"] == 2
 
 
+def test_fallback_script_uses_full_scene_counts(tmp_path, log):
+    from stages.script import ScriptStage
+
+    cfg = PipelineConfig(work_dir=str(tmp_path))
+    stage = ScriptStage(cfg, log)
+    topic = _topic_payload("Options flow in 90 seconds")
+
+    narrated = stage._fallback_script(
+        topic=topic,
+        slug="basics-flow",
+        mode="narrated",
+        preferred_renderer="manim",
+        research_text="Research text.",
+        outline_text="Outline text.",
+    )
+    companion_long = stage._fallback_script(
+        topic=topic,
+        slug="basics-flow",
+        mode="companion-long",
+        preferred_renderer="manim",
+        research_text="Research text.",
+        outline_text="Outline text.",
+    )
+
+    assert len(narrated["scenes"]) == 22
+    assert narrated["scenes"][0]["duration_sec"] == 4
+    assert len(companion_long["scenes"]) == 50
+    assert companion_long["scenes"][0]["duration_sec"] == 6
+
+
 def test_script_stage_falls_back_when_llm_fails(tmp_path, log, monkeypatch):
     from stages.script import ScriptStage
     from stages.claude_client import ClaudeCLIError

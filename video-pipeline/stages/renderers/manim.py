@@ -154,6 +154,9 @@ CRITICAL — LaTeX is NOT installed. You MUST follow these rules:
 - Do not use Axes, NumberPlane, NumberLine, GraphScene, plot, or any coordinate-axis helper.
   Build payoff curves and charts manually with Line, Dot, Arrow, and Text instead.
 - If you must draw a curve or chart, use explicit points and line segments, not axis helpers or tick labels.
+- Keep the layout sparse: use one title zone, one primary diagram, and at most one or two short callouts at a time.
+- Do not stack multiple large Text blocks on the same region of the screen.
+- Place supporting text in a margin or side panel, not directly over the main geometry.
 
 The animation must complete within {duration_sec} seconds total. Do not call self.wait() beyond that.
 Output only valid Python code. No markdown fences, no explanation."""

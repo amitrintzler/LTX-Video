@@ -400,7 +400,7 @@ class ScriptStage:
                     "id": f"s{idx:02d}",
                     "renderer": primary_renderer,
                     "title": scene_title,
-                    "duration_sec": 12 if mode == "narrated" else 14,
+                    "duration_sec": 4 if mode == "narrated" else 6,
                     "narration": narration,
                     "description": description,
                     "style": "dark background #0d1117, primary #FFD700, success #00C896, text #FFFFFF",
@@ -436,63 +436,171 @@ class ScriptStage:
         outline_text: str,
         mode: str,
     ) -> list[tuple[str, str, str]]:
-        topic_text = topic_context_json(topic)
         key_terms = self._topic_list_from_topic(topic, "key_terms")
         visual_hooks = self._topic_list_from_topic(topic, "visual_hooks")
         misconceptions = self._topic_list_from_topic(topic, "misconceptions")
         teaching_notes = self._topic_notes(topic)
+        key_term_text = ", ".join(key_terms[:3]) if key_terms else "core terms"
+        visual_hook_text = ", ".join(visual_hooks[:2]) if visual_hooks else "a payoff curve and a strike ladder"
+        misconception_text = ", ".join(misconceptions[:2]) if misconceptions else "common beginner mistakes"
+        note_text = " ".join(teaching_notes[:2]) if teaching_notes else "End with a practical summary that reinforces the core idea."
+        research_excerpt = self._truncate_text(research_text, 180)
+        outline_excerpt = self._truncate_text(outline_text, 180)
 
-        specs = [
+        narrated_specs = [
             (
                 "Hook",
-                f"Open with the central idea behind {topic_name} and why it matters.",
-                f"Use a bold opening frame for {topic_name}. Introduce the main concept, the audience promise, and a visual hook. Keep the motion simple and explicit so the lesson starts with a clear question and a clear payoff. Topic context: {topic_text[:220]}.",
+                f"Open with {topic_name} and the question it answers.",
+                f"Use a dark background, a small gold title in the top-left, and one central diagram. Keep the first reveal centered and avoid text overlapping the diagram.",
             ),
             (
-                "Core Idea",
-                "Define the key terms and the basic mechanism.",
-                f"Explain the main mechanism step by step using one central visual idea. Call out the key terms {', '.join(key_terms[:3]) if key_terms else 'from the topic document'}. Show the structure first, then the relationship, then the consequence.",
+                "What It Means",
+                f"Define {topic_name} in one plain sentence.",
+                f"Show one large label, one supporting callout, and a clean empty margin around them. Introduce the topic without stacking multiple text blocks on top of each other.",
             ),
             (
-                "Visual Intuition",
-                "Translate the idea into a concrete visual system.",
-                f"Turn the topic into a diagram, flow, or timeline that the viewer can follow. If the topic includes visual hooks such as {', '.join(visual_hooks[:3]) if visual_hooks else 'diagram, comparison, or process visuals'}, center the scene around them. The viewer should be able to point at the exact moving pieces.",
+                "Key Terms",
+                f"Name the key terms: {key_term_text}.",
+                f"Place the terms in a simple row or column, with each label spaced apart. Use gold for the main term and teal for the supporting note.",
             ),
             (
-                "Worked Example",
-                "Walk through one concrete example or calculation.",
-                "Use a single example that makes the topic feel tangible. Show the inputs, the transformation, and the output in order. Keep every visual label explicit and avoid vague abstractions.",
+                "Flow Signal",
+                "Explain what makes the signal worth watching.",
+                "Use one signal marker, one short caption, and one arrow showing the direction of attention. Keep the caption outside the center of the frame so the diagram stays readable.",
             ),
             (
-                "Misconceptions",
-                "Correct the common mistakes and edge cases.",
-                f"Call out the most likely misunderstandings, especially {', '.join(misconceptions[:3]) if misconceptions else 'common beginner mistakes'}. Show what the viewer might assume, then show the corrected version. Keep the correction calm and precise.",
+                "Call Example",
+                "Show a call-style example and the payoff idea.",
+                "Draw one simple path from entry to payoff and keep the labels short. Put the explanatory text in a side panel instead of over the line work.",
+            ),
+            (
+                "Put Example",
+                "Show a put-style example and the opposite move.",
+                "Mirror the previous scene with a clear left-to-right or top-to-bottom comparison. Keep the labels aligned so the viewer can compare the two cases at a glance.",
+            ),
+            (
+                "Premium",
+                "Connect the contract premium to the outcome.",
+                "Use one dollar label, one arrow, and one payoff marker. Show the premium as the starting point and keep the final result separated from it visually.",
+            ),
+            (
+                "Strike Ladder",
+                "Place the strike ladder next to the main contract.",
+                f"Use {visual_hook_text} as the visual anchor and keep the ladder labels evenly spaced. Make the strike labels smaller than the title so the scene stays balanced.",
+            ),
+            (
+                "Expiration",
+                "Show why time matters as the contract approaches expiration.",
+                "Use a shrinking timeline or a closing window shape, with one short note explaining the deadline. Keep the time label away from the central payoff path.",
+            ),
+            (
+                "Volume vs OI",
+                "Contrast volume and open interest.",
+                "Use two bars or counters side by side with different colors. Keep the labels short and let the color contrast do the teaching.",
+            ),
+            (
+                "Buyer vs Seller",
+                "Show the difference between aggressive buyers and sellers.",
+                "Use opposing arrows and two short labels. Keep the motion symmetrical so the viewer can read the pressure on both sides.",
+            ),
+            (
+                "Delta",
+                "Introduce delta as directional sensitivity.",
+                "Use one curve or arrow that changes strength as price moves. Keep the delta label in a corner callout instead of inside the curve.",
+            ),
+            (
+                "Gamma",
+                "Show gamma as the speed of delta change.",
+                "Use a second, smaller annotation to show acceleration. Keep the main curve clean and reserve the gamma note for the margin.",
+            ),
+            (
+                "Theta",
+                "Show time decay as the clock keeps moving.",
+                "Use a slow countdown or fading bar and keep the explanation brief. Make the decay visible without crowding the chart.",
+            ),
+            (
+                "Reading The Curve",
+                "Show how price and payoff interact on the curve.",
+                "Use a single smooth curve with a highlighted point that moves along it. Keep labels on the edges, not on top of the line itself.",
+            ),
+            (
+                "False Signals",
+                "Warn about signals that look strong but are not.",
+                f"Call out the most likely misunderstandings, especially {misconception_text}. Show the mistaken interpretation first, then correct it with a cleaner diagram.",
+            ),
+            (
+                "Context",
+                "Explain why context changes how the signal should be read.",
+                f"Reference the research and outline in one short sentence: {research_excerpt or topic_name}. Keep the text sparse and let the visual context carry the message.",
+            ),
+            (
+                "Example Walkthrough",
+                "Walk through one concrete example from start to finish.",
+                f"Use one clean example, one starting value, and one final result. If you need a supporting note, keep it in a small side box so it does not overlap the main diagram.",
+            ),
+            (
+                "Common Traps",
+                "List the most common beginner traps.",
+                "Use three short bullets or three separate callouts, each with a single idea. Leave enough vertical spacing so the lines do not collide.",
+            ),
+            (
+                "Checklist",
+                "Turn the lesson into a quick reading checklist.",
+                "Use checkmarks, short phrases, and one final highlight. Keep the checklist separate from the main illustration.",
+            ),
+            (
+                "Takeaway",
+                "State the one-sentence takeaway.",
+                f"Summarize the lesson in one clear line and keep every other label small. Use the takeaway as a visual anchor, not as a paragraph.",
             ),
             (
                 "Summary",
                 "Close with the main takeaway and next step.",
-                f"Summarize the lesson and connect it back to the teaching notes. {' '.join(teaching_notes[:2]) if teaching_notes else 'End with a practical summary that reinforces the core idea.'}",
+                f"{note_text} Keep the closing frame calm, with the title small and the final point centered.",
             ),
         ]
 
         if mode == "companion-long":
-            specs.insert(
-                3,
-                (
-                    "Context",
-                    "Add the background and why the topic developed this way.",
-                    f"Place {topic_name} in context using the research and outline. Explain the historical or practical reason it exists, and why the structure matters before the example appears.",
-                ),
-            )
-            specs.append(
-                (
-                    "Applications",
-                    "Show where the idea is used in practice.",
-                    f"Connect the lesson to real-world use, practice, or implementation. Reference the research text and outline in one clear sentence: {research_text[:180].strip() or topic_name}.",
+            extra_titles = [
+                "Market Context",
+                "Contract Chain",
+                "Bid Ask Spread",
+                "Liquidity Check",
+                "Premium Pressure",
+                "Open Interest Shift",
+                "Call Sweep",
+                "Put Sweep",
+                "Delta Hedge",
+                "Gamma Move",
+                "Event Risk",
+                "Earnings Setup",
+                "Intraday Signal",
+                "Multi Day Signal",
+                "Time Decay Detail",
+                "Breakeven",
+                "Risk Control",
+                "Noise Filter",
+                "Example B",
+                "Reading Tape",
+                "What Not To Infer",
+                "Watchlist",
+                "Practice Loop",
+                "Quick Recap",
+                "Study Plan",
+                "Final Check",
+                "Close Out",
+                "Next Steps",
+            ]
+            for extra_title in extra_titles:
+                narrated_specs.append(
+                    (
+                        extra_title,
+                        f"Expand on {extra_title.lower()} for {topic_name}.",
+                        f"Keep one dominant visual object, one supporting label, and a clean margin around both. Use {topic_name} as the anchor and reference the research briefly: {outline_excerpt or research_excerpt or topic_name}.",
+                    )
                 )
-            )
 
-        return specs
+        return narrated_specs
 
     def _fallback_brief(
         self,

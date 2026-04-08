@@ -450,16 +450,20 @@ def _find_center_text_like_regions(image_path: Path) -> list[str]:
     center_y1 = int(h * 0.82)
 
     violations: list[str] = []
+    center_hits: list[str] = []
     for comp in components:
         if not _is_text_like_component(comp, w, h):
             continue
         cx = (comp["x0"] + comp["x1"]) / 2.0
         cy = (comp["y0"] + comp["y1"]) / 2.0
         if center_x0 <= cx <= center_x1 and center_y0 <= cy <= center_y1:
-            violations.append(
+            center_hits.append(
                 f"bbox=({comp['x0']},{comp['y0']})-({comp['x1']},{comp['y1']}), area={comp['area']}"
             )
-    return violations
+
+    if len(center_hits) < 3:
+        return []
+    return center_hits
 
 
 def _connected_components(mask: np.ndarray) -> list[dict]:

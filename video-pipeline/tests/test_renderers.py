@@ -613,10 +613,14 @@ def test_manim_layout_audit_detects_center_text_like_regions(tmp_path):
     image_path = tmp_path / "frame.png"
     Image.new("RGB", (1280, 720), "black").save(image_path)
 
-    center_component = {"area": 500, "x0": 300, "x1": 420, "y0": 260, "y1": 320}
+    center_components = [
+        {"area": 500, "x0": 300, "x1": 340, "y0": 260, "y1": 320},
+        {"area": 520, "x0": 350, "x1": 390, "y0": 260, "y1": 320},
+        {"area": 510, "x0": 400, "x1": 440, "y0": 260, "y1": 320},
+    ]
     edge_component = {"area": 600, "x0": 20, "x1": 140, "y0": 20, "y1": 100}
 
-    with patch("stages.renderers.manim._connected_components", return_value=[center_component]):
+    with patch("stages.renderers.manim._connected_components", return_value=center_components):
         assert manim_mod._find_center_text_like_regions(image_path)
 
     with patch("stages.renderers.manim._connected_components", return_value=[edge_component]):

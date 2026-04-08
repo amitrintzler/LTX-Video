@@ -578,6 +578,22 @@ def test_manim_run_raises_on_timeout(tmp_path):
             _run_manim(code, out_path, timeout=120)
 
 
+def test_manim_run_surfaces_repeated_keyword_error(tmp_path):
+    from stages.renderers.manim import _run_manim, ManimRenderError
+
+    out_path = tmp_path / "out.mp4"
+    code = "from manim import *\nclass VideoScene(Scene): pass"
+
+    fake_result = MagicMock()
+    fake_result.returncode = 1
+    fake_result.stderr = "SyntaxError: keyword argument repeated: x_axis_config"
+    fake_result.stdout = ""
+
+    with patch("subprocess.run", return_value=fake_result):
+        with pytest.raises(ManimRenderError, match="x_axis_config"):
+            _run_manim(code, out_path, timeout=120)
+
+
 def test_extract_bg_color():
     from stages.renderers.manim import _extract_bg_color
     assert _extract_bg_color("dark background #0a0a0a, white axes") == "#0a0a0a"

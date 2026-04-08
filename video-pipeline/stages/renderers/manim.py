@@ -141,6 +141,8 @@ CRITICAL — LaTeX is NOT installed. You MUST follow these rules:
 - Everything else (Axes, Line, Arrow, Dot, DashedLine, Create, Write, etc.) is fine.
 - If the scene description mentions math, translate it into plain English or Unicode text instead of LaTeX syntax.
 - Use explicit hex color strings for all colors. Do not use named color constants like CYAN, TEAL, BLUE, or WHITE.
+- When using Axes or NumberPlane, define each axis config dictionary once and pass it once.
+  Do not repeat keyword arguments like x_axis_config or y_axis_config in the same call.
 
 The animation must complete within {duration_sec} seconds total. Do not call self.wait() beyond that.
 Output only valid Python code. No markdown fences, no explanation."""
@@ -326,7 +328,15 @@ def _run_manim(code: str, out_path: Path, timeout: int = 120) -> Path:
             raise ManimRenderError(f"Manim render timed out after {timeout}s")
 
         if result.returncode != 0:
-            raise ManimRenderError(result.stderr[-2000:])
+            stderr = result.stderr[-2000:]
+            repeated_kw = re.search(r"keyword argument repeated: ([A-Za-z_]\w*)", stderr)
+            if repeated_kw:
+                keyword = repeated_kw.group(1)
+                raise ManimRenderError(
+                    f"Manim code repeats keyword argument '{keyword}'. "
+                    "Define axis config dictionaries once and pass each keyword only once."
+                )
+            raise ManimRenderError(stderr)
 
         # Manim nests output in subdirs — find the MP4
         mp4_files = list(tmp_dir_path.rglob("*.mp4"))

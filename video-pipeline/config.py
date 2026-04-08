@@ -4,8 +4,13 @@ config.py — Pipeline configuration with sane defaults for M4 Pro + Draw Things
 
 from __future__ import annotations
 import json
-from dataclasses import dataclass, asdict
+import tempfile
+from dataclasses import dataclass, asdict, field
 from pathlib import Path
+
+
+def _default_work_dir() -> str:
+    return str(Path(tempfile.gettempdir()) / "ltx-video")
 
 
 @dataclass
@@ -49,7 +54,7 @@ class PipelineConfig:
     music_volume: float = 0.3       # 0.0–1.0
 
     # ── Paths ────────────────────────────────────────────────────────
-    work_dir: str = "."
+    work_dir: str = field(default_factory=_default_work_dir)
     scripts_subdir: str = "scripts"
     research_subdir: str = "research"
     frames_subdir: str = "frames"

@@ -111,6 +111,13 @@ def _topic_payload(title: str, slug: str = "black-scholes-pricing") -> dict:
     }
 
 
+def test_pipeline_config_defaults_to_temp_work_dir():
+    cfg = PipelineConfig()
+
+    assert cfg.work_dir != "."
+    assert Path(cfg.work_dir).name == "ltx-video"
+
+
 def test_research_stage_writes_docs(tmp_path, log, monkeypatch):
     from stages.research import ResearchStage
 

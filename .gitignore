@@ -177,3 +177,9 @@ runs/
 .claude/
 .playwright-mcp/
 .superpowers/
+
+# Local pipeline execution artifacts
+/research/
+/scripts/*.json
+/scripts/*.meta.json
+/video-pipeline/research/

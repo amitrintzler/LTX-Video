@@ -28,7 +28,7 @@
   "music_path": "",
   "music_volume": 0.3,
 
-  "work_dir": ".",
+  "work_dir": "/tmp/ltx-video",
   "frames_subdir": "frames",
   "clips_subdir": "clips",
   "output_subdir": "output",

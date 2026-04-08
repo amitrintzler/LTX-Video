@@ -96,6 +96,8 @@ You can also pass a structured topic JSON file produced by the lesson repo:
 /Users/amitri/Projects/LTX-Video/scripts/run_video_pipeline.sh /Users/amitri/Projects/optionseducator/scripts/video-topics/.runtime/black-scholes-pricing.json --work-dir /Users/amitri/Projects/other-repo --stage all
 ```
 
+If you omit `--work-dir`, the launcher now writes execution artifacts to a temp scratch root such as `/tmp/ltx-video` instead of polluting the repo checkout.
+
 ### Stage by stage
 
 ```bash

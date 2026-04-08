@@ -444,10 +444,10 @@ def _find_center_text_like_regions(image_path: Path) -> list[str]:
     mask = arr >= threshold
     components = _connected_components(mask)
     h, w = mask.shape
-    center_x0 = int(w * 0.18)
-    center_x1 = int(w * 0.82)
-    center_y0 = int(h * 0.18)
-    center_y1 = int(h * 0.82)
+    center_x0 = int(w * 0.24)
+    center_x1 = int(w * 0.76)
+    center_y0 = int(h * 0.30)
+    center_y1 = int(h * 0.78)
 
     violations: list[str] = []
     center_hits: list[str] = []

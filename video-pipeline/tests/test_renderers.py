@@ -645,9 +645,9 @@ def test_manim_layout_audit_detects_center_text_like_regions(tmp_path):
     Image.new("RGB", (1280, 720), "black").save(image_path)
 
     center_components = [
-        {"area": 500, "x0": 300, "x1": 340, "y0": 260, "y1": 320},
-        {"area": 520, "x0": 350, "x1": 390, "y0": 260, "y1": 320},
-        {"area": 510, "x0": 400, "x1": 440, "y0": 260, "y1": 320},
+        {"area": 500, "x0": 300, "x1": 340, "y0": 170, "y1": 220},
+        {"area": 520, "x0": 350, "x1": 390, "y0": 170, "y1": 220},
+        {"area": 510, "x0": 400, "x1": 440, "y0": 170, "y1": 220},
     ]
     edge_component = {"area": 600, "x0": 20, "x1": 140, "y0": 20, "y1": 100}
 
@@ -655,6 +655,19 @@ def test_manim_layout_audit_detects_center_text_like_regions(tmp_path):
         assert manim_mod._find_center_text_like_regions(image_path)
 
     with patch("stages.renderers.manim._connected_components", return_value=[edge_component]):
+        assert not manim_mod._find_center_text_like_regions(image_path)
+
+
+def test_manim_layout_audit_ignores_top_band_title(tmp_path):
+    from PIL import Image
+    from stages.renderers import manim as manim_mod
+
+    image_path = tmp_path / "frame.png"
+    Image.new("RGB", (1280, 720), "black").save(image_path)
+
+    top_component = {"area": 500, "x0": 120, "x1": 160, "y0": 20, "y1": 55}
+
+    with patch("stages.renderers.manim._connected_components", return_value=[top_component]):
         assert not manim_mod._find_center_text_like_regions(image_path)
 
 

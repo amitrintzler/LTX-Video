@@ -165,6 +165,7 @@ CRITICAL — LaTeX is NOT installed. You MUST follow these rules:
 - Do not stack multiple large Text blocks on the same region of the screen.
 - Place supporting text in a margin or side panel, not directly over the main geometry.
 - Keep all text out of the central 55% of the frame. Titles belong in the top band; annotations belong in the outer edges or side panels.
+- When styling VMobjects, use `width=` for `set_stroke(...)`. Do not pass `stroke_width=` to `set_stroke(...)`.
 
 The animation must complete within {duration_sec} seconds total. Do not call self.wait() beyond that.
 Output only valid Python code. No markdown fences, no explanation."""
@@ -321,9 +322,14 @@ def _ensure_safe_codegen(code: str) -> None:
         r"\b(?:color|fill_color|stroke_color|font_color)\s*=\s*(?:%s)\b"
         % "|".join(NAMED_COLOR_NAMES)
     )
+    stroke_width_pattern = r"\bset_stroke\s*\([^)]*\bstroke_width\s*="
     if re.search(color_pattern, code) or re.search(assignment_pattern, code):
         raise ManimRenderError(
             "Generated Manim code uses named color constants. Use hex color strings only."
+        )
+    if re.search(stroke_width_pattern, code, flags=re.S):
+        raise ManimRenderError(
+            "Generated Manim code passes stroke_width to set_stroke(). Use width= instead."
         )
 
 

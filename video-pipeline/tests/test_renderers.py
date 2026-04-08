@@ -548,6 +548,33 @@ class VideoScene(Scene):
     run_call.assert_not_called()
 
 
+def test_manim_rejects_set_stroke_stroke_width_before_running_manim(tmp_path):
+    import stages.renderers.manim as manim_mod
+    from stages.renderers.manim import ManimRenderError
+
+    cfg = _manim_cfg()
+    cfg.llm_provider = "lmstudio"
+    cfg.llm_model = "local-model"
+    cfg.renderer_max_retries = 2
+    out_path = tmp_path / "scene_001.mp4"
+
+    bad_code = """from manim import *
+class VideoScene(Scene):
+    def construct(self):
+        line = Line(LEFT, RIGHT)
+        line.set_stroke(color="#00C896", stroke_width=8)
+"""
+
+    with patch("stages.renderers.manim._check_imports"), \
+         patch("stages.renderers.manim._call_lmstudio_api", return_value=bad_code) as lm_call, \
+         patch("stages.renderers.manim._run_manim") as run_call:
+        with pytest.raises(ManimRenderError, match="stroke_width"):
+            manim_mod.render(_manim_scene(), cfg, out_path)
+
+    assert lm_call.call_count == 2
+    run_call.assert_not_called()
+
+
 def test_manim_rejects_axes_helpers_before_running_manim(tmp_path):
     import stages.renderers.manim as manim_mod
     from stages.renderers.manim import ManimRenderError

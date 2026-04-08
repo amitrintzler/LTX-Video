@@ -167,7 +167,8 @@ CRITICAL — LaTeX is NOT installed. You MUST follow these rules:
 - Keep all text out of the central 55% of the frame. Titles belong in the top band; annotations belong in the outer edges or side panels.
 - Do not pass alignment= or align= into Text, SVGMobject, or any other Mobject constructor.
   If you need left/right placement, use next_to, to_edge, or arrange instead.
-- When styling VMobjects, use `width=` for `set_stroke(...)`. Do not pass `stroke_width=` to `set_stroke(...)`.
+- When styling VMobjects, use `width=` for `set_stroke(...)` only. Do not pass `stroke_width=` to `set_stroke(...)`.
+  Do not use width= on Mobject constructors such as Text or SVGMobject.
 
 The animation must complete within {duration_sec} seconds total. Do not call self.wait() beyond that.
 Output only valid Python code. No markdown fences, no explanation."""
@@ -332,6 +333,12 @@ def _ensure_safe_codegen(code: str) -> None:
     if re.search(stroke_width_pattern, code, flags=re.S):
         raise ManimRenderError(
             "Generated Manim code passes stroke_width to set_stroke(). Use width= instead."
+        )
+    constructor_safe_code = re.sub(r"set_stroke\s*\((?:[^()]|\n)*?\)", "", code, flags=re.S)
+    if re.search(r"\bwidth\s*=", constructor_safe_code):
+        raise ManimRenderError(
+            "Generated Manim code passes width= to a Manim object constructor. "
+            "Use scale(), stretch_to_fit_width(), or arrange instead."
         )
     if re.search(r"\balignment\s*=", code):
         raise ManimRenderError(

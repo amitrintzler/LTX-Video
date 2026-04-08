@@ -241,6 +241,37 @@ def test_render_stage_sanitizes_manim_scene_description(tmp_path):
     assert "plain-text labels only" in sanitized_scene["description"]
 
 
+def test_render_stage_appends_layout_hint_for_manim(tmp_path):
+    from stages.render import RenderStage
+
+    cfg = _manim_cfg()
+    stage = RenderStage(cfg, logging.getLogger("test"))
+    scene = {
+        "id": "s01",
+        "renderer": "manim",
+        "description": "Compare two outcomes side by side.",
+        "layout_hint": "Use a strict side-by-side comparison layout with left and right edge labels.",
+        "duration_sec": 8,
+        "style": "dark background #0a0a0a, white text",
+    }
+
+    fake_renderer = MagicMock()
+    fake_renderer.render = MagicMock(return_value=tmp_path / "scene_001.mp4")
+
+    def fake_get_renderer(name):
+        if name == "manim":
+            return fake_renderer
+        raise AssertionError(f"Unexpected renderer request: {name}")
+
+    with patch("stages.render.shutil.which", return_value="/usr/bin/latex"), \
+         patch("stages.render.get_renderer", side_effect=fake_get_renderer):
+        stage._render_scene(0, scene, tmp_path, default_renderer="manim")
+
+    sanitized_scene = fake_renderer.render.call_args.args[0]
+    assert "Layout hint:" in sanitized_scene["description"]
+    assert "strict side-by-side comparison layout" in sanitized_scene["description"]
+
+
 def test_render_stage_falls_back_to_slides_when_latex_missing(tmp_path):
     from stages.render import RenderStage
 

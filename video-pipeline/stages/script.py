@@ -395,6 +395,7 @@ class ScriptStage:
         scene_specs = self._fallback_scene_specs(topic, topic_name, research_text, outline_text, mode)
         scenes = []
         for idx, (scene_title, narration, description) in enumerate(scene_specs, start=1):
+            layout_hint = self._fallback_layout_hint(scene_title, narration, description)
             scenes.append(
                 {
                     "id": f"s{idx:02d}",
@@ -403,6 +404,7 @@ class ScriptStage:
                     "duration_sec": 4 if mode == "narrated" else 6,
                     "narration": narration,
                     "description": description,
+                    "layout_hint": layout_hint,
                     "style": "dark background #0d1117, primary #FFD700, success #00C896, text #FFFFFF",
                 }
             )
@@ -601,6 +603,44 @@ class ScriptStage:
                 )
 
         return narrated_specs
+
+    @staticmethod
+    def _fallback_layout_hint(scene_title: str, narration: str, description: str) -> str:
+        title = scene_title.lower()
+        base = "Keep the title in the top band and the main visual centered with labels pushed to the edges."
+
+        if title in {"hook", "what it means", "summary", "takeaway"}:
+            return (
+                base
+                + " Use a single headline and one clean diagram; do not stack paragraphs."
+            )
+        if title in {"key terms", "checklist", "common traps"}:
+            return (
+                "Use a side panel or vertical list on the right edge. Keep the center clear for one supporting diagram."
+            )
+        if title in {"flow signal", "volume vs oi", "buyer vs seller"}:
+            return (
+                "Use a two-column layout with mirrored labels on the far left and far right. Keep arrows and markers in the center lane."
+            )
+        if title in {"call example", "put example", "premium", "strike ladder", "expiration"}:
+            return (
+                "Use a left-to-right story with the contract details on the left edge and the payoff or timeline on the right edge."
+            )
+        if title in {"delta", "gamma", "theta", "reading the curve"}:
+            return (
+                "Use one central curve or motion path and keep the derivative labels in small corner callouts."
+            )
+        if title in {"false signals", "context", "example walkthrough"}:
+            return (
+                "Use a split layout with the explanatory text in an outer panel and the main diagram in the center-right."
+            )
+
+        if "comparison" in narration.lower() or "comparison" in description.lower():
+            return (
+                "Use a strict side-by-side comparison layout. Put Case A on the left edge and Case B on the right edge, with a clean center gap."
+            )
+
+        return base
 
     def _fallback_brief(
         self,
@@ -892,7 +932,7 @@ Return JSON only.
             f"{mode}\n"
             f"{scene_count}\n"
             f"{acts}\n"
-            "chunked-script-v3"
+            "chunked-script-v4"
         ).encode("utf-8")
         return hashlib.sha256(payload).hexdigest()
 

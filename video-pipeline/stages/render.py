@@ -82,6 +82,10 @@ class RenderStage:
         description = sanitized.get("description")
         if isinstance(description, str) and description.strip():
             sanitized["description"] = self._sanitize_manim_description(description)
+        layout_hint = sanitized.get("layout_hint")
+        if isinstance(layout_hint, str) and layout_hint.strip():
+            hint = self._sanitize_manim_description(layout_hint)
+            sanitized["description"] = f"{sanitized['description']}\n\nLayout hint: {hint}"
         return sanitized
 
     @staticmethod

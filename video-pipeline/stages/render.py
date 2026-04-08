@@ -101,6 +101,7 @@ class RenderStage:
             " Use plain-text labels only. Do not use MathTex, Tex, or any LaTeX syntax."
             " Use explicit hex color strings only; avoid named colors like CYAN."
             " Keep all labels, titles, and callouts in the top band, side panels, or outer edges."
+            " Put bullet lists, checklists, strike ladders, and summary cards on the far left or far right, never in the center."
             " Leave the center of the frame clear for the main visual."
         )
         if safety_note.strip() not in text:

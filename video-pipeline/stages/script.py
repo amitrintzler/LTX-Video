@@ -515,7 +515,7 @@ class ScriptStage:
             (
                 "Strike Ladder",
                 "Place the strike ladder next to the main contract.",
-                f"Use {visual_hook_text} as the visual anchor and keep the ladder labels evenly spaced. Make the strike labels smaller than the title so the scene stays balanced.",
+                f"Use {visual_hook_text} as the visual anchor, but pin the strike ladder to the far left edge as a narrow vertical rail. Put the selected strike and premium in a compact side card on the far right edge, and leave the center gap empty except for one connector line or marker.",
             ),
             (
                 "Expiration",
@@ -651,7 +651,7 @@ class ScriptStage:
             )
         if title in {"call example", "put example", "premium", "strike ladder", "expiration"}:
             return (
-                "Use a left-to-right story with the contract details on the left edge and the payoff or timeline on the right edge."
+                "Use a left-to-right story with the contract details on the far left edge and the payoff or timeline on the far right edge. Keep the middle 40 percent empty except for one connector, curve, or marker. Do not place bullet lists, strike ladders, or explanatory cards in the center."
             )
         if title in {"delta", "gamma", "theta", "reading the curve"}:
             return (
@@ -959,7 +959,7 @@ Return JSON only.
             f"{mode}\n"
             f"{scene_count}\n"
             f"{acts}\n"
-            "chunked-script-v4"
+            "chunked-script-v5"
         ).encode("utf-8")
         return hashlib.sha256(payload).hexdigest()
 

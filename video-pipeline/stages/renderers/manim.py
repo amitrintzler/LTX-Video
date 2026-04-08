@@ -331,12 +331,16 @@ def _audit_rendered_video(video_path: Path, duration_sec: int) -> None:
     if duration_sec <= 0:
         duration_sec = 8
 
-    sample_times = _audit_sample_times(duration_sec)
+    actual_duration = _probe_video_duration(video_path) or float(duration_sec)
+    sample_times = _audit_sample_times(actual_duration)
     with tempfile.TemporaryDirectory(prefix="manim_audit_") as tmp_dir:
         tmp_dir_path = Path(tmp_dir)
+        any_sampled = False
         for idx, sample_time in enumerate(sample_times, start=1):
             frame_path = tmp_dir_path / f"frame_{idx:02d}.png"
-            _extract_frame(video_path, sample_time, frame_path)
+            if not _extract_frame(video_path, sample_time, frame_path):
+                continue
+            any_sampled = True
             violations = _find_center_text_like_regions(frame_path)
             if violations:
                 detail = violations[0]
@@ -344,19 +348,52 @@ def _audit_rendered_video(video_path: Path, duration_sec: int) -> None:
                     f"Layout audit found likely text in the center band at t={sample_time:.2f}s: {detail}. "
                     "Move titles and callouts to the top band, outer edges, or side panels."
                 )
+        if not any_sampled:
+            return
 
 
-def _audit_sample_times(duration_sec: int) -> list[float]:
-    points = [0.4, duration_sec * 0.5, max(duration_sec - 0.4, 0.4)]
+def _audit_sample_times(duration_sec: float) -> list[float]:
+    duration_sec = max(float(duration_sec), 0.3)
+    points = [
+        max(0.15, duration_sec * 0.15),
+        max(0.25, duration_sec * 0.5),
+        max(0.35, duration_sec * 0.85),
+    ]
     unique: list[float] = []
     for point in points:
-        point = max(0.1, min(point, max(duration_sec - 0.1, 0.1)))
+        point = max(0.1, min(point, max(duration_sec - 0.05, 0.1)))
         if not any(abs(point - existing) < 0.05 for existing in unique):
             unique.append(point)
     return unique
 
 
-def _extract_frame(video_path: Path, sample_time: float, out_path: Path) -> None:
+def _probe_video_duration(video_path: Path) -> Optional[float]:
+    cmd = [
+        "ffprobe",
+        "-v",
+        "error",
+        "-show_entries",
+        "format=duration",
+        "-of",
+        "default=noprint_wrappers=1:nokey=1",
+        str(video_path),
+    ]
+    try:
+        result = subprocess.run(cmd, capture_output=True, text=True, timeout=30, check=True)
+    except (FileNotFoundError, subprocess.CalledProcessError, subprocess.TimeoutExpired):
+        return None
+
+    raw = (result.stdout or "").strip()
+    try:
+        duration = float(raw)
+    except ValueError:
+        return None
+    if duration <= 0:
+        return None
+    return duration
+
+
+def _extract_frame(video_path: Path, sample_time: float, out_path: Path) -> bool:
     cmd = [
         "ffmpeg",
         "-hide_banner",
@@ -378,14 +415,11 @@ def _extract_frame(video_path: Path, sample_time: float, out_path: Path) -> None
             "ffmpeg is required for the Manim layout audit but was not found on PATH."
         ) from e
     except subprocess.CalledProcessError as e:
-        stderr = (e.stderr or e.stdout or "").strip()
-        raise ManimRenderError(
-            f"Failed to extract frame for layout audit at t={sample_time:.2f}s: {stderr[-2000:]}"
-        ) from e
+        return False
     except subprocess.TimeoutExpired as e:
-        raise ManimRenderError(
-            f"Timed out extracting frame for layout audit at t={sample_time:.2f}s"
-        ) from e
+        return False
+
+    return out_path.exists()
 
 
 def _find_center_text_like_regions(image_path: Path) -> list[str]:

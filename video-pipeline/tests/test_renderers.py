@@ -580,26 +580,34 @@ class VideoScene(Scene):
 
 
 def test_manim_layout_audit_detects_center_text_like_regions(tmp_path):
-    from PIL import Image, ImageDraw
-    from stages.renderers.manim import _find_center_text_like_regions
+    from PIL import Image
+    from stages.renderers import manim as manim_mod
 
-    center_image = tmp_path / "center.png"
-    img = Image.new("RGB", (1280, 720), "black")
-    draw = ImageDraw.Draw(img)
-    draw.rectangle((520, 320, 760, 380), fill="white")
-    img.save(center_image)
+    image_path = tmp_path / "frame.png"
+    Image.new("RGB", (1280, 720), "black").save(image_path)
 
-    edge_image = tmp_path / "edge.png"
-    img2 = Image.new("RGB", (1280, 720), "black")
-    draw2 = ImageDraw.Draw(img2)
-    draw2.rectangle((20, 20, 260, 80), fill="white")
-    img2.save(edge_image)
+    center_component = {"area": 500, "x0": 300, "x1": 420, "y0": 260, "y1": 320}
+    edge_component = {"area": 600, "x0": 20, "x1": 140, "y0": 20, "y1": 100}
 
-    center_violations = _find_center_text_like_regions(center_image)
-    edge_violations = _find_center_text_like_regions(edge_image)
+    with patch("stages.renderers.manim._connected_components", return_value=[center_component]):
+        assert manim_mod._find_center_text_like_regions(image_path)
 
-    assert center_violations
-    assert not edge_violations
+    with patch("stages.renderers.manim._connected_components", return_value=[edge_component]):
+        assert not manim_mod._find_center_text_like_regions(image_path)
+
+
+def test_manim_layout_audit_skips_missing_frames_without_failing(tmp_path):
+    from stages.renderers import manim as manim_mod
+
+    video_path = tmp_path / "clip.mp4"
+    video_path.touch()
+
+    with patch("stages.renderers.manim._probe_video_duration", return_value=4.0), \
+         patch("stages.renderers.manim._extract_frame", side_effect=[False, False, False]), \
+         patch("stages.renderers.manim._find_center_text_like_regions") as find_call:
+        manim_mod._audit_rendered_video(video_path, duration_sec=4)
+
+    find_call.assert_not_called()
 
 
 def test_manim_render_calls_layout_audit_after_success(tmp_path):

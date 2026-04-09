@@ -388,14 +388,18 @@ def test_fallback_script_uses_full_scene_counts(tmp_path, log):
     )
 
     assert len(narrated["scenes"]) == 22
+    assert narrated["primary_renderer"] == "slides"
     assert narrated["scenes"][0]["duration_sec"] == 4
     assert narrated["scenes"][0]["renderer"] == "slides"
     assert narrated["scenes"][1]["renderer"] == "slides"
     assert narrated["scenes"][2]["renderer"] == "slides"
+    assert all(scene["renderer"] == "slides" for scene in narrated["scenes"])
     assert narrated["scenes"][5]["layout_hint"].startswith("Use a left-to-right story")
     assert "middle 40 percent empty" in narrated["scenes"][7]["layout_hint"]
     assert "far left edge as a narrow vertical rail" in narrated["scenes"][7]["description"]
     assert len(companion_long["scenes"]) == 50
+    assert companion_long["primary_renderer"] == "slides"
+    assert all(scene["renderer"] == "slides" for scene in companion_long["scenes"])
     assert companion_long["scenes"][0]["duration_sec"] == 6
     assert "Keep the title in the top band" in companion_long["scenes"][0]["layout_hint"]
     assert "side-by-side comparison layout" in stage._fallback_layout_hint(

@@ -415,19 +415,16 @@ class ScriptStage:
     ) -> dict:
         title = f"{slug}-{mode}"
         topic_name = topic_title(topic)
-        primary_renderer = preferred_renderer if preferred_renderer != "animatediff" else "manim"
-        if primary_renderer not in {"manim", "slides", "html_anim", "d3"}:
-            primary_renderer = "manim"
+        primary_renderer = "slides"
 
         scene_specs = self._fallback_scene_specs(topic, topic_name, research_text, outline_text, mode)
         scenes = []
         for idx, (scene_title, narration, description) in enumerate(scene_specs, start=1):
             layout_hint = self._fallback_layout_hint(scene_title, narration, description)
-            scene_renderer = self._fallback_scene_renderer(scene_title, primary_renderer)
             scenes.append(
                 {
                     "id": f"s{idx:02d}",
-                    "renderer": scene_renderer,
+                    "renderer": primary_renderer,
                     "title": scene_title,
                     "duration_sec": 4 if mode == "narrated" else 6,
                     "narration": narration,
@@ -669,13 +666,6 @@ class ScriptStage:
             )
 
         return base
-
-    @staticmethod
-    def _fallback_scene_renderer(scene_title: str, primary_renderer: str) -> str:
-        title = scene_title.lower()
-        if title in {"hook", "what it means", "key terms", "common traps", "checklist", "takeaway", "summary"}:
-            return "slides"
-        return primary_renderer
 
     def _fallback_brief(
         self,
@@ -967,7 +957,7 @@ Return JSON only.
             f"{mode}\n"
             f"{scene_count}\n"
             f"{acts}\n"
-            "chunked-script-v7"
+            "chunked-script-v8"
         ).encode("utf-8")
         return hashlib.sha256(payload).hexdigest()
 

@@ -363,6 +363,86 @@ def test_script_stage_repairs_chunked_json_before_fallback(tmp_path, log, monkey
     assert calls["count"] == 2
 
 
+def test_script_stage_retries_chunk_scene_by_scene_before_full_fallback(tmp_path, log, monkeypatch):
+    from stages.script import ScriptStage
+    from stages.claude_client import StructuredLLMResponseError
+
+    cfg = PipelineConfig(work_dir=str(tmp_path))
+    cfg.script_chunk_size = 3
+    stage = ScriptStage(cfg, log)
+    topic = _topic_payload("Sample Topic")
+    slug = topic_slug(topic)
+    research_dir = cfg.research_dir
+    research_dir.mkdir(parents=True, exist_ok=True)
+    research_path = research_dir / f"{slug}.md"
+    outline_path = research_dir / f"{slug}-outline.md"
+    research_path.write_text("# Research\n\nCore lesson notes.\n")
+    outline_path.write_text("# Outline\n\n- Act 1\n- Act 2\n- Act 3\n- Act 4\n")
+
+    monkeypatch.setattr(stage, "_ensure_research", lambda topic, slug: (research_path, outline_path))
+
+    calls: list[str] = []
+
+    def fake_run_claude_json(**kwargs):
+        prompt = kwargs["prompt"]
+        calls.append(prompt)
+        if "Chunk: 1/8" in prompt and "scenes s01 through s03" in prompt:
+            raise StructuredLLMResponseError(
+                "LLM backend did not return valid JSON",
+                prompt=prompt,
+                raw_output="",
+                repaired_output="",
+            )
+        return _chunk_payload_from_prompt(prompt, f"{slug}-narrated")
+
+    monkeypatch.setattr("stages.script.run_claude_json", fake_run_claude_json)
+
+    outputs = stage.run(topic, mode="narrated")
+
+    script = json.loads(outputs[0].read_text())
+    assert len(script["scenes"]) == 22
+    assert script["title"] == f"{slug}-narrated"
+    assert any("scenes s01 through s01" in prompt for prompt in calls)
+    assert any("scenes s02 through s02" in prompt for prompt in calls)
+    assert any("scenes s03 through s03" in prompt for prompt in calls)
+
+
+def test_script_stage_uses_scene_level_fallback_before_full_fallback(tmp_path, log, monkeypatch):
+    from stages.script import ScriptStage
+    from stages.claude_client import ClaudeCLIError
+
+    cfg = PipelineConfig(work_dir=str(tmp_path))
+    cfg.script_chunk_size = 3
+    stage = ScriptStage(cfg, log)
+    topic = _topic_payload("Sample Topic")
+    slug = topic_slug(topic)
+    research_dir = cfg.research_dir
+    research_dir.mkdir(parents=True, exist_ok=True)
+    research_path = research_dir / f"{slug}.md"
+    outline_path = research_dir / f"{slug}-outline.md"
+    research_path.write_text("# Research\n\nCore lesson notes.\n")
+    outline_path.write_text("# Outline\n\n- Act 1\n- Act 2\n- Act 3\n- Act 4\n")
+
+    monkeypatch.setattr(stage, "_ensure_research", lambda topic, slug: (research_path, outline_path))
+
+    def fake_run_claude_json(**kwargs):
+        prompt = kwargs["prompt"]
+        if "Chunk: 1/8" in prompt and "scenes s01 through s03" in prompt:
+            raise ClaudeCLIError("LM Studio returned empty output")
+        if "scenes s01 through s01" in prompt:
+            raise ClaudeCLIError("LM Studio returned empty output")
+        return _chunk_payload_from_prompt(prompt, f"{slug}-narrated")
+
+    monkeypatch.setattr("stages.script.run_claude_json", fake_run_claude_json)
+
+    outputs = stage.run(topic, mode="narrated")
+
+    script = json.loads(outputs[0].read_text())
+    assert len(script["scenes"]) == 22
+    assert script["scenes"][0]["renderer"] == "slides"
+    assert any(scene["renderer"] != "slides" for scene in script["scenes"][1:])
+
+
 def test_fallback_script_uses_full_scene_counts(tmp_path, log):
     from stages.script import ScriptStage
 

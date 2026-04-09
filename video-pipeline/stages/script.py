@@ -198,44 +198,23 @@ class ScriptStage:
     ) -> dict:
         chunk_size = max(1, int(getattr(self.cfg, "script_chunk_size", scene_count)))
         ranges = self._scene_ranges(scene_count, chunk_size)
-        merged_script: dict | None = None
+        merged_script = self._script_shell(
+            topic=topic,
+            slug=slug,
+            mode=mode,
+            preferred_renderer=preferred_renderer,
+            research_text=research_text,
+            outline_text=outline_text,
+        )
         scenes: list[dict] = []
         completed_summaries: list[str] = []
+        fallback_specs = self._fallback_scene_specs(topic, topic_title(topic), research_text, outline_text, mode)
+        debug_saved = False
 
         for chunk_index, (start, end) in enumerate(ranges, start=1):
             chunk_scene_count = end - start + 1
-            prompt = self._build_chunk_prompt(
-                topic=topic,
-                slug=slug,
-                mode=mode,
-                acts=acts,
-                scene_count=scene_count,
-                duration_target=duration_target,
-                preferred_renderer=preferred_renderer,
-                research_text=research_text,
-                outline_text=outline_text,
-                chunk_index=chunk_index,
-                chunk_total=len(ranges),
-                chunk_start=start,
-                chunk_end=end,
-                completed_scene_summaries=completed_summaries,
-            )
-            schema = self._schema(chunk_scene_count)
-            result = run_claude_json(
-                prompt=prompt,
-                model=self.cfg.llm_model_name(),
-                system_prompt=self._system_prompt(),
-                schema=schema,
-                provider=self.cfg.llm_provider,
-                base_url=self.cfg.lmstudio_base_url,
-                api_key=self.cfg.lmstudio_api_key,
-                timeout=self.cfg.script_timeout_sec,
-                max_tokens=max(2500, chunk_scene_count * 1000),
-            )
-
-            chunk_script = self._normalize_script(result)
-            if not self._chunk_has_expected_scene_count(chunk_script, chunk_scene_count):
-                chunk_script = self._repair_chunk_script(
+            try:
+                chunk_script = self._generate_chunk_batch(
                     topic=topic,
                     slug=slug,
                     mode=mode,
@@ -250,55 +229,182 @@ class ScriptStage:
                     chunk_start=start,
                     chunk_end=end,
                     completed_scene_summaries=completed_summaries,
-                    invalid_chunk=chunk_script,
-                    chunk_scene_count=chunk_scene_count,
                 )
+            except (ClaudeCLIError, ValueError, TimeoutError) as exc:
+                if isinstance(exc, StructuredLLMResponseError) and not debug_saved:
+                    debug_path = self._persist_llm_debug_artifact(
+                        slug=slug,
+                        mode=mode,
+                        exc=exc,
+                    )
+                    self.log.warning(f"  Script LLM debug saved -> {debug_path}")
+                    debug_saved = True
+                self.log.warning(
+                    f"  Chunk {chunk_index}/{len(ranges)} failed ({exc}); retrying scene-by-scene"
+                )
+                chunk_script = {
+                    "scenes": self._generate_chunk_scene_by_scene(
+                        topic=topic,
+                        slug=slug,
+                        mode=mode,
+                        acts=acts,
+                        scene_count=scene_count,
+                        duration_target=duration_target,
+                        preferred_renderer=preferred_renderer,
+                        research_text=research_text,
+                        outline_text=outline_text,
+                        chunk_index=chunk_index,
+                        chunk_total=len(ranges),
+                        chunk_start=start,
+                        chunk_end=end,
+                        completed_scene_summaries=completed_summaries,
+                        fallback_specs=fallback_specs,
+                    )
+                }
             chunk_scenes = chunk_script.get("scenes")
             if not isinstance(chunk_scenes, list) or len(chunk_scenes) != chunk_scene_count:
                 raise ValueError(
                     f"Chunk {chunk_index} returned {len(chunk_scenes) if isinstance(chunk_scenes, list) else 0} scenes; expected {chunk_scene_count}"
                 )
 
-            if merged_script is None:
-                merged_script = {
-                    "title": chunk_script.get("title") or f"{slug}-{mode}",
-                    "brief": chunk_script.get("brief") or "",
-                    "research_brief": chunk_script.get("research_brief") or chunk_script.get("brief") or "",
-                    "primary_renderer": chunk_script.get("primary_renderer") or preferred_renderer or "manim",
-                    "global_style": chunk_script.get("global_style") if isinstance(chunk_script.get("global_style"), dict) else {},
-                }
-
             for offset, scene in enumerate(chunk_scenes, start=0):
-                if not isinstance(scene, dict):
-                    raise ValueError(f"Chunk {chunk_index} returned a non-object scene")
-                normalized_scene = dict(scene)
-                normalized_scene["id"] = f"s{start + offset:02d}"
-                normalized_scene.setdefault("renderer", merged_script["primary_renderer"])
+                normalized_scene = self._normalize_scene(
+                    scene=scene,
+                    scene_number=start + offset,
+                    default_renderer=merged_script["primary_renderer"],
+                    duration_target=duration_target,
+                )
                 scenes.append(normalized_scene)
                 completed_summaries.append(self._scene_summary(normalized_scene))
 
-        if merged_script is None:
-            raise ValueError("No script chunks were generated")
-
         merged_script["scenes"] = scenes
-        if not merged_script.get("brief"):
-            merged_script["brief"] = self._fallback_brief(topic, topic_title(topic), research_text, outline_text)
-        if not merged_script.get("research_brief"):
-            merged_script["research_brief"] = merged_script["brief"]
-        if not isinstance(merged_script.get("global_style"), dict) or not merged_script["global_style"]:
-            merged_script["global_style"] = {
-                "background": "#0d1117",
-                "primary": "#FFD700",
-                "danger": "#FF4444",
-                "success": "#00C896",
-                "text": "#FFFFFF",
-                "muted": "#8B949E",
-                "font": "JetBrains Mono",
-                "transition": "fade_black_0.3s",
-                "resolution": "1920x1080",
-                "fps": 60,
-            }
         return merged_script
+
+    def _generate_chunk_batch(
+        self,
+        *,
+        topic: TopicInput,
+        slug: str,
+        mode: str,
+        acts: str,
+        scene_count: int,
+        duration_target: int,
+        preferred_renderer: str,
+        research_text: str,
+        outline_text: str,
+        chunk_index: int,
+        chunk_total: int,
+        chunk_start: int,
+        chunk_end: int,
+        completed_scene_summaries: list[str],
+    ) -> dict:
+        chunk_scene_count = chunk_end - chunk_start + 1
+        prompt = self._build_chunk_prompt(
+            topic=topic,
+            slug=slug,
+            mode=mode,
+            acts=acts,
+            scene_count=scene_count,
+            duration_target=duration_target,
+            preferred_renderer=preferred_renderer,
+            research_text=research_text,
+            outline_text=outline_text,
+            chunk_index=chunk_index,
+            chunk_total=chunk_total,
+            chunk_start=chunk_start,
+            chunk_end=chunk_end,
+            completed_scene_summaries=completed_scene_summaries,
+        )
+        result = run_claude_json(
+            prompt=prompt,
+            model=self.cfg.llm_model_name(),
+            system_prompt=self._system_prompt(),
+            schema=self._schema(chunk_scene_count),
+            provider=self.cfg.llm_provider,
+            base_url=self.cfg.lmstudio_base_url,
+            api_key=self.cfg.lmstudio_api_key,
+            timeout=self.cfg.script_timeout_sec,
+            max_tokens=max(1400, chunk_scene_count * 650),
+        )
+
+        chunk_script = self._normalize_script(result)
+        if not self._chunk_has_expected_scene_count(chunk_script, chunk_scene_count):
+            chunk_script = self._repair_chunk_script(
+                topic=topic,
+                slug=slug,
+                mode=mode,
+                acts=acts,
+                scene_count=scene_count,
+                duration_target=duration_target,
+                preferred_renderer=preferred_renderer,
+                research_text=research_text,
+                outline_text=outline_text,
+                chunk_index=chunk_index,
+                chunk_total=chunk_total,
+                chunk_start=chunk_start,
+                chunk_end=chunk_end,
+                completed_scene_summaries=completed_scene_summaries,
+                invalid_chunk=chunk_script,
+                chunk_scene_count=chunk_scene_count,
+            )
+        return chunk_script
+
+    def _generate_chunk_scene_by_scene(
+        self,
+        *,
+        topic: TopicInput,
+        slug: str,
+        mode: str,
+        acts: str,
+        scene_count: int,
+        duration_target: int,
+        preferred_renderer: str,
+        research_text: str,
+        outline_text: str,
+        chunk_index: int,
+        chunk_total: int,
+        chunk_start: int,
+        chunk_end: int,
+        completed_scene_summaries: list[str],
+        fallback_specs: list[tuple[str, str, str]],
+    ) -> list[dict]:
+        scenes: list[dict] = []
+        continuity = list(completed_scene_summaries)
+        for scene_number in range(chunk_start, chunk_end + 1):
+            try:
+                scene_payload = self._generate_chunk_batch(
+                    topic=topic,
+                    slug=slug,
+                    mode=mode,
+                    acts=acts,
+                    scene_count=scene_count,
+                    duration_target=duration_target,
+                    preferred_renderer=preferred_renderer,
+                    research_text=research_text,
+                    outline_text=outline_text,
+                    chunk_index=scene_number,
+                    chunk_total=scene_count,
+                    chunk_start=scene_number,
+                    chunk_end=scene_number,
+                    completed_scene_summaries=continuity,
+                )
+                scene = scene_payload["scenes"][0]
+            except (ClaudeCLIError, ValueError, TimeoutError) as exc:
+                self.log.warning(f"  Scene s{scene_number:02d} LLM generation failed ({exc}); using scene fallback")
+                scene = self._fallback_scene_for_index(
+                    scene_number=scene_number,
+                    mode=mode,
+                    fallback_specs=fallback_specs,
+                )
+            normalized_scene = self._normalize_scene(
+                scene=scene,
+                scene_number=scene_number,
+                default_renderer=preferred_renderer,
+                duration_target=duration_target,
+            )
+            continuity.append(self._scene_summary(normalized_scene))
+            scenes.append(normalized_scene)
+        return scenes
 
     def _repair_chunk_script(
         self,
@@ -382,6 +488,36 @@ class ScriptStage:
     def _is_valid_script(self, candidate: object) -> bool:
         return isinstance(candidate, dict) and isinstance(candidate.get("scenes"), list)
 
+    def _script_shell(
+        self,
+        *,
+        topic: TopicInput,
+        slug: str,
+        mode: str,
+        preferred_renderer: str,
+        research_text: str,
+        outline_text: str,
+    ) -> dict:
+        brief = self._fallback_brief(topic, topic_title(topic), research_text, outline_text)
+        return {
+            "title": f"{slug}-{mode}",
+            "brief": brief,
+            "research_brief": brief,
+            "primary_renderer": preferred_renderer or "manim",
+            "global_style": {
+                "background": "#0d1117",
+                "primary": "#FFD700",
+                "danger": "#FF4444",
+                "success": "#00C896",
+                "text": "#FFFFFF",
+                "muted": "#8B949E",
+                "font": "JetBrains Mono",
+                "transition": "fade_black_0.3s",
+                "resolution": "1920x1080",
+                "fps": 60,
+            },
+        }
+
     def _ensure_primary_renderer(self, script: dict, preferred_renderer: str) -> dict:
         if not isinstance(script, dict):
             return script
@@ -402,6 +538,60 @@ class ScriptStage:
                     normalized_scenes.append(scene)
             script["scenes"] = normalized_scenes
         return script
+
+    def _normalize_scene(
+        self,
+        *,
+        scene: object,
+        scene_number: int,
+        default_renderer: str,
+        duration_target: int,
+    ) -> dict:
+        if not isinstance(scene, dict):
+            raise ValueError(f"Scene s{scene_number:02d} was not an object")
+
+        title = str(scene.get("title") or f"Scene {scene_number}").strip()
+        narration = " ".join(str(scene.get("narration") or "").split()).strip()
+        description = " ".join(str(scene.get("description") or "").split()).strip()
+        style = " ".join(str(scene.get("style") or "").split()).strip()
+        renderer = str(scene.get("renderer") or default_renderer or "manim").strip()
+        try:
+            duration = float(scene.get("duration_sec") or duration_target)
+        except (TypeError, ValueError):
+            duration = float(duration_target)
+
+        if not narration or not description or not style:
+            raise ValueError(f"Scene s{scene_number:02d} is missing narration, description, or style")
+
+        return {
+            "id": f"s{scene_number:02d}",
+            "renderer": renderer,
+            "title": title,
+            "duration_sec": duration,
+            "narration": narration,
+            "description": description,
+            "style": style,
+        }
+
+    def _fallback_scene_for_index(
+        self,
+        *,
+        scene_number: int,
+        mode: str,
+        fallback_specs: list[tuple[str, str, str]],
+    ) -> dict:
+        try:
+            title, narration, description = fallback_specs[scene_number - 1]
+        except IndexError as exc:
+            raise ValueError(f"No fallback scene spec for scene {scene_number}") from exc
+        return {
+            "title": title,
+            "renderer": "slides",
+            "duration_sec": 4 if mode == "narrated" else 6,
+            "narration": narration,
+            "description": description,
+            "style": "dark background #0d1117, primary #FFD700, success #00C896, text #FFFFFF",
+        }
 
     def _fallback_script(
         self,
@@ -726,37 +916,6 @@ class ScriptStage:
         return {
             "type": "object",
             "properties": {
-                "title": {"type": "string"},
-                "brief": {"type": "string"},
-                "research_brief": {"type": "string"},
-                "primary_renderer": {"type": "string"},
-                "global_style": {
-                    "type": "object",
-                    "properties": {
-                        "background": {"type": "string"},
-                        "primary": {"type": "string"},
-                        "danger": {"type": "string"},
-                        "success": {"type": "string"},
-                        "text": {"type": "string"},
-                        "muted": {"type": "string"},
-                        "font": {"type": "string"},
-                        "transition": {"type": "string"},
-                        "resolution": {"type": "string"},
-                        "fps": {"type": "integer"},
-                    },
-                    "required": [
-                        "background",
-                        "primary",
-                        "danger",
-                        "success",
-                        "text",
-                        "muted",
-                        "font",
-                        "transition",
-                        "resolution",
-                        "fps",
-                    ],
-                },
                 "scenes": {
                     "type": "array",
                     "minItems": scene_count,
@@ -773,18 +932,16 @@ class ScriptStage:
                             "style": {"type": "string"},
                         },
                         "required": [
-                            "id",
-                            "renderer",
                             "title",
-                            "duration_sec",
                             "narration",
                             "description",
                             "style",
                         ],
+                        "additionalProperties": False,
                     },
                 },
             },
-            "required": ["title", "brief", "research_brief", "primary_renderer", "global_style", "scenes"],
+            "required": ["scenes"],
             "additionalProperties": False,
         }
 
@@ -806,10 +963,10 @@ class ScriptStage:
         chunk_end: int,
         completed_scene_summaries: list[str],
     ) -> str:
-        topic_block = topic_context_json(topic)
         topic_name = topic_title(topic)
-        research_excerpt = self._truncate_text(research_text, 2200)
-        outline_excerpt = self._truncate_text(outline_text, 1800)
+        topic_block = self._compact_topic_context(topic)
+        research_excerpt = self._truncate_text(research_text, 900)
+        outline_excerpt = self._truncate_text(outline_text, 700)
         previous_block = "\n".join(f"- {item}" for item in completed_scene_summaries[-4:]) or "- None yet"
         return f"""
 Topic title: {topic_name}
@@ -836,28 +993,20 @@ Completed scene summaries for continuity:
 Create a JSON script chunk for a topic-driven video pipeline.
 
 Rules:
-- Choose one `primary_renderer` for the movie based on the topic and research.
-- Pick the best renderer per scene based on the topic and research.
-- Preferred renderer for this topic: "{preferred_renderer}".
-- Valid renderers are ONLY: "manim", "motion-canvas", "d3". Do not use any other value.
-- Use "manim" for equations, curves, payoff diagrams, axes plots, mathematical proofs, probability distributions.
-- Use "motion-canvas" for step-by-step concept walkthroughs, text-driven explainers, animated cards, story panels, formula builds.
-- Use "d3" for data charts, bar charts, time-series, multi-panel financial dashboards, tables with animation, comparison panels.
-- Mix renderers across the chunk to give the video visual variety.
-- The global_style object must use this contract:
-  background #0d1117, primary #FFD700, danger #FF4444, success #00C896,
-  text #FFFFFF, muted #8B949E, font "JetBrains Mono",
-  transition "fade_black_0.3s", resolution "1920x1080", fps 60.
-- Scene ids in this chunk must be sequential and begin at s{chunk_start:02d}.
-- Narration must be 2-4 sentences and self-contained.
-- Description must be 150-300 words, explicit enough that Claude can generate the Manim code without guessing.
-- Every description must name exact objects, colors, animation order, timing, and final hold time.
-- Every scene style must include the key hex colors used in that scene.
+- Return exactly one JSON object with a single top-level key: `scenes`.
+- Do not include `title`, `brief`, `research_brief`, `primary_renderer`, or `global_style`.
+- Produce exactly {chunk_end - chunk_start + 1} scenes in the `scenes` array.
+- If you include `renderer`, valid values are ONLY: "manim", "motion-canvas", or "d3".
+- Preferred renderer for this topic is "{preferred_renderer}". Use it unless a scene strongly needs another renderer.
+- Do not include scene ids unless you are certain; the pipeline will assign ids.
+- Narration must be 1-3 short sentences and self-contained.
+- Description must be 60-120 words, concrete, and visually specific.
+- Every description must name the main objects, rough animation order, and where text should sit in the frame.
+- Every scene style must include the main hex colors used in that scene.
 - Keep the visual language coherent and educational.
 - Avoid duplicate scenes or filler.
 - For narrated mode, use the most important ideas from Acts 1-3 only.
 - For companion-long mode, cover the full outline including Act 4 synthesis.
-- Title should be "{slug}-{mode}".
 - Return JSON only.
 """.strip()
 
@@ -957,9 +1106,54 @@ Return JSON only.
             f"{mode}\n"
             f"{scene_count}\n"
             f"{acts}\n"
-            "chunked-script-v8"
+            "chunked-script-v9"
         ).encode("utf-8")
         return hashlib.sha256(payload).hexdigest()
+
+    def _compact_topic_context(self, topic: TopicInput) -> str:
+        if not isinstance(topic, dict):
+            return str(topic)
+
+        lines: list[str] = []
+        for label, key in (
+            ("Brief", "brief"),
+            ("Prompt summary", "prompt_summary"),
+            ("Description", "description"),
+        ):
+            value = str(topic.get(key) or "").strip()
+            if value:
+                lines.append(f"{label}: {self._truncate_text(value, 220)}")
+
+        for label, key, limit in (
+            ("Key terms", "key_terms", 6),
+            ("Visual hooks", "visual_hooks", 4),
+            ("Misconceptions", "misconceptions", 3),
+            ("Learning goals", "learning_goals", 4),
+        ):
+            values = self._topic_list_from_topic(topic, key)[:limit]
+            if values:
+                lines.append(f"{label}: " + "; ".join(values))
+
+        practice_mode = topic.get("practice_mode")
+        if isinstance(practice_mode, dict):
+            practice_lines = []
+            label = str(practice_mode.get("label") or "").strip()
+            description = str(practice_mode.get("description") or "").strip()
+            objectives = practice_mode.get("objectives")
+            if label:
+                practice_lines.append(label)
+            if description:
+                practice_lines.append(self._truncate_text(description, 160))
+            if isinstance(objectives, list):
+                objective_text = "; ".join(
+                    str(item).strip() for item in objectives[:3] if isinstance(item, str) and item.strip()
+                )
+                if objective_text:
+                    practice_lines.append(objective_text)
+            if practice_lines:
+                lines.append("Practice mode: " + " | ".join(practice_lines))
+
+        return "\n".join(lines) or topic_title(topic)
 
     def _suggest_renderer(self, topic: TopicInput, research_text: str, outline_text: str) -> str:
         haystack = " ".join([topic_context_json(topic), research_text[:4000], outline_text[:2000]]).lower()

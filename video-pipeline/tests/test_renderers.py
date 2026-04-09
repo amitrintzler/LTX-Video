@@ -22,6 +22,8 @@ def test_config_new_fields_have_correct_defaults():
     assert cfg.llm_provider == "codex"
     assert cfg.script_backup_providers == ["lmstudio"]
     assert cfg.llm_model == "qwen/qwen3.5-35b-a3b"
+    assert cfg.render_llm_provider == "lmstudio"
+    assert cfg.render_llm_model == "qwen/qwen3.5-35b-a3b"
     assert cfg.lmstudio_base_url == "http://localhost:1234/v1"
     assert cfg.animatediff_checkpoint == "frankjoshua/toonyou_beta6"
     assert cfg.animatediff_num_frames == 16
@@ -39,6 +41,16 @@ def test_llm_model_name_uses_active_backend_only():
 
     cfg.llm_provider = "codex"
     assert cfg.llm_model_name() == "gpt-5.4"
+
+
+def test_render_llm_model_name_uses_render_backend_only():
+    cfg = PipelineConfig()
+    cfg.render_llm_provider = "lmstudio"
+    cfg.render_llm_model = "local-render-model"
+    assert cfg.render_llm_model_name() == "local-render-model"
+
+    cfg.render_llm_provider = "claude"
+    assert cfg.render_llm_model_name() == "claude-sonnet-4-6"
 
 
 def test_script_provider_sequence_dedupes_and_keeps_primary_first():
@@ -499,6 +511,7 @@ def _manim_cfg():
         video_height=576,
         video_fps=24,
         llm_provider="claude",
+        render_llm_provider="claude",
         claude_model="claude-sonnet-4-6",
         renderer_max_retries=3,
     )
@@ -592,8 +605,8 @@ def test_manim_uses_lmstudio_when_configured(tmp_path):
     import stages.renderers.manim as manim_mod
 
     cfg = _manim_cfg()
-    cfg.llm_provider = "lmstudio"
-    cfg.llm_model = "local-model"
+    cfg.render_llm_provider = "lmstudio"
+    cfg.render_llm_model = "local-model"
     out_path = tmp_path / "scene_001.mp4"
 
     with patch("stages.renderers.manim._check_imports"), \
@@ -613,8 +626,8 @@ def test_manim_rejects_tex_codegen_before_running_manim(tmp_path):
     from stages.renderers.manim import ManimRenderError
 
     cfg = _manim_cfg()
-    cfg.llm_provider = "lmstudio"
-    cfg.llm_model = "local-model"
+    cfg.render_llm_provider = "lmstudio"
+    cfg.render_llm_model = "local-model"
     cfg.renderer_max_retries = 2
     out_path = tmp_path / "scene_001.mp4"
 
@@ -639,8 +652,8 @@ def test_manim_rejects_named_color_constants_before_running_manim(tmp_path):
     from stages.renderers.manim import ManimRenderError
 
     cfg = _manim_cfg()
-    cfg.llm_provider = "lmstudio"
-    cfg.llm_model = "local-model"
+    cfg.render_llm_provider = "lmstudio"
+    cfg.render_llm_model = "local-model"
     cfg.renderer_max_retries = 2
     out_path = tmp_path / "scene_001.mp4"
 
@@ -665,8 +678,8 @@ def test_manim_rejects_set_stroke_stroke_width_before_running_manim(tmp_path):
     from stages.renderers.manim import ManimRenderError
 
     cfg = _manim_cfg()
-    cfg.llm_provider = "lmstudio"
-    cfg.llm_model = "local-model"
+    cfg.render_llm_provider = "lmstudio"
+    cfg.render_llm_model = "local-model"
     cfg.renderer_max_retries = 2
     out_path = tmp_path / "scene_001.mp4"
 
@@ -691,8 +704,8 @@ def test_manim_normalizes_alignment_keyword_before_running_manim(tmp_path):
     import stages.renderers.manim as manim_mod
 
     cfg = _manim_cfg()
-    cfg.llm_provider = "lmstudio"
-    cfg.llm_model = "local-model"
+    cfg.render_llm_provider = "lmstudio"
+    cfg.render_llm_model = "local-model"
     out_path = tmp_path / "scene_001.mp4"
 
     bad_code = """from manim import *
@@ -718,8 +731,8 @@ def test_manim_rewrites_width_keyword_on_constructors_before_running_manim(tmp_p
     import stages.renderers.manim as manim_mod
 
     cfg = _manim_cfg()
-    cfg.llm_provider = "lmstudio"
-    cfg.llm_model = "local-model"
+    cfg.render_llm_provider = "lmstudio"
+    cfg.render_llm_model = "local-model"
     out_path = tmp_path / "scene_001.mp4"
 
     bad_code = """from manim import *
@@ -745,8 +758,8 @@ def test_manim_rewrites_align_to_edge_keyword_before_running_manim(tmp_path):
     import stages.renderers.manim as manim_mod
 
     cfg = _manim_cfg()
-    cfg.llm_provider = "lmstudio"
-    cfg.llm_model = "local-model"
+    cfg.render_llm_provider = "lmstudio"
+    cfg.render_llm_model = "local-model"
     out_path = tmp_path / "scene_001.mp4"
 
     bad_code = """from manim import *
@@ -773,8 +786,8 @@ def test_manim_rewrites_bare_math_calls_before_running_manim(tmp_path):
     import stages.renderers.manim as manim_mod
 
     cfg = _manim_cfg()
-    cfg.llm_provider = "lmstudio"
-    cfg.llm_model = "local-model"
+    cfg.render_llm_provider = "lmstudio"
+    cfg.render_llm_model = "local-model"
     out_path = tmp_path / "scene_001.mp4"
 
     bad_code = """from manim import *
@@ -802,8 +815,8 @@ def test_manim_rejects_axes_helpers_before_running_manim(tmp_path):
     from stages.renderers.manim import ManimRenderError
 
     cfg = _manim_cfg()
-    cfg.llm_provider = "lmstudio"
-    cfg.llm_model = "local-model"
+    cfg.render_llm_provider = "lmstudio"
+    cfg.render_llm_model = "local-model"
     cfg.renderer_max_retries = 2
     out_path = tmp_path / "scene_001.mp4"
 
@@ -880,8 +893,8 @@ def test_manim_render_calls_layout_audit_after_success(tmp_path):
     import stages.renderers.manim as manim_mod
 
     cfg = _manim_cfg()
-    cfg.llm_provider = "lmstudio"
-    cfg.llm_model = "local-model"
+    cfg.render_llm_provider = "lmstudio"
+    cfg.render_llm_model = "local-model"
     out_path = tmp_path / "scene_001.mp4"
 
     with patch("stages.renderers.manim._check_imports"), \

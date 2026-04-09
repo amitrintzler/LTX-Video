@@ -213,6 +213,8 @@ The stitch stage auto-extends clips with a freeze of the last frame when narrati
 | `script_backup_providers` | `["claude","codex"]` | Ordered backup backends for script generation |
 | `llm_model` | `qwen/qwen3.5-35b-a3b` | Local model name for LM Studio |
 | `codex_model` | `gpt-5.4` | Model for Codex CLI script fallback |
+| `render_llm_provider` | `lmstudio` | Backend for render-time code generation such as Manim |
+| `render_llm_model` | `qwen/qwen3.5-35b-a3b` | Local model name for render-time LM Studio code generation |
 | `lmstudio_base_url` | `http://localhost:1234/v1` | LM Studio OpenAI-compatible base URL |
 | `crossfade_sec` | `0.5` | Dissolve between scenes |
 | `output_crf` | `18` | Quality (lower = better) |

@@ -79,6 +79,8 @@ class PipelineConfig:
     llm_provider: str = "codex"   # claude | codex | lmstudio
     script_backup_providers: list[str] = field(default_factory=lambda: ["lmstudio"])
     llm_model: str = "qwen/qwen3.5-35b-a3b"
+    render_llm_provider: str = "lmstudio"   # claude | lmstudio
+    render_llm_model: str = "qwen/qwen3.5-35b-a3b"
     lmstudio_base_url: str = "http://localhost:1234/v1"
     lmstudio_api_key: str = "lm-studio"
 
@@ -105,6 +107,14 @@ class PipelineConfig:
             if normalized not in providers:
                 providers.append(normalized)
         return providers or ["lmstudio"]
+
+    def render_llm_model_name(self) -> str:
+        provider = self.render_llm_provider.strip().lower()
+        if provider == "lmstudio":
+            if not self.render_llm_model:
+                raise ValueError("render_llm_model must be set when render_llm_provider is lmstudio")
+            return self.render_llm_model
+        return self.claude_model
 
     # ── TTS (Kokoro) ─────────────────────────────────────────────────
     tts_enabled: bool = True

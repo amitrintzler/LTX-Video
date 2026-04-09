@@ -87,8 +87,9 @@ def render(scene: dict, config: PipelineConfig, out_path: Path) -> Path:
 
     last_error: Optional[str] = None
     for attempt in range(config.renderer_max_retries):
-        model = config.llm_model_name()
-        if config.llm_provider == "lmstudio":
+        provider = config.render_llm_provider.strip().lower()
+        model = config.render_llm_model_name()
+        if provider == "lmstudio":
             code = _call_lmstudio_api(
                 model=model,
                 system=system,

@@ -264,7 +264,12 @@ def run(
         "Script provider ladder: %s",
         " -> ".join(f"{provider}:{cfg.llm_model_name_for(provider)}" for provider in cfg.script_provider_sequence()),
     )
-    if cfg.llm_provider == "lmstudio":
+    log.info(
+        "Render codegen backend: provider=%s model=%s",
+        cfg.render_llm_provider,
+        cfg.render_llm_model_name(),
+    )
+    if cfg.llm_provider == "lmstudio" or cfg.render_llm_provider == "lmstudio":
         log.info("LM Studio base URL: %s", cfg.lmstudio_base_url)
 
     if _is_existing_file(input_ref):

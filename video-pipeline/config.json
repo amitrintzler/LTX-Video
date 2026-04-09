@@ -50,6 +50,8 @@
   "llm_provider": "codex",
   "script_backup_providers": ["lmstudio"],
   "llm_model": "qwen/qwen3.5-35b-a3b",
+  "render_llm_provider": "lmstudio",
+  "render_llm_model": "qwen/qwen3.5-35b-a3b",
   "lmstudio_base_url": "http://localhost:1234/v1",
   "lmstudio_api_key": "lm-studio",
   "tts_enabled": true,

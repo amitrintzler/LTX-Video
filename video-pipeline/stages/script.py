@@ -673,7 +673,7 @@ class ScriptStage:
     @staticmethod
     def _fallback_scene_renderer(scene_title: str, primary_renderer: str) -> str:
         title = scene_title.lower()
-        if title in {"what it means", "key terms", "common traps", "checklist", "takeaway", "summary"}:
+        if title in {"hook", "what it means", "key terms", "common traps", "checklist", "takeaway", "summary"}:
             return "slides"
         return primary_renderer
 
@@ -967,7 +967,7 @@ Return JSON only.
             f"{mode}\n"
             f"{scene_count}\n"
             f"{acts}\n"
-            "chunked-script-v6"
+            "chunked-script-v7"
         ).encode("utf-8")
         return hashlib.sha256(payload).hexdigest()
 

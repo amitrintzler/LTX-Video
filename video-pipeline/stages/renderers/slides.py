@@ -58,8 +58,9 @@ def _render_slide_image(
 ) -> None:
     bg_color, primary_color, text_color, muted_color = _theme_from_style(style)
     accent_color = primary_color
-    card_color = _blend_hex(bg_color, "#ffffff", 0.06)
-    card_edge = _blend_hex(bg_color, "#ffffff", 0.14)
+    panel_color = _blend_hex(bg_color, "#ffffff", 0.05)
+    panel_edge = _blend_hex(bg_color, "#ffffff", 0.12)
+    glow_color = _blend_hex(primary_color, "#ffffff", 0.18)
 
     image = Image.new("RGB", (width, height), bg_color)
     draw = ImageDraw.Draw(image)
@@ -67,78 +68,96 @@ def _render_slide_image(
     _draw_background(draw, width, height, bg_color, accent_color)
 
     margin_x = int(width * 0.07)
-    top_y = int(height * 0.08)
-    title_font = _load_font(int(height * 0.065), bold=True)
-    subtitle_font = _load_font(int(height * 0.027))
-    section_font = _load_font(int(height * 0.03), bold=True)
-    body_font = _load_font(int(height * 0.025))
+    top_y = int(height * 0.09)
+    title_font = _load_font(int(height * 0.072), bold=True)
+    subtitle_font = _load_font(int(height * 0.026))
+    body_font = _load_font(int(height * 0.039))
+    rail_font = _load_font(int(height * 0.023))
     small_font = _load_font(int(height * 0.018))
 
-    draw.rounded_rectangle(
-        [margin_x, top_y, width - margin_x, int(height * 0.27)],
-        radius=28,
-        fill=card_color,
-        outline=card_edge,
-        width=3,
-    )
-    draw.rectangle([margin_x, top_y, margin_x + 14, int(height * 0.27)], fill=accent_color)
-
+    kicker = "Research-backed explainer"
+    draw.text((margin_x, top_y - 30), kicker, font=small_font, fill=accent_color)
     _draw_wrapped_text(
         draw,
         title,
-        (margin_x + 38, top_y + 28),
+        (margin_x, top_y),
         title_font,
         text_color,
-        width - margin_x * 2 - 80,
-        line_spacing=10,
+        int(width * 0.62),
+        line_spacing=8,
     )
-
     if narration:
         _draw_wrapped_text(
             draw,
             narration,
-            (margin_x + 40, top_y + int(height * 0.105)),
+            (margin_x + 4, top_y + int(height * 0.095)),
             subtitle_font,
             muted_color,
-            width - margin_x * 2 - 90,
+            int(width * 0.58),
             line_spacing=8,
         )
 
-    left_x = margin_x
-    left_top = int(height * 0.33)
-    card_width = int((width - margin_x * 2 - 24) / 2)
-    card_height = int(height * 0.46)
-    gap = 24
+    hero_box = [
+        margin_x,
+        int(height * 0.28),
+        int(width * 0.66),
+        int(height * 0.83),
+    ]
+    rail_box = [
+        int(width * 0.71),
+        int(height * 0.20),
+        width - margin_x,
+        int(height * 0.83),
+    ]
 
-    left_box = [left_x, left_top, left_x + card_width, left_top + card_height]
-    right_box = [left_x + card_width + gap, left_top, width - margin_x, left_top + card_height]
+    draw.rounded_rectangle(hero_box, radius=36, fill=panel_color, outline=panel_edge, width=3)
+    draw.rectangle(
+        [hero_box[0], hero_box[1], hero_box[0] + 16, hero_box[3]],
+        fill=accent_color,
+    )
 
-    draw.rounded_rectangle(left_box, radius=26, fill=card_color, outline=card_edge, width=3)
-    draw.rounded_rectangle(right_box, radius=26, fill=card_color, outline=card_edge, width=3)
-
-    _draw_section(
+    quote_text = narration or description or title
+    quote_text = quote_text.strip()
+    if len(quote_text) > 160:
+        quote_text = quote_text[:157].rstrip() + "..."
+    _draw_wrapped_text(
         draw,
-        box=left_box,
-        heading="Narration",
-        body=narration or "Narration omitted.",
-        heading_font=section_font,
-        body_font=body_font,
-        heading_color=primary_color,
-        body_color=text_color,
+        quote_text,
+        (hero_box[0] + 44, hero_box[1] + 44),
+        body_font,
+        text_color,
+        hero_box[2] - hero_box[0] - 88,
+        line_spacing=16,
     )
 
     bullets = _description_bullets(description)
-    body_text = "\n".join(f"• {item}" for item in bullets) if bullets else "• Visual direction not specified."
-    _draw_section(
-        draw,
-        box=right_box,
-        heading="Visual beats",
-        body=body_text,
-        heading_font=section_font,
-        body_font=body_font,
-        heading_color=primary_color,
-        body_color=text_color,
-    )
+    rail_title_y = rail_box[1]
+    draw.text((rail_box[0], rail_title_y), "Visual beats", font=subtitle_font, fill=accent_color)
+    chip_top = rail_title_y + 52
+    chip_gap = 18
+    chip_h = 96
+    for bullet in bullets[:4]:
+        chip_box = [rail_box[0], chip_top, rail_box[2], chip_top + chip_h]
+        draw.rounded_rectangle(chip_box, radius=28, fill=panel_color, outline=panel_edge, width=2)
+        draw.ellipse(
+            [chip_box[0] + 20, chip_box[1] + 22, chip_box[0] + 40, chip_box[1] + 42],
+            fill=glow_color,
+        )
+        _draw_wrapped_text(
+            draw,
+            bullet,
+            (chip_box[0] + 56, chip_box[1] + 18),
+            rail_font,
+            text_color,
+            chip_box[2] - chip_box[0] - 76,
+            line_spacing=8,
+        )
+        chip_top += chip_h + chip_gap
+
+    footer_y = int(height * 0.90)
+    draw.line((margin_x, footer_y, width - margin_x, footer_y), fill=panel_edge, width=2)
+    draw.text((margin_x, footer_y + 16), "Fallback slide render", font=small_font, fill=muted_color)
+    draw.text((width - margin_x - 160, footer_y + 16), "1920 x 1080", font=small_font, fill=muted_color)
 
     out_path.parent.mkdir(parents=True, exist_ok=True)
     image.save(out_path)
@@ -186,6 +205,16 @@ def _draw_background(draw: ImageDraw.ImageDraw, width: int, height: int, bg_colo
     band_h = max(16, height // 60)
     draw.rectangle((0, 0, width, band_h), fill=accent_color)
     draw.rectangle((0, height - band_h, width, height), fill=_blend_hex(bg_color, accent_color, 0.28))
+    draw.ellipse(
+        [int(width * 0.52), int(height * 0.08), int(width * 1.02), int(height * 0.72)],
+        outline=_blend_hex(bg_color, accent_color, 0.18),
+        width=3,
+    )
+    draw.ellipse(
+        [int(width * -0.12), int(height * 0.46), int(width * 0.34), int(height * 1.02)],
+        outline=_blend_hex(bg_color, "#00C896", 0.16),
+        width=2,
+    )
 
 
 def _draw_section(

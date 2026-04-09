@@ -378,6 +378,46 @@ def _run_lmstudio(
             },
         }
 
+    payload = _post_lmstudio_request(
+        url=url,
+        body=body,
+        api_key=api_key,
+        timeout=timeout,
+    )
+    choice = _extract_lmstudio_choice(payload)
+
+    if output_format == "json" and json_schema is not None and not choice.strip():
+        fallback_prompt = (
+            "Return exactly one JSON object that matches the schema below.\n"
+            "Do not use markdown, prose, or code fences.\n\n"
+            f"Schema:\n{json.dumps(json_schema, indent=2, ensure_ascii=False)}\n\n"
+            f"Task:\n{prompt}"
+        )
+        fallback_body: dict[str, Any] = {
+            "model": model,
+            "messages": _build_lmstudio_messages(
+                system_prompt=system_prompt,
+                prompt=fallback_prompt,
+                model=model,
+            ),
+            "temperature": 0.0,
+            "max_tokens": max_tokens,
+        }
+        payload = _post_lmstudio_request(
+            url=url,
+            body=fallback_body,
+            api_key=api_key,
+            timeout=timeout,
+        )
+        choice = _extract_lmstudio_choice(payload)
+
+    if not choice.strip():
+        raise ClaudeCLIError("LM Studio returned empty output")
+
+    return choice.strip()
+
+
+def _post_lmstudio_request(*, url: str, body: dict[str, Any], api_key: str, timeout: int) -> dict[str, Any]:
     req = urllib.request.Request(
         url,
         data=json.dumps(body).encode("utf-8"),
@@ -390,7 +430,7 @@ def _run_lmstudio(
 
     try:
         with urllib.request.urlopen(req, timeout=timeout) as resp:
-            payload = json.loads(resp.read().decode("utf-8"))
+            return json.loads(resp.read().decode("utf-8"))
     except urllib.error.HTTPError as e:
         details = e.read().decode("utf-8", errors="ignore") if e.fp else ""
         raise ClaudeCLIError(
@@ -401,10 +441,16 @@ def _run_lmstudio(
             f"Cannot reach LM Studio API at {url}. Start LM Studio's local server on port 1234."
         ) from e
 
+
+def _extract_lmstudio_choice(payload: dict[str, Any]) -> str:
     try:
-        choice = payload["choices"][0]["message"]["content"]
+        message = payload["choices"][0].get("message", {})
     except (KeyError, IndexError, TypeError) as e:
         raise ClaudeCLIError("LM Studio returned an unexpected response shape") from e
+
+    choice: Any = message.get("content")
+    if not choice:
+        choice = payload.get("choices", [{}])[0].get("text", "")
 
     if isinstance(choice, list):
         choice = "".join(
@@ -415,10 +461,7 @@ def _run_lmstudio(
 
     if not isinstance(choice, str):
         choice = str(choice)
-
-    if output_format == "json" and json_schema is not None:
-        return choice.strip()
-    return choice.strip()
+    return choice
 
 
 def _build_lmstudio_messages(*, system_prompt: str, prompt: str, model: str) -> list[dict[str, str]]:

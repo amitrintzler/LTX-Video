@@ -105,6 +105,40 @@ def test_run_claude_json_repairs_invalid_lmstudio_output():
     assert mock_run.call_count == 2
 
 
+def test_run_claude_json_retries_when_lmstudio_returns_empty_schema_content():
+    from stages.claude_client import run_claude_json
+
+    schema = {
+        "type": "object",
+        "properties": {
+            "title": {"type": "string"},
+        },
+        "required": ["title"],
+        "additionalProperties": False,
+    }
+
+    with patch(
+        "stages.claude_client._post_lmstudio_request",
+        side_effect=[
+            {"choices": [{"message": {"content": ""}}]},
+            {"choices": [{"message": {"content": '{"title":"basics-flow"}'}}]},
+        ],
+    ) as post_call:
+        payload = run_claude_json(
+            prompt="Generate JSON only",
+            model="qwen/qwen3.5-35b-a3b",
+            system_prompt="SYSTEM",
+            schema=schema,
+            provider="lmstudio",
+            base_url="http://localhost:1234/v1",
+            api_key="lm-studio",
+            timeout=30,
+        )
+
+    assert payload == {"title": "basics-flow"}
+    assert post_call.call_count == 2
+
+
 def test_script_suggests_renderer_from_topic_and_research():
     from stages.script import ScriptStage
 

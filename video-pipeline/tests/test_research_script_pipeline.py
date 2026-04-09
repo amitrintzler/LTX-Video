@@ -213,8 +213,8 @@ def test_script_stage_writes_both_modes(tmp_path, log, monkeypatch):
     monkeypatch.setattr(stage, "_ensure_research", lambda topic, slug: (research_path, outline_path))
 
     def fake_run_claude_json(**kwargs):
-        assert kwargs["provider"] == "lmstudio"
-        assert kwargs["model"] == "qwen/qwen3.5-35b-a3b"
+        assert kwargs["provider"] == "codex"
+        assert kwargs["model"] == "gpt-5.4"
         assert kwargs["timeout"] == cfg.script_timeout_sec
         title = "black-scholes-narrated" if "Mode: narrated" in kwargs["prompt"] else "black-scholes-companion-long"
         return _chunk_payload_from_prompt(kwargs["prompt"], title)
@@ -308,8 +308,8 @@ def test_script_stage_uses_deterministic_generator_for_structured_topic(tmp_path
     monkeypatch.setattr(stage, "_ensure_research", lambda topic, slug: (research_path, outline_path))
 
     def fake_run_claude_json(**kwargs):
-        assert kwargs["provider"] == "lmstudio"
-        assert kwargs["model"] == "qwen/qwen3.5-35b-a3b"
+        assert kwargs["provider"] == "codex"
+        assert kwargs["model"] == "gpt-5.4"
         assert kwargs["timeout"] == cfg.script_timeout_sec
         return _chunk_payload_from_prompt(kwargs["prompt"], f"{slug}-narrated")
 
@@ -345,8 +345,8 @@ def test_script_stage_repairs_chunked_json_before_fallback(tmp_path, log, monkey
 
     def fake_run_claude_json(**kwargs):
         calls["count"] += 1
-        assert kwargs["provider"] == "lmstudio"
-        assert kwargs["model"] == "qwen/qwen3.5-35b-a3b"
+        assert kwargs["provider"] == "codex"
+        assert kwargs["model"] == "gpt-5.4"
         assert kwargs["timeout"] == cfg.script_timeout_sec
         if calls["count"] == 1:
             return _script_payload(title=f"{slug}-narrated", scene_count=1)
@@ -629,8 +629,8 @@ def test_script_stage_persists_invalid_llm_json_for_debugging(tmp_path, log, mon
     debug_path = cfg.log_dir / f"{slug}-narrated-script-llm-debug.json"
     assert debug_path.exists()
     saved = json.loads(debug_path.read_text())
-    assert saved["provider"] == cfg.llm_provider
-    assert saved["model"] == cfg.llm_model_name()
+    assert saved["provider"] == "lmstudio"
+    assert saved["model"] == "qwen/qwen3.5-35b-a3b"
     assert saved["raw_output"] == "not json at all"
     assert saved["repaired_output"] == "still not json"
 

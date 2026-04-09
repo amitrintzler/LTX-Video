@@ -75,9 +75,9 @@ class PipelineConfig:
     renderer_max_retries: int = 3
     render_workers: int = 1
     script_timeout_sec: int = 180
-    script_chunk_size: int = 3
-    llm_provider: str = "lmstudio"   # claude | codex | lmstudio
-    script_backup_providers: list[str] = field(default_factory=lambda: ["claude", "codex"])
+    script_chunk_size: int = 1
+    llm_provider: str = "codex"   # claude | codex | lmstudio
+    script_backup_providers: list[str] = field(default_factory=lambda: ["lmstudio"])
     llm_model: str = "qwen/qwen3.5-35b-a3b"
     lmstudio_base_url: str = "http://localhost:1234/v1"
     lmstudio_api_key: str = "lm-studio"

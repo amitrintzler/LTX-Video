@@ -342,10 +342,20 @@ def _ensure_safe_codegen(code: str) -> None:
 class _ManimCodeNormalizer(ast.NodeTransformer):
     def __init__(self) -> None:
         self.changed = False
+        self.needs_math_import = False
+
+    def visit_Module(self, node: ast.Module):  # type: ignore[override]
+        node = self.generic_visit(node)
+        if self.needs_math_import and not self._has_math_import(node):
+            node.body.insert(0, ast.Import(names=[ast.alias(name="math")]))
+            self.changed = True
+        return node
 
     def visit_Call(self, node: ast.Call):  # type: ignore[override]
         node = self.generic_visit(node)
         if self._rewrite_align_to_edge(node):
+            self.changed = True
+        if self._rewrite_bare_math_call(node):
             self.changed = True
         return node
 
@@ -439,6 +449,32 @@ class _ManimCodeNormalizer(ast.NodeTransformer):
         if edge_value is not None and len(call.args) < 2:
             call.args.append(edge_value)
         return True
+
+    def _rewrite_bare_math_call(self, call: ast.Call) -> bool:
+        math_names = {
+            "sin", "cos", "tan", "asin", "acos", "atan",
+            "sinh", "cosh", "tanh", "sqrt", "log", "log10",
+            "exp", "ceil", "floor",
+        }
+        if not isinstance(call.func, ast.Name) or call.func.id not in math_names:
+            return False
+        call.func = ast.Attribute(
+            value=ast.Name(id="math", ctx=ast.Load()),
+            attr=call.func.id,
+            ctx=ast.Load(),
+        )
+        self.needs_math_import = True
+        return True
+
+    @staticmethod
+    def _has_math_import(node: ast.Module) -> bool:
+        for stmt in node.body:
+            if isinstance(stmt, ast.Import):
+                if any(alias.name == "math" for alias in stmt.names):
+                    return True
+            if isinstance(stmt, ast.ImportFrom) and stmt.module == "math":
+                return True
+        return False
 
     @staticmethod
     def _extract_kwarg(call: ast.Call, names: set[str]) -> ast.expr | None:

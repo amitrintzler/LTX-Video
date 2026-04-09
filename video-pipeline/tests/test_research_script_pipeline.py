@@ -389,6 +389,8 @@ def test_fallback_script_uses_full_scene_counts(tmp_path, log):
 
     assert len(narrated["scenes"]) == 22
     assert narrated["scenes"][0]["duration_sec"] == 4
+    assert narrated["scenes"][1]["renderer"] == "slides"
+    assert narrated["scenes"][2]["renderer"] == "slides"
     assert narrated["scenes"][5]["layout_hint"].startswith("Use a left-to-right story")
     assert "middle 40 percent empty" in narrated["scenes"][7]["layout_hint"]
     assert "far left edge as a narrow vertical rail" in narrated["scenes"][7]["description"]

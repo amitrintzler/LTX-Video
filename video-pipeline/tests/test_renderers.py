@@ -660,6 +660,34 @@ class VideoScene(Scene):
     assert "scale_to_fit_width(3)" in rewritten
 
 
+def test_manim_rewrites_align_to_edge_keyword_before_running_manim(tmp_path):
+    import stages.renderers.manim as manim_mod
+
+    cfg = _manim_cfg()
+    cfg.llm_provider = "lmstudio"
+    cfg.llm_model = "local-model"
+    out_path = tmp_path / "scene_001.mp4"
+
+    bad_code = """from manim import *
+class VideoScene(Scene):
+    def construct(self):
+        title = Text("Hello")
+        title.to_edge(UP).align_to(LEFT, edge=LEFT)
+"""
+
+    with patch("stages.renderers.manim._check_imports"), \
+         patch("stages.renderers.manim._call_lmstudio_api", return_value=bad_code) as lm_call, \
+         patch("stages.renderers.manim._audit_rendered_video"), \
+         patch("stages.renderers.manim._run_manim", return_value=out_path) as run_call:
+        result = manim_mod.render(_manim_scene(), cfg, out_path)
+
+    assert result == out_path
+    assert lm_call.call_count == 1
+    rewritten = run_call.call_args[0][0]
+    assert "edge=" not in rewritten
+    assert "align_to(LEFT, LEFT)" in rewritten or "align_to(LEFT,LEFT)" in rewritten
+
+
 def test_manim_rejects_axes_helpers_before_running_manim(tmp_path):
     import stages.renderers.manim as manim_mod
     from stages.renderers.manim import ManimRenderError

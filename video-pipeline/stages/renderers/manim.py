@@ -343,6 +343,12 @@ class _ManimCodeNormalizer(ast.NodeTransformer):
     def __init__(self) -> None:
         self.changed = False
 
+    def visit_Call(self, node: ast.Call):  # type: ignore[override]
+        node = self.generic_visit(node)
+        if self._rewrite_align_to_edge(node):
+            self.changed = True
+        return node
+
     def visit_Assign(self, node: ast.Assign):  # type: ignore[override]
         node = self.generic_visit(node)
         extra_nodes = self._rewrite_constructor_width(node.value, node.targets)
@@ -410,6 +416,29 @@ class _ManimCodeNormalizer(ast.NodeTransformer):
         if changed:
             call.keywords = kept
         return changed
+
+    @staticmethod
+    def _rewrite_align_to_edge(call: ast.Call) -> bool:
+        if not isinstance(call.func, ast.Attribute) or call.func.attr != "align_to":
+            return False
+
+        kept = []
+        edge_value = None
+        changed = False
+        for kw in call.keywords:
+            if kw.arg == "edge" and edge_value is None:
+                edge_value = kw.value
+                changed = True
+                continue
+            kept.append(kw)
+
+        if not changed:
+            return False
+
+        call.keywords = kept
+        if edge_value is not None and len(call.args) < 2:
+            call.args.append(edge_value)
+        return True
 
     @staticmethod
     def _extract_kwarg(call: ast.Call, names: set[str]) -> ast.expr | None:

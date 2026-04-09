@@ -208,6 +208,16 @@ def test_script_ensure_primary_renderer_sets_root_and_scene_defaults():
     assert normalized["scenes"][1]["renderer"] == "slides"
 
 
+def test_script_schema_is_strict_for_codex():
+    from stages.script import ScriptStage
+
+    stage = ScriptStage(PipelineConfig(), logging.getLogger("test"))
+    schema = stage._schema(3, strict_items=True)
+
+    item = schema["properties"]["scenes"]["items"]
+    assert item["required"] == ["id", "renderer", "title", "duration_sec", "narration", "description", "style"]
+
+
 # ── Registry ──────────────────────────────────────────────────────
 
 def test_get_renderer_unknown_raises_valueerror():

@@ -187,7 +187,7 @@ class ScriptStage:
         self,
         *,
         prompt: str,
-        schema: dict,
+        scene_count: int,
         timeout: int,
         max_tokens: int,
     ) -> dict:
@@ -196,6 +196,7 @@ class ScriptStage:
 
         for provider in self.cfg.script_provider_sequence():
             model = self.cfg.llm_model_name_for(provider)
+            schema = self._schema(scene_count, strict_items=(provider == "codex"))
             try:
                 return run_claude_json(
                     prompt=prompt,
@@ -362,7 +363,7 @@ class ScriptStage:
         )
         result = self._run_script_llm_json(
             prompt=prompt,
-            schema=self._schema(chunk_scene_count),
+            scene_count=chunk_scene_count,
             timeout=self.cfg.script_timeout_sec,
             max_tokens=max(1400, chunk_scene_count * 650),
         )
@@ -486,7 +487,7 @@ class ScriptStage:
         )
         repaired = self._run_script_llm_json(
             prompt=repair_prompt,
-            schema=self._schema(chunk_scene_count),
+            scene_count=chunk_scene_count,
             timeout=self.cfg.script_timeout_sec,
             max_tokens=max(2500, chunk_scene_count * 1000),
         )
@@ -947,7 +948,21 @@ class ScriptStage:
             "Do not add explanation, markdown, or code fences."
         )
 
-    def _schema(self, scene_count: int) -> dict:
+    def _schema(self, scene_count: int, *, strict_items: bool = False) -> dict:
+        item_properties = {
+            "id": {"type": "string"},
+            "renderer": {"type": "string"},
+            "title": {"type": "string"},
+            "duration_sec": {"type": "number"},
+            "narration": {"type": "string"},
+            "description": {"type": "string"},
+            "style": {"type": "string"},
+        }
+        item_required = (
+            list(item_properties.keys())
+            if strict_items
+            else ["title", "narration", "description", "style"]
+        )
         return {
             "type": "object",
             "properties": {
@@ -957,21 +972,8 @@ class ScriptStage:
                     "maxItems": scene_count,
                     "items": {
                         "type": "object",
-                        "properties": {
-                            "id": {"type": "string"},
-                            "renderer": {"type": "string"},
-                            "title": {"type": "string"},
-                            "duration_sec": {"type": "number"},
-                            "narration": {"type": "string"},
-                            "description": {"type": "string"},
-                            "style": {"type": "string"},
-                        },
-                        "required": [
-                            "title",
-                            "narration",
-                            "description",
-                            "style",
-                        ],
+                        "properties": item_properties,
+                        "required": item_required,
                         "additionalProperties": False,
                     },
                 },

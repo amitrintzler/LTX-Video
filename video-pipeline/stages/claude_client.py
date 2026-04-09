@@ -26,14 +26,18 @@ class StructuredLLMResponseError(ClaudeCLIError):
         prompt: str,
         raw_output: str,
         repaired_output: str | None = None,
+        provider: str = "claude",
+        model: str = "",
     ) -> None:
         super().__init__(message)
         self.prompt = prompt
         self.raw_output = raw_output
         self.repaired_output = repaired_output
+        self.provider = provider
+        self.model = model
 
 
-class CodexCLIError(RuntimeError):
+class CodexCLIError(ClaudeCLIError):
     pass
 
 
@@ -250,6 +254,8 @@ def run_claude_json(
             prompt=prompt,
             raw_output=result,
             repaired_output=repaired,
+            provider=provider,
+            model=model,
         ) from exc
     if not isinstance(payload, dict):
         raise StructuredLLMResponseError(
@@ -257,6 +263,8 @@ def run_claude_json(
             prompt=prompt,
             raw_output=result,
             repaired_output=repaired,
+            provider=provider,
+            model=model,
         )
     return payload
 
@@ -285,6 +293,14 @@ def _run_llm(
             json_schema=json_schema,
             timeout=timeout,
             max_tokens=max_tokens,
+        )
+    if provider == "codex":
+        return _run_codex(
+            prompt=prompt,
+            model=model,
+            output_format=output_format,
+            json_schema=json_schema,
+            timeout=timeout,
         )
 
     return _run_claude(
@@ -415,6 +431,55 @@ def _run_lmstudio(
         raise ClaudeCLIError("LM Studio returned empty output")
 
     return choice.strip()
+
+
+def _run_codex(
+    *,
+    prompt: str,
+    model: str,
+    output_format: str,
+    json_schema: Optional[dict[str, Any]] = None,
+    timeout: int = 600,
+) -> str:
+    cmd = ["codex", "exec", "--full-auto"]
+    if model:
+        cmd.extend(["--model", model])
+
+    with tempfile.TemporaryDirectory() as tmpdir:
+        tmp_path = Path(tmpdir)
+        output_path = tmp_path / "output.txt"
+        cmd.extend(["--output-last-message", str(output_path)])
+        if output_format == "json" and json_schema is not None:
+            schema_path = tmp_path / "schema.json"
+            schema_path.write_text(json.dumps(json_schema, indent=2, ensure_ascii=False) + "\n")
+            cmd.extend(["--output-schema", str(schema_path)])
+        cmd.append(prompt)
+
+        try:
+            result = subprocess.run(
+                cmd,
+                capture_output=True,
+                text=True,
+                timeout=timeout,
+            )
+        except FileNotFoundError as e:
+            raise CodexCLIError("Codex CLI not found on PATH.") from e
+        except subprocess.TimeoutExpired as e:
+            raise CodexCLIError("Codex CLI timed out") from e
+
+        if result.returncode != 0:
+            stderr = (result.stderr or result.stdout or "").strip()
+            raise CodexCLIError(stderr[-2000:] or "Codex CLI failed without output")
+
+        if output_path.exists():
+            output = output_path.read_text().strip()
+            if output:
+                return output
+
+        output = (result.stdout or "").strip()
+        if output:
+            return output
+        raise CodexCLIError("Codex CLI returned empty output")
 
 
 def _post_lmstudio_request(*, url: str, body: dict[str, Any], api_key: str, timeout: int) -> dict[str, Any]:

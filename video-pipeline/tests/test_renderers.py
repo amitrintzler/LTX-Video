@@ -14,11 +14,13 @@ def test_config_new_fields_have_correct_defaults():
     cfg = PipelineConfig()
     assert cfg.video_fps == 60
     assert cfg.claude_model == "claude-sonnet-4-6"
+    assert cfg.codex_model == "gpt-5.4"
     assert cfg.renderer_max_retries == 3
     assert cfg.render_workers == 1
     assert cfg.script_timeout_sec == 180
     assert cfg.script_chunk_size == 3
     assert cfg.llm_provider == "lmstudio"
+    assert cfg.script_backup_providers == ["claude", "codex"]
     assert cfg.llm_model == "qwen/qwen3.5-35b-a3b"
     assert cfg.lmstudio_base_url == "http://localhost:1234/v1"
     assert cfg.animatediff_checkpoint == "frankjoshua/toonyou_beta6"
@@ -34,6 +36,15 @@ def test_llm_model_name_uses_active_backend_only():
 
     cfg.llm_provider = "claude"
     assert cfg.llm_model_name() == "claude-sonnet-4-6"
+
+    cfg.llm_provider = "codex"
+    assert cfg.llm_model_name() == "gpt-5.4"
+
+
+def test_script_provider_sequence_dedupes_and_keeps_primary_first():
+    cfg = PipelineConfig(llm_provider="claude", script_backup_providers=["claude", "codex", "lmstudio", "codex"])
+
+    assert cfg.script_provider_sequence() == ["claude", "codex", "lmstudio"]
 
 
 def test_llm_model_name_requires_lmstudio_model():
@@ -137,6 +148,32 @@ def test_run_claude_json_retries_when_lmstudio_returns_empty_schema_content():
 
     assert payload == {"title": "basics-flow"}
     assert post_call.call_count == 2
+
+
+def test_run_claude_json_supports_codex_backend():
+    from stages.claude_client import run_claude_json
+
+    schema = {
+        "type": "object",
+        "properties": {
+            "title": {"type": "string"},
+        },
+        "required": ["title"],
+        "additionalProperties": False,
+    }
+
+    with patch("stages.claude_client._run_codex", return_value='{"title":"basics-flow"}') as codex_call:
+        payload = run_claude_json(
+            prompt="Generate JSON only",
+            model="gpt-5.4",
+            system_prompt="SYSTEM",
+            schema=schema,
+            provider="codex",
+            timeout=30,
+        )
+
+    assert payload == {"title": "basics-flow"}
+    codex_call.assert_called_once()
 
 
 def test_script_suggests_renderer_from_topic_and_research():

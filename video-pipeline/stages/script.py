@@ -174,14 +174,59 @@ class ScriptStage:
         debug_path = self.cfg.log_dir / f"{slug}-{mode}-script-llm-debug.json"
         payload = {
             "error": str(exc),
-            "provider": self.cfg.llm_provider,
-            "model": self.cfg.llm_model_name(),
+            "provider": exc.provider or self.cfg.llm_provider,
+            "model": exc.model or self.cfg.llm_model_name(),
             "prompt": exc.prompt,
             "raw_output": exc.raw_output,
             "repaired_output": exc.repaired_output,
         }
         debug_path.write_text(json.dumps(payload, indent=2, ensure_ascii=False) + "\n")
         return debug_path
+
+    def _run_script_llm_json(
+        self,
+        *,
+        prompt: str,
+        schema: dict,
+        timeout: int,
+        max_tokens: int,
+    ) -> dict:
+        attempts: list[str] = []
+        last_structured_error: StructuredLLMResponseError | None = None
+
+        for provider in self.cfg.script_provider_sequence():
+            model = self.cfg.llm_model_name_for(provider)
+            try:
+                return run_claude_json(
+                    prompt=prompt,
+                    model=model,
+                    system_prompt=self._system_prompt(),
+                    schema=schema,
+                    provider=provider,
+                    base_url=self.cfg.lmstudio_base_url,
+                    api_key=self.cfg.lmstudio_api_key,
+                    timeout=timeout,
+                    max_tokens=max_tokens,
+                )
+            except StructuredLLMResponseError as exc:
+                last_structured_error = exc
+                attempts.append(f"{provider}: {exc}")
+                continue
+            except (ClaudeCLIError, TimeoutError, ValueError) as exc:
+                attempts.append(f"{provider}: {exc}")
+                continue
+
+        if last_structured_error is not None:
+            raise StructuredLLMResponseError(
+                "All script LLM providers failed: " + " | ".join(attempts),
+                prompt=last_structured_error.prompt,
+                raw_output=last_structured_error.raw_output,
+                repaired_output=last_structured_error.repaired_output,
+                provider=last_structured_error.provider,
+                model=last_structured_error.model,
+            )
+
+        raise ClaudeCLIError("All script LLM providers failed: " + " | ".join(attempts))
 
     def _generate_script_chunked(
         self,
@@ -315,14 +360,9 @@ class ScriptStage:
             chunk_end=chunk_end,
             completed_scene_summaries=completed_scene_summaries,
         )
-        result = run_claude_json(
+        result = self._run_script_llm_json(
             prompt=prompt,
-            model=self.cfg.llm_model_name(),
-            system_prompt=self._system_prompt(),
             schema=self._schema(chunk_scene_count),
-            provider=self.cfg.llm_provider,
-            base_url=self.cfg.lmstudio_base_url,
-            api_key=self.cfg.lmstudio_api_key,
             timeout=self.cfg.script_timeout_sec,
             max_tokens=max(1400, chunk_scene_count * 650),
         )
@@ -444,14 +484,9 @@ class ScriptStage:
             invalid_chunk=invalid_chunk,
             chunk_scene_count=chunk_scene_count,
         )
-        repaired = run_claude_json(
+        repaired = self._run_script_llm_json(
             prompt=repair_prompt,
-            model=self.cfg.llm_model_name(),
-            system_prompt=self._system_prompt(),
             schema=self._schema(chunk_scene_count),
-            provider=self.cfg.llm_provider,
-            base_url=self.cfg.lmstudio_base_url,
-            api_key=self.cfg.lmstudio_api_key,
             timeout=self.cfg.script_timeout_sec,
             max_tokens=max(2500, chunk_scene_count * 1000),
         )
@@ -1100,13 +1135,16 @@ Return JSON only.
         payload = (
             f"{research_signature}\n"
             f"{self.cfg.llm_provider}\n"
+            f"{','.join(self.cfg.script_provider_sequence())}\n"
             f"{self.cfg.llm_model_name()}\n"
+            f"{self.cfg.claude_model}\n"
+            f"{self.cfg.codex_model}\n"
             f"{self.cfg.script_timeout_sec}\n"
             f"{self.cfg.script_chunk_size}\n"
             f"{mode}\n"
             f"{scene_count}\n"
             f"{acts}\n"
-            "chunked-script-v9"
+            "chunked-script-v10"
         ).encode("utf-8")
         return hashlib.sha256(payload).hexdigest()
 

@@ -71,22 +71,40 @@ class PipelineConfig:
 
     # ── Renderers ────────────────────────────────────────────────────
     claude_model: str = "claude-sonnet-4-6"
+    codex_model: str = "gpt-5.4"
     renderer_max_retries: int = 3
     render_workers: int = 1
     script_timeout_sec: int = 180
     script_chunk_size: int = 3
-    llm_provider: str = "lmstudio"   # claude | lmstudio
+    llm_provider: str = "lmstudio"   # claude | codex | lmstudio
+    script_backup_providers: list[str] = field(default_factory=lambda: ["claude", "codex"])
     llm_model: str = "qwen/qwen3.5-35b-a3b"
     lmstudio_base_url: str = "http://localhost:1234/v1"
     lmstudio_api_key: str = "lm-studio"
 
-    def llm_model_name(self) -> str:
-        """Return the exact model name the active LLM backend should use."""
-        if self.llm_provider == "lmstudio":
+    def llm_model_name_for(self, provider: str) -> str:
+        """Return the exact model name for the given LLM backend."""
+        if provider == "lmstudio":
             if not self.llm_model:
                 raise ValueError("llm_model must be set when llm_provider is lmstudio")
             return self.llm_model
+        if provider == "codex":
+            return self.codex_model
         return self.claude_model
+
+    def llm_model_name(self) -> str:
+        """Return the exact model name the active LLM backend should use."""
+        return self.llm_model_name_for(self.llm_provider)
+
+    def script_provider_sequence(self) -> list[str]:
+        providers: list[str] = []
+        for provider in [self.llm_provider, *self.script_backup_providers]:
+            normalized = str(provider).strip().lower()
+            if normalized not in {"lmstudio", "claude", "codex"}:
+                continue
+            if normalized not in providers:
+                providers.append(normalized)
+        return providers or ["lmstudio"]
 
     # ── TTS (Kokoro) ─────────────────────────────────────────────────
     tts_enabled: bool = True

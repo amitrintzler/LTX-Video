@@ -260,6 +260,10 @@ def run(
         cfg.llm_provider,
         cfg.llm_model_name(),
     )
+    log.info(
+        "Script provider ladder: %s",
+        " -> ".join(f"{provider}:{cfg.llm_model_name_for(provider)}" for provider in cfg.script_provider_sequence()),
+    )
     if cfg.llm_provider == "lmstudio":
         log.info("LM Studio base URL: %s", cfg.lmstudio_base_url)
 

@@ -209,15 +209,17 @@ The stitch stage auto-extends clips with a freeze of the last frame when narrati
 | `tts_voice` | `af_heart` | Kokoro voice |
 | `tts_enabled` | `true` | Enable local narration |
 | `output_mode` | `narrated` | Stitch mode |
-| `llm_provider` | `lmstudio` | `claude` or `lmstudio` |
+| `llm_provider` | `lmstudio` | Primary script backend: `claude`, `codex`, or `lmstudio` |
+| `script_backup_providers` | `["claude","codex"]` | Ordered backup backends for script generation |
 | `llm_model` | `qwen/qwen3.5-35b-a3b` | Local model name for LM Studio |
+| `codex_model` | `gpt-5.4` | Model for Codex CLI script fallback |
 | `lmstudio_base_url` | `http://localhost:1234/v1` | LM Studio OpenAI-compatible base URL |
 | `crossfade_sec` | `0.5` | Dissolve between scenes |
 | `output_crf` | `18` | Quality (lower = better) |
 | `renderer_max_retries` | `3` | Auto-retry failed scenes |
 | `script_timeout_sec` | `180` | Max seconds allowed for script generation before fallback |
 | `script_chunk_size` | `3` | Number of scenes generated per script LLM call |
-| `claude_model` | `claude-sonnet-4-6` | Model for code generation |
+| `claude_model` | `claude-sonnet-4-6` | Model for Claude CLI script fallback |
 
 ---
 

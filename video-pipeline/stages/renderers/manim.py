@@ -358,6 +358,8 @@ class _ManimCodeNormalizer(ast.NodeTransformer):
             self.changed = True
         if self._rewrite_bare_math_call(node):
             self.changed = True
+        if self._rewrite_numpy_point_array(node):
+            self.changed = True
         return node
 
     def visit_Assign(self, node: ast.Assign):  # type: ignore[override]
@@ -465,6 +467,26 @@ class _ManimCodeNormalizer(ast.NodeTransformer):
             ctx=ast.Load(),
         )
         self.needs_math_import = True
+        return True
+
+    @staticmethod
+    def _rewrite_numpy_point_array(call: ast.Call) -> bool:
+        if not isinstance(call.func, ast.Attribute):
+            return False
+        if call.func.attr != "array":
+            return False
+        if not isinstance(call.func.value, ast.Name) or call.func.value.id != "np":
+            return False
+        if len(call.args) != 1 or call.keywords:
+            return False
+
+        values = call.args[0]
+        if not isinstance(values, (ast.List, ast.Tuple)):
+            return False
+        if len(values.elts) != 2:
+            return False
+
+        values.elts.append(ast.Constant(value=0))
         return True
 
     @staticmethod

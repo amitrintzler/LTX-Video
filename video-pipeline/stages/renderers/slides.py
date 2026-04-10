@@ -789,8 +789,13 @@ def _text_width(draw: ImageDraw.ImageDraw, text: str, font) -> int:
 
 def _theme_from_style(style: str) -> tuple[str, str, str, str]:
     colors = re.findall(r"#[0-9a-fA-F]{6}", style or "")
-    bg = colors[0] if colors else "#0d1117"
-    primary = colors[1] if len(colors) > 1 else "#FFD700"
+    bg = "#0d1117"
+    primary = "#FFD700"
+    if colors:
+        for candidate in colors[:3]:
+            if candidate.lower() not in {"#0d1117", "#0b1021", "#111827", "#1f2937"}:
+                primary = candidate
+                break
     text = "#FFFFFF"
     muted = "#8B949E"
     return bg, primary, text, muted

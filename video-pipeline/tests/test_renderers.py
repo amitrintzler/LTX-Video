@@ -467,6 +467,28 @@ def test_slides_render_image_draws_visual_content_inside_hero_panel(tmp_path):
     assert len(colors) > 25
 
 
+def test_slides_theme_keeps_dark_background_even_with_light_scene_style(tmp_path):
+    from stages.renderers import slides as slides_mod
+
+    image_path = tmp_path / "theme.png"
+    slides_mod._render_slide_image(
+        title="Calls Rise, Puts Defend",
+        narration="A call gains value as price rises above the strike.",
+        description="A call gains value as price rises above the strike while a put gains value as price falls below it.",
+        style="Bright teal #22C55E, coral #FB7185, white text",
+        width=1280,
+        height=720,
+        out_path=image_path,
+    )
+
+    image = Image.open(image_path)
+    top_left = image.getpixel((20, 20))
+
+    assert top_left[0] < 40
+    assert top_left[1] < 40
+    assert top_left[2] < 60
+
+
 def test_html_anim_render_success(tmp_path):
     from stages.renderers import html_anim as html_mod
 

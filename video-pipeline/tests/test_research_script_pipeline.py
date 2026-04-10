@@ -215,8 +215,9 @@ def test_script_stage_writes_both_modes(tmp_path, log, monkeypatch):
     def fake_run_claude_json(**kwargs):
         assert kwargs["provider"] == "codex"
         assert kwargs["model"] == "gpt-5.4"
-        assert kwargs["timeout"] == cfg.script_timeout_sec
         title = "black-scholes-narrated" if "Mode: narrated" in kwargs["prompt"] else "black-scholes-companion-long"
+        expected_timeout = cfg.script_timeout_sec if title.endswith("narrated") else max(cfg.script_timeout_sec, 300)
+        assert kwargs["timeout"] == expected_timeout
         return _chunk_payload_from_prompt(kwargs["prompt"], title)
 
     monkeypatch.setattr("stages.script.run_claude_json", fake_run_claude_json)

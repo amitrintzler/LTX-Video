@@ -59,6 +59,12 @@ class ScriptStage:
             return [mode]
         raise ValueError("mode must be narrated, companion-long, or both")
 
+    def _script_timeout_for_mode(self, mode: str) -> int:
+        base = int(getattr(self.cfg, "script_timeout_sec", 180))
+        if mode == "companion-long":
+            return max(base, 300)
+        return base
+
     def _generate_script(
         self,
         topic: TopicInput,
@@ -75,6 +81,7 @@ class ScriptStage:
             scene_count = 24
             duration_target = 12
             acts = "Acts 1-4"
+        script_timeout = self._script_timeout_for_mode(mode)
 
         script_path = self.cfg.scripts_dir / f"{slug}-{mode}.json"
         meta_path = self.cfg.scripts_dir / f"{slug}-{mode}.meta.json"
@@ -127,6 +134,7 @@ class ScriptStage:
                 preferred_renderer=preferred_renderer,
                 research_text=research_text,
                 outline_text=outline_text,
+                script_timeout=script_timeout,
             )
             script = self._ensure_primary_renderer(script, preferred_renderer)
         except (ClaudeCLIError, ValueError, TimeoutError) as exc:
@@ -241,6 +249,7 @@ class ScriptStage:
         preferred_renderer: str,
         research_text: str,
         outline_text: str,
+        script_timeout: int,
     ) -> dict:
         chunk_size = max(1, int(getattr(self.cfg, "script_chunk_size", scene_count)))
         ranges = self._scene_ranges(scene_count, chunk_size)
@@ -270,6 +279,7 @@ class ScriptStage:
                     preferred_renderer=preferred_renderer,
                     research_text=research_text,
                     outline_text=outline_text,
+                    script_timeout=script_timeout,
                     chunk_index=chunk_index,
                     chunk_total=len(ranges),
                     chunk_start=start,
@@ -299,6 +309,7 @@ class ScriptStage:
                         preferred_renderer=preferred_renderer,
                         research_text=research_text,
                         outline_text=outline_text,
+                        script_timeout=script_timeout,
                         chunk_index=chunk_index,
                         chunk_total=len(ranges),
                         chunk_start=start,
@@ -348,6 +359,7 @@ class ScriptStage:
         preferred_renderer: str,
         research_text: str,
         outline_text: str,
+        script_timeout: int,
         chunk_index: int,
         chunk_total: int,
         chunk_start: int,
@@ -365,6 +377,7 @@ class ScriptStage:
             preferred_renderer=preferred_renderer,
             research_text=research_text,
             outline_text=outline_text,
+            script_timeout=script_timeout,
             chunk_index=chunk_index,
             chunk_total=chunk_total,
             chunk_start=chunk_start,
@@ -374,7 +387,7 @@ class ScriptStage:
         result = self._run_script_llm_json(
             prompt=prompt,
             scene_count=chunk_scene_count,
-            timeout=self.cfg.script_timeout_sec,
+            timeout=script_timeout,
             max_tokens=max(1400, chunk_scene_count * 650),
         )
 
@@ -390,6 +403,7 @@ class ScriptStage:
                 preferred_renderer=preferred_renderer,
                 research_text=research_text,
                 outline_text=outline_text,
+                script_timeout=script_timeout,
                 chunk_index=chunk_index,
                 chunk_total=chunk_total,
                 chunk_start=chunk_start,
@@ -412,6 +426,7 @@ class ScriptStage:
         preferred_renderer: str,
         research_text: str,
         outline_text: str,
+        script_timeout: int,
         chunk_index: int,
         chunk_total: int,
         chunk_start: int,
@@ -433,6 +448,7 @@ class ScriptStage:
                     preferred_renderer=preferred_renderer,
                     research_text=research_text,
                     outline_text=outline_text,
+                    script_timeout=script_timeout,
                     chunk_index=scene_number,
                     chunk_total=scene_count,
                     chunk_start=scene_number,
@@ -469,6 +485,7 @@ class ScriptStage:
         preferred_renderer: str,
         research_text: str,
         outline_text: str,
+        script_timeout: int,
         chunk_index: int,
         chunk_total: int,
         chunk_start: int,
@@ -487,6 +504,7 @@ class ScriptStage:
             preferred_renderer=preferred_renderer,
             research_text=research_text,
             outline_text=outline_text,
+            script_timeout=script_timeout,
             chunk_index=chunk_index,
             chunk_total=chunk_total,
             chunk_start=chunk_start,
@@ -498,7 +516,7 @@ class ScriptStage:
         repaired = self._run_script_llm_json(
             prompt=repair_prompt,
             scene_count=chunk_scene_count,
-            timeout=self.cfg.script_timeout_sec,
+            timeout=script_timeout,
             max_tokens=max(2500, chunk_scene_count * 1000),
         )
         repaired_script = self._normalize_script(repaired)
@@ -1031,6 +1049,7 @@ class ScriptStage:
         preferred_renderer: str,
         research_text: str,
         outline_text: str,
+        script_timeout: int,
         chunk_index: int,
         chunk_total: int,
         chunk_start: int,
@@ -1050,6 +1069,7 @@ Target scene count: {scene_count}
 Chunk: {chunk_index}/{chunk_total}
 This chunk must produce scenes s{chunk_start:02d} through s{chunk_end:02d}.
 Average duration target per scene: {duration_target} seconds
+Script timeout budget: {script_timeout} seconds
 Use only {acts} from the outline.
 
 Topic document:
@@ -1096,6 +1116,7 @@ Rules:
         preferred_renderer: str,
         research_text: str,
         outline_text: str,
+        script_timeout: int,
         chunk_index: int,
         chunk_total: int,
         chunk_start: int,
@@ -1114,6 +1135,7 @@ Rules:
             preferred_renderer=preferred_renderer,
             research_text=research_text,
             outline_text=outline_text,
+            script_timeout=script_timeout,
             chunk_index=chunk_index,
             chunk_total=chunk_total,
             chunk_start=chunk_start,

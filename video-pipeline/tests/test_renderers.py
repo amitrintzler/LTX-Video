@@ -3,6 +3,7 @@ import logging
 import sys
 from pathlib import Path
 from unittest.mock import MagicMock, patch
+from PIL import Image
 import pytest
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
@@ -415,6 +416,52 @@ def test_slides_render_success(tmp_path):
 
     assert result == out_path
     encode_call.assert_called_once()
+
+
+def test_slides_visual_kind_routes_common_scene_types():
+    from stages.renderers import slides as slides_mod
+
+    assert slides_mod._scene_visual_kind("Flow Signal", "", "") == "flow"
+    assert slides_mod._scene_visual_kind("Call Payoff", "", "") == "payoff"
+    assert slides_mod._scene_visual_kind("Strike Ladder", "", "") == "ladder"
+    assert slides_mod._scene_visual_kind("Theta Decay", "", "") == "time"
+    assert slides_mod._scene_visual_kind("Volume vs Open Interest", "", "") == "bars"
+
+
+def test_slides_scene_mechanics_are_concise_and_not_prompt_dump():
+    from stages.renderers import slides as slides_mod
+
+    bullets = slides_mod._scene_mechanics(
+        "flow",
+        "Flow Signal",
+        "Use one signal marker, one short caption, and one arrow showing the direction of the move.",
+    )
+
+    assert bullets
+    assert all(len(item) <= 48 for item in bullets)
+    assert "one arrow showing the direction of the move" not in " ".join(bullets)
+
+
+def test_slides_render_image_draws_visual_content_inside_hero_panel(tmp_path):
+    from stages.renderers import slides as slides_mod
+
+    image_path = tmp_path / "slide.png"
+    slides_mod._render_slide_image(
+        title="Flow Signal",
+        narration="Explain what makes the signal worth watching.",
+        description="Highlight unusual premium, confirm the move, and keep the cue readable.",
+        style="dark background #0d1117, primary #FFD700, text #FFFFFF",
+        width=1280,
+        height=720,
+        out_path=image_path,
+    )
+
+    image = Image.open(image_path)
+    crop = image.crop((120, 220, 780, 560))
+    colors = crop.getcolors(maxcolors=1_000_000)
+
+    assert colors is not None
+    assert len(colors) > 25
 
 
 def test_html_anim_render_success(tmp_path):

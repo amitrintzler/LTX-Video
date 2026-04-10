@@ -220,10 +220,10 @@ def _run_new_pipeline_for_script(
 
     if "tts" in stages_to_run:
         log.info("━━━ TTS stage ━━━")
-        if output_mode == "narrated":
+        if output_mode in {"narrated", "companion-long"}:
             TTSStage(cfg, log).run(runtime_scenes, runtime_title)
         else:
-            log.info("  TTS skipped — companion-long output is silent")
+            log.info("  TTS skipped — silent companion output")
 
     if "stitch" in stages_to_run:
         log.info("━━━ Stitch stage ━━━")

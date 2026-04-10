@@ -52,19 +52,21 @@ bash "$PIPELINE_LAUNCHER" "$TOPIC_JSON" --work-dir "$WORK_DIR" "${PIPELINE_ARGS[
 
 mkdir -p "$DEST_DIR"
 
-FULL_VIDEO="$(find "$OUTPUT_DIR" -maxdepth 1 -name "*-narrated.mp4" 2>/dev/null | sort | tail -1)"
-if [ -z "$FULL_VIDEO" ]; then
-  FULL_VIDEO="$(find "$OUTPUT_DIR" -maxdepth 1 -name "*.mp4" 2>/dev/null | grep -v "companion" | sort | tail -1)"
+SHORT_VIDEO="$(find "$OUTPUT_DIR" -maxdepth 1 -name "*-narrated.mp4" 2>/dev/null | sort | tail -1)"
+if [ -z "$SHORT_VIDEO" ]; then
+  SHORT_VIDEO="$(find "$OUTPUT_DIR" -maxdepth 1 -name "*.mp4" 2>/dev/null | grep -v "companion" | sort | tail -1)"
 fi
-if [ -n "$FULL_VIDEO" ]; then
-  cp "$FULL_VIDEO" "$DEST_DIR/${SLUG}.mp4"
-  echo "Full video -> $DEST_DIR/${SLUG}.mp4"
+if [ -n "$SHORT_VIDEO" ]; then
+  cp "$SHORT_VIDEO" "$DEST_DIR/${SLUG}-short.mp4"
+  cp "$SHORT_VIDEO" "$DEST_DIR/${SLUG}.mp4"
+  echo "Short video -> $DEST_DIR/${SLUG}-short.mp4"
+  echo "Primary     -> $DEST_DIR/${SLUG}.mp4"
 else
-  echo "Warning: no full video found in $OUTPUT_DIR" >&2
+  echo "Warning: no short video found in $OUTPUT_DIR" >&2
 fi
 
-PREVIEW="$(find "$OUTPUT_DIR" -maxdepth 1 -name "*-companion-short.mp4" 2>/dev/null | sort | tail -1)"
-if [ -n "$PREVIEW" ]; then
-  cp "$PREVIEW" "$DEST_DIR/${SLUG}-preview.mp4"
-  echo "Preview   -> $DEST_DIR/${SLUG}-preview.mp4"
+LONG_VIDEO="$(find "$OUTPUT_DIR" -maxdepth 1 -name "*-companion-long.mp4" 2>/dev/null | sort | tail -1)"
+if [ -n "$LONG_VIDEO" ]; then
+  cp "$LONG_VIDEO" "$DEST_DIR/${SLUG}-long.mp4"
+  echo "Long video  -> $DEST_DIR/${SLUG}-long.mp4"
 fi

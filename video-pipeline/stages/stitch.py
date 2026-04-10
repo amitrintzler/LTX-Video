@@ -4,7 +4,7 @@ stages/stitch.py — Stage 3: Stitch scene clips -> final video
 Supports three output modes:
   narrated        — mux TTS audio per scene, then concat with xfade
   companion-short — concat video clips only (no audio), same scenes as narrated
-  companion-long  — concat video clips only (no audio), extended scene set
+  companion-long  — mux TTS audio per scene for the extended scene set
 
 Output filenames:
   output/<title>-narrated.mp4
@@ -44,11 +44,12 @@ class StitchStage:
             "companion-long": "companion-long",
         }
         suffix = suffix_map.get(output_mode, output_mode)
-        out_path = out_dir / f"{safe_title}-{suffix}.mp4"
+        out_basename = safe_title if safe_title.endswith(f"-{suffix}") else f"{safe_title}-{suffix}"
+        out_path = out_dir / f"{out_basename}.mp4"
 
         self.log.info(f"  Stitching {len(clips)} clips — mode={output_mode}")
 
-        if output_mode == "narrated":
+        if output_mode in {"narrated", "companion-long"}:
             muxed = self._mux_audio_per_scene(clips, clips_dir, scenes)
             self._stitch_with_xfade(muxed, out_path)
         else:

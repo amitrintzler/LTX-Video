@@ -245,7 +245,7 @@ def test_script_stage_normalizes_wrapped_cache(tmp_path, log, monkeypatch):
 
     monkeypatch.setattr(stage, "_ensure_research", lambda topic, slug: (research_path, outline_path))
 
-    payload = _script_payload(title="black-scholes-narrated", scene_count=22)
+    payload = _script_payload(title="black-scholes-narrated", scene_count=9)
     wrapped_path = cfg.scripts_dir / f"{slug}-narrated.json"
     script_meta_path = cfg.scripts_dir / f"{slug}-narrated.meta.json"
     wrapped_path.parent.mkdir(parents=True, exist_ok=True)
@@ -267,7 +267,7 @@ def test_script_stage_normalizes_wrapped_cache(tmp_path, log, monkeypatch):
                 "script_signature": stage._script_signature(
                     research_signature=research_signature,
                     mode="narrated",
-                    scene_count=22,
+                    scene_count=9,
                     acts="Acts 1-3",
                 ),
                 "topic_title": topic,
@@ -328,7 +328,7 @@ def test_script_stage_repairs_chunked_json_before_fallback(tmp_path, log, monkey
     from stages.script import ScriptStage
 
     cfg = PipelineConfig(work_dir=str(tmp_path))
-    cfg.script_chunk_size = 22
+    cfg.script_chunk_size = 9
     stage = ScriptStage(cfg, log)
     topic = _topic_payload("Sample Topic")
     slug = topic_slug(topic)
@@ -350,7 +350,7 @@ def test_script_stage_repairs_chunked_json_before_fallback(tmp_path, log, monkey
         assert kwargs["timeout"] == cfg.script_timeout_sec
         if calls["count"] == 1:
             return _script_payload(title=f"{slug}-narrated", scene_count=1)
-        return _script_payload(title=f"{slug}-narrated", scene_count=22)
+        return _script_payload(title=f"{slug}-narrated", scene_count=9)
 
     monkeypatch.setattr("stages.script.run_claude_json", fake_run_claude_json)
 
@@ -358,7 +358,7 @@ def test_script_stage_repairs_chunked_json_before_fallback(tmp_path, log, monkey
 
     assert len(outputs) == 1
     script = json.loads(outputs[0].read_text())
-    assert len(script["scenes"]) == 22
+    assert len(script["scenes"]) == 9
     assert script["title"] == f"{slug}-narrated"
     assert calls["count"] == 2
 
@@ -386,7 +386,7 @@ def test_script_stage_retries_chunk_scene_by_scene_before_full_fallback(tmp_path
     def fake_run_claude_json(**kwargs):
         prompt = kwargs["prompt"]
         calls.append(prompt)
-        if "Chunk: 1/8" in prompt and "scenes s01 through s03" in prompt:
+        if "Chunk: 1/3" in prompt and "scenes s01 through s03" in prompt:
             raise StructuredLLMResponseError(
                 "LLM backend did not return valid JSON",
                 prompt=prompt,
@@ -400,7 +400,7 @@ def test_script_stage_retries_chunk_scene_by_scene_before_full_fallback(tmp_path
     outputs = stage.run(topic, mode="narrated")
 
     script = json.loads(outputs[0].read_text())
-    assert len(script["scenes"]) == 22
+    assert len(script["scenes"]) == 9
     assert script["title"] == f"{slug}-narrated"
     assert any("scenes s01 through s01" in prompt for prompt in calls)
     assert any("scenes s02 through s02" in prompt for prompt in calls)
@@ -427,7 +427,7 @@ def test_script_stage_uses_scene_level_fallback_before_full_fallback(tmp_path, l
 
     def fake_run_claude_json(**kwargs):
         prompt = kwargs["prompt"]
-        if "Chunk: 1/8" in prompt and "scenes s01 through s03" in prompt:
+        if "Chunk: 1/3" in prompt and "scenes s01 through s03" in prompt:
             raise ClaudeCLIError("LM Studio returned empty output")
         if "scenes s01 through s01" in prompt:
             raise ClaudeCLIError("LM Studio returned empty output")
@@ -438,7 +438,7 @@ def test_script_stage_uses_scene_level_fallback_before_full_fallback(tmp_path, l
     outputs = stage.run(topic, mode="narrated")
 
     script = json.loads(outputs[0].read_text())
-    assert len(script["scenes"]) == 22
+    assert len(script["scenes"]) == 9
     assert script["scenes"][0]["renderer"] == "slides"
     assert any(scene["renderer"] != "slides" for scene in script["scenes"][1:])
 
@@ -476,7 +476,7 @@ def test_script_stage_tries_backup_provider_before_scene_fallback(tmp_path, log,
     outputs = stage.run(topic, mode="narrated")
 
     script = json.loads(outputs[0].read_text())
-    assert len(script["scenes"]) == 22
+    assert len(script["scenes"]) == 9
     assert provider_calls[0] == "lmstudio"
     assert provider_calls[1] == "claude"
     assert "codex" not in provider_calls[:2]
@@ -515,7 +515,7 @@ def test_script_stage_tries_codex_after_claude_backup_fails(tmp_path, log, monke
     outputs = stage.run(topic, mode="narrated")
 
     script = json.loads(outputs[0].read_text())
-    assert len(script["scenes"]) == 22
+    assert len(script["scenes"]) == 9
     assert provider_calls[:3] == ["lmstudio", "claude", "codex"]
 
 
@@ -543,10 +543,10 @@ def test_fallback_script_uses_full_scene_counts(tmp_path, log):
         outline_text="Outline text.",
     )
 
-    assert len(narrated["scenes"]) == 22
+    assert len(narrated["scenes"]) == 9
     assert narrated["primary_renderer"] == "slides"
-    assert narrated["quality_summary"]["fallback_scene_count"] == 22
-    assert narrated["scenes"][0]["duration_sec"] == 4
+    assert narrated["quality_summary"]["fallback_scene_count"] == 9
+    assert narrated["scenes"][0]["duration_sec"] == 10
     assert narrated["scenes"][0]["renderer"] == "slides"
     assert narrated["scenes"][0]["generation_origin"] == "deterministic_fallback"
     assert narrated["scenes"][1]["renderer"] == "slides"
@@ -555,11 +555,11 @@ def test_fallback_script_uses_full_scene_counts(tmp_path, log):
     assert narrated["scenes"][5]["layout_hint"].startswith("Use a left-to-right story")
     assert "middle 40 percent empty" in narrated["scenes"][7]["layout_hint"]
     assert "far left edge as a narrow vertical rail" in narrated["scenes"][7]["description"]
-    assert len(companion_long["scenes"]) == 50
+    assert len(companion_long["scenes"]) == 24
     assert companion_long["primary_renderer"] == "slides"
-    assert companion_long["quality_summary"]["fallback_scene_count"] == 50
+    assert companion_long["quality_summary"]["fallback_scene_count"] == 24
     assert all(scene["renderer"] == "slides" for scene in companion_long["scenes"])
-    assert companion_long["scenes"][0]["duration_sec"] == 6
+    assert companion_long["scenes"][0]["duration_sec"] == 12
     assert "Keep the title in the top band" in companion_long["scenes"][0]["layout_hint"]
     assert "side-by-side comparison layout" in stage._fallback_layout_hint(
         "Comparison", "Compare the two cases.", "Comparison"
@@ -706,6 +706,7 @@ def test_topic_all_routes_through_new_flow(tmp_path, log, monkeypatch):
     assert ("render", f"{slug}-narrated", "manim", 3) in calls
     assert ("render", f"{slug}-companion-long", "manim", 3) in calls
     assert ("tts", f"{slug}-narrated", 3) in calls
+    assert ("tts", f"{slug}-companion-long", 3) in calls
     assert ("stitch", f"{slug}-narrated", "narrated", 3) in calls
     assert ("stitch", f"{slug}-narrated", "companion-short", 3) in calls
     assert ("stitch", f"{slug}-companion-long", "companion-long", 3) in calls

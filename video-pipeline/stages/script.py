@@ -68,12 +68,12 @@ class ScriptStage:
         outline_path: Path,
     ) -> Path:
         if mode == "narrated":
-            scene_count = 22
-            duration_target = 14
+            scene_count = 9
+            duration_target = 10
             acts = "Acts 1-3"
         else:
-            scene_count = 50
-            duration_target = 15
+            scene_count = 24
+            duration_target = 12
             acts = "Acts 1-4"
 
         script_path = self.cfg.scripts_dir / f"{slug}-{mode}.json"
@@ -639,7 +639,7 @@ class ScriptStage:
         return {
             "title": title,
             "renderer": "slides",
-            "duration_sec": 4 if mode == "narrated" else 6,
+            "duration_sec": 10 if mode == "narrated" else 12,
             "narration": narration,
             "description": description,
             "style": "dark background #0d1117, primary #FFD700, success #00C896, text #FFFFFF",
@@ -669,7 +669,7 @@ class ScriptStage:
                     "id": f"s{idx:02d}",
                     "renderer": primary_renderer,
                     "title": scene_title,
-                    "duration_sec": 4 if mode == "narrated" else 6,
+                    "duration_sec": 10 if mode == "narrated" else 12,
                     "narration": narration,
                     "description": description,
                     "layout_hint": layout_hint,
@@ -836,6 +836,9 @@ class ScriptStage:
             ),
         ]
 
+        if mode == "narrated":
+            return narrated_specs[:9]
+
         if mode == "companion-long":
             extra_titles = [
                 "Market Context",
@@ -876,7 +879,7 @@ class ScriptStage:
                     )
                 )
 
-        return narrated_specs
+        return narrated_specs[:24]
 
     @staticmethod
     def _fallback_layout_hint(scene_title: str, narration: str, description: str) -> str:

@@ -76,8 +76,6 @@ def _render_slide_image(
     rail_font = _load_font(int(height * 0.023))
     small_font = _load_font(int(height * 0.018))
 
-    kicker = "Research-backed explainer"
-    draw.text((margin_x, top_y - 30), kicker, font=small_font, fill=accent_color)
     _draw_wrapped_text(
         draw,
         title,
@@ -147,9 +145,9 @@ def _render_slide_image(
         },
     )
 
-    bullets = _scene_mechanics(visual_kind, title, description)
+    bullets = _content_bullets(title, narration, description, visual_kind)
     rail_title_y = rail_box[1]
-    draw.text((rail_box[0], rail_title_y), "Scene mechanics", font=subtitle_font, fill=accent_color)
+    draw.text((rail_box[0], rail_title_y), "Key ideas", font=subtitle_font, fill=accent_color)
     chip_top = rail_title_y + 52
     chip_gap = 18
     chip_h = 96
@@ -170,16 +168,6 @@ def _render_slide_image(
             line_spacing=8,
         )
         chip_top += chip_h + chip_gap
-
-    footer_y = int(height * 0.90)
-    draw.line((margin_x, footer_y, width - margin_x, footer_y), fill=panel_edge, width=2)
-    draw.text((margin_x, footer_y + 16), "Scene-built slide visual", font=small_font, fill=muted_color)
-    draw.text(
-        (width - margin_x - 160, footer_y + 16),
-        f"{width} x {height}",
-        font=small_font,
-        fill=muted_color,
-    )
 
     out_path.parent.mkdir(parents=True, exist_ok=True)
     image.save(out_path)
@@ -241,18 +229,18 @@ def _draw_background(draw: ImageDraw.ImageDraw, width: int, height: int, bg_colo
 
 def _scene_visual_kind(title: str, description: str, narration: str) -> str:
     text = " ".join([title, description, narration]).lower()
+    if any(token in text for token in ("call", "put", "payoff", "premium", "breakeven")):
+        return "payoff"
     if any(token in text for token in ("volume", "open interest", "oi", "contract count")):
         return "bars"
-    if any(token in text for token in ("theta", "expiration", "expiry", "time decay", "days to")):
-        return "time"
     if any(token in text for token in ("strike ladder", "strike map", "strike wall")):
         return "ladder"
     if any(token in text for token in ("buyer", "seller", "bid", "ask", "sweep")):
         return "pressure"
-    if any(token in text for token in ("call", "put", "payoff", "premium", "breakeven")):
-        return "payoff"
     if any(token in text for token in ("delta", "gamma", "curve", "convexity")):
         return "curve"
+    if any(token in text for token in ("theta", "expiration", "expiry", "time decay", "days to")):
+        return "time"
     if any(token in text for token in ("checklist", "trap", "terms", "definition", "steps")):
         return "list"
     if any(token in text for token in ("flow", "signal", "unusual")):
@@ -339,6 +327,45 @@ def _scene_mechanics(kind: str, title: str, description: str) -> list[str]:
                 tag = tag[:41].rstrip() + "..."
             bullets[0] = tag
     return bullets
+
+
+def _content_bullets(title: str, narration: str, description: str, kind: str) -> list[str]:
+    sentence_source = narration.strip() or ""
+    sentences = [item.strip() for item in re.split(r"(?<=[.!?])\s+", sentence_source) if item.strip()]
+    bullets: list[str] = []
+    for sentence in sentences:
+        cleaned = _compress_bullet(sentence)
+        if cleaned and cleaned not in bullets:
+            bullets.append(cleaned)
+        if len(bullets) == 3:
+            break
+
+    if bullets:
+        return bullets
+
+    bullets = []
+    title_line = title.strip()
+    if title_line:
+        bullets.append(_compress_bullet(title_line))
+
+    bullets.extend(_scene_mechanics(kind, title, description)[:2])
+    deduped: list[str] = []
+    for bullet in bullets:
+        if bullet and bullet not in deduped:
+            deduped.append(bullet)
+    return deduped[:3]
+
+
+def _compress_bullet(text: str) -> str:
+    cleaned = re.sub(r"\s+", " ", text).strip(" -")
+    cleaned = re.sub(r"^(now|next|then)\s+", "", cleaned, flags=re.IGNORECASE)
+    cleaned = cleaned.rstrip(".")
+    if len(cleaned) > 78:
+        parts = re.split(r",|;| so | because | while ", cleaned, maxsplit=1)
+        cleaned = parts[0].strip()
+    if len(cleaned) > 58:
+        cleaned = cleaned[:55].rstrip() + "..."
+    return cleaned
 
 
 def _draw_hero_visual(

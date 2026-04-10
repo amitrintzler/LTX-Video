@@ -431,15 +431,18 @@ def test_slides_visual_kind_routes_common_scene_types():
 def test_slides_scene_mechanics_are_concise_and_not_prompt_dump():
     from stages.renderers import slides as slides_mod
 
-    bullets = slides_mod._scene_mechanics(
-        "flow",
+    bullets = slides_mod._content_bullets(
         "Flow Signal",
+        "A premium spike matters only when follow-through confirms the move. Watch the break in tempo, then confirm the second push.",
         "Use one signal marker, one short caption, and one arrow showing the direction of the move.",
+        "flow",
     )
 
     assert bullets
-    assert all(len(item) <= 48 for item in bullets)
-    assert "one arrow showing the direction of the move" not in " ".join(bullets)
+    assert all(len(item) <= 58 for item in bullets)
+    joined = " ".join(bullets)
+    assert "one arrow showing the direction of the move" not in joined
+    assert "follow-through" in joined
 
 
 def test_slides_render_image_draws_visual_content_inside_hero_panel(tmp_path):

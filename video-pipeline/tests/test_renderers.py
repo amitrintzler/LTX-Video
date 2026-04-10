@@ -346,7 +346,6 @@ def test_render_stage_appends_layout_hint_for_manim(tmp_path):
         "id": "s01",
         "renderer": "manim",
         "description": "Compare two outcomes side by side.",
-        "layout_hint": "Use a strict side-by-side comparison layout with left and right edge labels.",
         "duration_sec": 8,
         "style": "dark background #0a0a0a, white text",
     }
@@ -365,7 +364,30 @@ def test_render_stage_appends_layout_hint_for_manim(tmp_path):
 
     sanitized_scene = fake_renderer.render.call_args.args[0]
     assert "Layout hint:" in sanitized_scene["description"]
-    assert "strict side-by-side comparison layout" in sanitized_scene["description"]
+    assert "left" in sanitized_scene["layout_hint"].lower()
+    assert "right" in sanitized_scene["layout_hint"].lower()
+    assert "sparse diagram" in sanitized_scene["layout_hint"].lower()
+
+
+def test_render_stage_generates_manim_layout_hint_from_topic(tmp_path):
+    from stages.render import RenderStage
+
+    cfg = _manim_cfg()
+    stage = RenderStage(cfg, logging.getLogger("test"))
+    scene = {
+        "id": "s01",
+        "renderer": "manim",
+        "title": "Strike, Premium, and Breakeven",
+        "description": "Show the payoff curve and keep labels on chart corners.",
+        "duration_sec": 8,
+        "style": "dark background #0a0a0a, white text",
+    }
+
+    sanitized = stage._scene_for_renderer(scene, "manim")
+
+    assert "left strike ladder" in sanitized["layout_hint"].lower()
+    assert "right legend panel" in sanitized["layout_hint"].lower()
+    assert "Layout hint:" in sanitized["description"]
 
 
 def test_render_stage_falls_back_to_slides_when_latex_missing(tmp_path):

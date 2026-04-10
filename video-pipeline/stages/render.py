@@ -78,14 +78,18 @@ class RenderStage:
         if renderer_name != "manim" or not isinstance(scene, dict):
             return scene
 
+        source_scene = dict(scene)
         sanitized = dict(scene)
         description = sanitized.get("description")
         if isinstance(description, str) and description.strip():
             sanitized["description"] = self._sanitize_manim_description(description)
-        layout_hint = sanitized.get("layout_hint")
-        if isinstance(layout_hint, str) and layout_hint.strip():
-            hint = self._sanitize_manim_description(layout_hint)
-            sanitized["description"] = f"{sanitized['description']}\n\nLayout hint: {hint}"
+        generated_hint = self._generate_manim_layout_hint(source_scene)
+        if generated_hint:
+            clean_hint = self._sanitize_manim_description(generated_hint)
+            sanitized["layout_hint"] = clean_hint
+            sanitized["description"] = (
+                f"{sanitized['description']}\n\nLayout hint: {clean_hint}"
+            )
         return sanitized
 
     @staticmethod
@@ -95,6 +99,17 @@ class RenderStage:
         text = re.sub(r"\\[a-zA-Z]+", " ", text)
         text = text.replace("_", " ")
         text = text.replace("^", " ")
+        text = re.sub(r"\btop center\b", "top band", text, flags=re.I)
+        text = re.sub(r"\bupper center\b", "top band", text, flags=re.I)
+        text = re.sub(r"\bbottom center\b", "bottom band", text, flags=re.I)
+        text = re.sub(r"\blower center\b", "bottom band", text, flags=re.I)
+        text = re.sub(r"\bcenter of the frame\b", "outer edges", text, flags=re.I)
+        text = re.sub(r"\bcenter of frame\b", "outer edges", text, flags=re.I)
+        text = re.sub(r"\bcentered on screen\b", "anchored in the main diagram zone", text, flags=re.I)
+        text = re.sub(r"\bcentered on the screen\b", "anchored in the main diagram zone", text, flags=re.I)
+        text = re.sub(r"\bcentered\b", "anchored", text, flags=re.I)
+        text = re.sub(r"\bcentral\b", "main", text, flags=re.I)
+        text = re.sub(r"\bcenter\b", "outer edges", text, flags=re.I)
         text = re.sub(r"\s+", " ", text).strip()
 
         safety_note = (
@@ -107,3 +122,34 @@ class RenderStage:
         if safety_note.strip() not in text:
             text = f"{text.rstrip('.')}." + safety_note
         return text
+
+    @staticmethod
+    def _generate_manim_layout_hint(scene: dict) -> str:
+        text = " ".join(
+            str(scene.get(key) or "")
+            for key in ("title", "narration", "description")
+        ).lower()
+        if any(token in text for token in ("call", "put", "payoff", "breakeven", "premium", "strike")):
+            return (
+                "Use a left strike ladder, a wide payoff chart across the lower frame, and a right legend panel. "
+                "Keep labels on chart corners or side panels, not in the middle of the frame."
+            )
+        if any(token in text for token in ("theta", "expiration", "time decay", "days", "timing")):
+            return (
+                "Use a left contract card, a wide timeline or curve across the lower frame, and a right-side gauge. "
+                "Keep the timeline labels on the outer edges and leave the middle clear."
+            )
+        if any(token in text for token in ("delta", "gamma", "curve")):
+            return (
+                "Use one dominant curve with short callouts pinned to the edges. "
+                "Do not place explanatory paragraphs over the curve."
+            )
+        if any(token in text for token in ("flow", "signal", "volume", "open interest")):
+            return (
+                "Use a two-column layout with a left signal source and a right evidence panel. "
+                "Keep the middle lane for arrows or the main path only."
+            )
+        return (
+            "Use a sparse diagram with the title in the top band and supporting text in side panels. "
+            "Keep all non-essential labels outside the central band."
+        )

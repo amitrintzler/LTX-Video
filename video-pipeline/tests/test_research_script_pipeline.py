@@ -566,6 +566,26 @@ def test_fallback_script_uses_full_scene_counts(tmp_path, log):
     )
 
 
+def test_fallback_brief_is_compact_and_scene_aligned(tmp_path, log):
+    from stages.script import ScriptStage
+
+    cfg = PipelineConfig(work_dir=str(tmp_path))
+    stage = ScriptStage(cfg, log)
+    topic = _topic_payload("Options flow in 90 seconds")
+
+    brief = stage._fallback_brief(
+        topic=topic,
+        topic_name="Options flow in 90 seconds",
+        research_text="Research text.",
+        outline_text="Outline text.",
+    )
+
+    assert len(brief.split()) <= 18
+    assert "key term" in brief.lower()
+    assert "visual hook" in brief.lower()
+    assert "research stage" not in brief.lower()
+
+
 def test_script_stage_falls_back_when_llm_fails(tmp_path, log, monkeypatch):
     from stages.script import ScriptStage
     from stages.claude_client import ClaudeCLIError

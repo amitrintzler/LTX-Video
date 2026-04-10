@@ -926,18 +926,29 @@ class ScriptStage:
         research_text: str,
         outline_text: str,
     ) -> str:
+        def _compact(value: str) -> str:
+            cleaned = " ".join(value.split()).strip().rstrip(".")
+            if len(cleaned) > 220:
+                cleaned = cleaned[:217].rstrip() + "..."
+            return cleaned
+
         if isinstance(topic, dict):
-            brief = str(topic.get("brief") or topic.get("prompt_summary") or "").strip()
-            if brief:
-                return brief
+            key_terms = self._topic_list_from_topic(topic, "key_terms")[:5]
+            visual_hooks = self._topic_list_from_topic(topic, "visual_hooks")[:3]
+            learning_goals = self._topic_list_from_topic(topic, "learning_goals")[:3]
+            cues = [item for item in [*key_terms, *visual_hooks, *learning_goals] if item]
+            if cues:
+                return _compact(f"{topic_name}: " + ", ".join(cues[:6]))
+            topic_brief = str(topic.get("brief") or "").strip()
+            prompt_summary = str(topic.get("prompt_summary") or "").strip()
             description = str(topic.get("description") or "").strip()
-            if description:
-                return description
+            if topic_brief or prompt_summary or description:
+                return _compact(topic_brief or prompt_summary or description)
         for text in (research_text, outline_text):
             cleaned = " ".join(text.split()).strip()
             if cleaned:
-                return cleaned[:240]
-        return f"A topic-driven lesson on {topic_name}."
+                return _compact(f"{topic_name}: {cleaned[:220]}")
+        return f"{topic_name}: core concepts, payoff curve, strike ladder, breakeven."
 
     @staticmethod
     def _topic_notes(topic: TopicInput) -> list[str]:

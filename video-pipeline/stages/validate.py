@@ -233,6 +233,9 @@ class ValidationStage:
         "over", "under", "then", "than", "so", "if", "no", "not", "up", "do",
         "can", "will", "which", "who", "how", "what", "when", "where", "video",
         "scene", "cinematic", "camera", "show", "showing", "create", "make",
+        "broad", "lesson", "seed", "frames", "expand", "drifting", "generic",
+        "market", "snapshot", "research", "stage", "script", "generation",
+        "context", "downstream", "before", "enough", "should", "give", "topic",
     }
 
     def _check_content_relevance(self, script: dict, scenes: list[dict]):

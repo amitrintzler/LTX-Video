@@ -88,6 +88,46 @@ def _run_validation(log: logging.Logger, cfg: PipelineConfig, script: dict, scen
     ValidationStage(cfg, log).run(script, scenes, title)
 
 
+def _enforce_quality_gate(log: logging.Logger, cfg: PipelineConfig, script: dict, scenes: list[dict], title: str):
+    if not getattr(cfg, "block_degraded_output", True):
+        return
+
+    quality_summary = script.get("quality_summary") if isinstance(script, dict) else None
+    fallback_count = 0
+    if isinstance(quality_summary, dict):
+        try:
+            fallback_count = int(quality_summary.get("fallback_scene_count") or 0)
+        except (TypeError, ValueError):
+            fallback_count = 0
+
+    if fallback_count == 0:
+        fallback_count = sum(
+            1
+            for scene in scenes
+            if isinstance(scene, dict) and scene.get("generation_origin") == "deterministic_fallback"
+        )
+
+    total = len(scenes)
+    if total == 0:
+        return
+
+    ratio = fallback_count / total
+    max_ratio = float(getattr(cfg, "max_fallback_scene_ratio", 0.2))
+    if ratio > max_ratio:
+        raise RuntimeError(
+            f"Quality gate failed for {title}: {fallback_count}/{total} scenes "
+            f"({ratio:.0%}) are deterministic fallback scenes, above the allowed {max_ratio:.0%} threshold."
+        )
+
+    if fallback_count:
+        log.warning(
+            "  Quality gate: %s/%s scenes are deterministic fallback scenes (threshold %s%%)",
+            fallback_count,
+            total,
+            int(max_ratio * 100),
+        )
+
+
 def _run_legacy_pipeline(
     log: logging.Logger,
     cfg: PipelineConfig,
@@ -170,6 +210,9 @@ def _run_new_pipeline_for_script(
 
     if not skip_validation and ("validate" in stages_to_run or "render" in stages_to_run):
         _run_validation(log, cfg, script, scenes, title)
+
+    if any(s in stages_to_run for s in ["render", "tts", "stitch"]):
+        _enforce_quality_gate(log, cfg, script, scenes, title)
 
     if "render" in stages_to_run:
         log.info("━━━ Render stage ━━━")

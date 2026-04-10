@@ -209,8 +209,8 @@ The stitch stage auto-extends clips with a freeze of the last frame when narrati
 | `tts_voice` | `af_heart` | Kokoro voice |
 | `tts_enabled` | `true` | Enable local narration |
 | `output_mode` | `narrated` | Stitch mode |
-| `llm_provider` | `lmstudio` | Primary script backend: `claude`, `codex`, or `lmstudio` |
-| `script_backup_providers` | `["claude","codex"]` | Ordered backup backends for script generation |
+| `llm_provider` | `codex` | Primary script backend: `claude`, `codex`, or `lmstudio` |
+| `script_backup_providers` | `["lmstudio"]` | Ordered backup backends for script generation |
 | `llm_model` | `qwen/qwen3.5-35b-a3b` | Local model name for LM Studio |
 | `codex_model` | `gpt-5.4` | Model for Codex CLI script fallback |
 | `render_llm_provider` | `lmstudio` | Backend for render-time code generation such as Manim |
@@ -220,8 +220,10 @@ The stitch stage auto-extends clips with a freeze of the last frame when narrati
 | `output_crf` | `18` | Quality (lower = better) |
 | `renderer_max_retries` | `3` | Auto-retry failed scenes |
 | `script_timeout_sec` | `180` | Max seconds allowed for script generation before fallback |
-| `script_chunk_size` | `3` | Number of scenes generated per script LLM call |
+| `script_chunk_size` | `1` | Number of scenes generated per script LLM call |
 | `claude_model` | `claude-sonnet-4-6` | Model for Claude CLI script fallback |
+| `block_degraded_output` | `true` | Fail the pipeline when deterministic fallback scenes dominate |
+| `max_fallback_scene_ratio` | `0.2` | Maximum allowed deterministic fallback-scene ratio before hard failure |
 
 ---
 

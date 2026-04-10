@@ -324,6 +324,16 @@ class ScriptStage:
                 completed_summaries.append(self._scene_summary(normalized_scene))
 
         merged_script["scenes"] = scenes
+        fallback_count = sum(
+            1
+            for scene in scenes
+            if isinstance(scene, dict) and scene.get("generation_origin") == "deterministic_fallback"
+        )
+        merged_script["quality_summary"] = {
+            "fallback_scene_count": fallback_count,
+            "llm_scene_count": max(0, len(scenes) - fallback_count),
+            "scene_count": len(scenes),
+        }
         return merged_script
 
     def _generate_chunk_batch(
@@ -540,6 +550,11 @@ class ScriptStage:
             "brief": brief,
             "research_brief": brief,
             "primary_renderer": preferred_renderer or "manim",
+            "quality_summary": {
+                "fallback_scene_count": 0,
+                "llm_scene_count": 0,
+                "scene_count": 0,
+            },
             "global_style": {
                 "background": "#0d1117",
                 "primary": "#FFD700",
@@ -607,6 +622,7 @@ class ScriptStage:
             "narration": narration,
             "description": description,
             "style": style,
+            "generation_origin": str(scene.get("generation_origin") or "llm"),
         }
 
     def _fallback_scene_for_index(
@@ -627,6 +643,7 @@ class ScriptStage:
             "narration": narration,
             "description": description,
             "style": "dark background #0d1117, primary #FFD700, success #00C896, text #FFFFFF",
+            "generation_origin": "deterministic_fallback",
         }
 
     def _fallback_script(
@@ -657,6 +674,7 @@ class ScriptStage:
                     "description": description,
                     "layout_hint": layout_hint,
                     "style": "dark background #0d1117, primary #FFD700, success #00C896, text #FFFFFF",
+                    "generation_origin": "deterministic_fallback",
                 }
             )
 
@@ -666,6 +684,11 @@ class ScriptStage:
             "brief": brief,
             "research_brief": brief,
             "primary_renderer": primary_renderer,
+            "quality_summary": {
+                "fallback_scene_count": len(scenes),
+                "llm_scene_count": 0,
+                "scene_count": len(scenes),
+            },
             "global_style": {
                 "background": "#0d1117",
                 "primary": "#FFD700",
@@ -1146,7 +1169,7 @@ Return JSON only.
             f"{mode}\n"
             f"{scene_count}\n"
             f"{acts}\n"
-            "chunked-script-v10"
+            "chunked-script-v11"
         ).encode("utf-8")
         return hashlib.sha256(payload).hexdigest()
 

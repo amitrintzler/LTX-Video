@@ -52,6 +52,8 @@
   "llm_model": "qwen/qwen3.5-35b-a3b",
   "render_llm_provider": "lmstudio",
   "render_llm_model": "qwen/qwen3.5-35b-a3b",
+  "block_degraded_output": true,
+  "max_fallback_scene_ratio": 0.2,
   "lmstudio_base_url": "http://localhost:1234/v1",
   "lmstudio_api_key": "lm-studio",
   "tts_enabled": true,

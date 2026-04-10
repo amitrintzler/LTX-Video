@@ -545,8 +545,10 @@ def test_fallback_script_uses_full_scene_counts(tmp_path, log):
 
     assert len(narrated["scenes"]) == 22
     assert narrated["primary_renderer"] == "slides"
+    assert narrated["quality_summary"]["fallback_scene_count"] == 22
     assert narrated["scenes"][0]["duration_sec"] == 4
     assert narrated["scenes"][0]["renderer"] == "slides"
+    assert narrated["scenes"][0]["generation_origin"] == "deterministic_fallback"
     assert narrated["scenes"][1]["renderer"] == "slides"
     assert narrated["scenes"][2]["renderer"] == "slides"
     assert all(scene["renderer"] == "slides" for scene in narrated["scenes"])
@@ -555,6 +557,7 @@ def test_fallback_script_uses_full_scene_counts(tmp_path, log):
     assert "far left edge as a narrow vertical rail" in narrated["scenes"][7]["description"]
     assert len(companion_long["scenes"]) == 50
     assert companion_long["primary_renderer"] == "slides"
+    assert companion_long["quality_summary"]["fallback_scene_count"] == 50
     assert all(scene["renderer"] == "slides" for scene in companion_long["scenes"])
     assert companion_long["scenes"][0]["duration_sec"] == 6
     assert "Keep the title in the top band" in companion_long["scenes"][0]["layout_hint"]
@@ -591,6 +594,30 @@ def test_script_stage_falls_back_when_llm_fails(tmp_path, log, monkeypatch):
     assert script["title"] == f"{slug}-narrated"
     assert script["primary_renderer"] in {"manim", "slides", "html_anim", "d3"}
     assert len(script["scenes"]) >= 3
+
+
+def test_pipeline_blocks_degraded_scripts_before_render(tmp_path, log, monkeypatch):
+    import pipeline as pipeline_mod
+    from stages.render import RenderStage
+
+    cfg = PipelineConfig(work_dir=str(tmp_path))
+    cfg.max_fallback_scene_ratio = 0.2
+    script_path = tmp_path / "degraded-script.json"
+    script = _script_payload("bad-script", scene_count=5)
+    for scene in script["scenes"]:
+        scene["renderer"] = "slides"
+        scene["generation_origin"] = "deterministic_fallback"
+    script["quality_summary"] = {
+        "fallback_scene_count": 5,
+        "llm_scene_count": 0,
+        "scene_count": 5,
+    }
+    script_path.write_text(json.dumps(script, indent=2))
+
+    monkeypatch.setattr(RenderStage, "run", lambda *args, **kwargs: (_ for _ in ()).throw(AssertionError("render should not run")))
+
+    with pytest.raises(RuntimeError, match="Quality gate failed"):
+        pipeline_mod.run(str(script_path), "render", cfg, skip_validation=True)
 
 
 def test_script_stage_persists_invalid_llm_json_for_debugging(tmp_path, log, monkeypatch):

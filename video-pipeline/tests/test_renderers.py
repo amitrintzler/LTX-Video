@@ -24,6 +24,8 @@ def test_config_new_fields_have_correct_defaults():
     assert cfg.llm_model == "qwen/qwen3.5-35b-a3b"
     assert cfg.render_llm_provider == "lmstudio"
     assert cfg.render_llm_model == "qwen/qwen3.5-35b-a3b"
+    assert cfg.block_degraded_output is True
+    assert cfg.max_fallback_scene_ratio == 0.2
     assert cfg.lmstudio_base_url == "http://localhost:1234/v1"
     assert cfg.animatediff_checkpoint == "frankjoshua/toonyou_beta6"
     assert cfg.animatediff_num_frames == 16

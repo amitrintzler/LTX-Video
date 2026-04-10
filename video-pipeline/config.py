@@ -81,6 +81,8 @@ class PipelineConfig:
     llm_model: str = "qwen/qwen3.5-35b-a3b"
     render_llm_provider: str = "lmstudio"   # claude | lmstudio
     render_llm_model: str = "qwen/qwen3.5-35b-a3b"
+    block_degraded_output: bool = True
+    max_fallback_scene_ratio: float = 0.2
     lmstudio_base_url: str = "http://localhost:1234/v1"
     lmstudio_api_key: str = "lm-studio"
 

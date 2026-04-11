@@ -69,7 +69,11 @@ BLOCKED_MANIM_PATTERNS = (
 
 def render(scene: dict, config: PipelineConfig, out_path: Path) -> Path:
     """Render a manim scene to out_path. Returns out_path on success."""
+    import sys
+    import logging
+
     _check_imports()
+    log = logging.getLogger("manim")
 
     description = scene.get("description", "")
     duration_sec = scene.get("duration_sec", 8)
@@ -87,6 +91,10 @@ def render(scene: dict, config: PipelineConfig, out_path: Path) -> Path:
 
     last_error: Optional[str] = None
     for attempt in range(config.renderer_max_retries):
+        log.info(f"Render attempt {attempt+1}/{config.renderer_max_retries} for {out_path.name}")
+        sys.stderr.flush()
+        sys.stdout.flush()
+
         provider = config.render_llm_provider.strip().lower()
         model = config.render_llm_model_name()
         if provider == "lmstudio":
@@ -100,15 +108,24 @@ def render(scene: dict, config: PipelineConfig, out_path: Path) -> Path:
             )
         else:
             code = _call_claude_cli(model, system, description, last_error)
+
+        log.info(f"Generated Manim code ({len(code)} chars) for {out_path.name}")
+
         try:
             code = _normalize_manim_code(code)
             code = _inject_point_compatibility_shim(code)
             _ensure_safe_codegen(code)
+            log.info(f"Starting Manim render for {out_path.name}")
+            sys.stderr.flush()
+            sys.stdout.flush()
             rendered = _run_manim(code, out_path, timeout=120)
+            log.info(f"Manim render completed for {out_path.name}")
             _audit_rendered_video(rendered, duration_sec=duration_sec)
+            log.info(f"Layout audit passed for {out_path.name}")
             return rendered
         except ManimRenderError as e:
             last_error = str(e)
+            log.error(f"Render failed: {last_error[:500]}")
             if attempt == config.renderer_max_retries - 1:
                 raise
 
@@ -365,6 +382,8 @@ class _ManimCodeNormalizer(ast.NodeTransformer):
             self.changed = True
         if self._rewrite_point_sequences(node):
             self.changed = True
+        if self._rewrite_coordinate_tuples(node):
+            self.changed = True
         return node
 
     def visit_Assign(self, node: ast.Assign):  # type: ignore[override]
@@ -521,6 +540,29 @@ class _ManimCodeNormalizer(ast.NodeTransformer):
         padder = _PadPointSequences()
         call.args[0] = padder.visit(call.args[0])
         return padder.changed
+
+    def _rewrite_coordinate_tuples(self, call: ast.Call) -> bool:
+        """Rewrite 2D coordinate tuples/lists to 3D in move_to, shift, next_to, etc."""
+        coordinate_methods = {
+            "move_to", "shift", "next_to", "put_start_and_end_on",
+            "set_points", "set_points_as_corners", "set_points_smoothly",
+        }
+        if not isinstance(call.func, ast.Attribute):
+            return False
+        if call.func.attr not in coordinate_methods:
+            return False
+        if not call.args:
+            return False
+
+        # Check if the first arg is a 2-element tuple/list
+        first_arg = call.args[0]
+        padder = _PadPointSequences()
+        new_arg = padder.visit(first_arg)
+        if padder.changed:
+            call.args[0] = new_arg
+            self.changed = True
+            return True
+        return False
 
     @staticmethod
     def _has_math_import(node: ast.Module) -> bool:
@@ -818,6 +860,12 @@ def _run_manim(code: str, out_path: Path, timeout: int = 120) -> Path:
         code_file = tmp_dir_path / "scene.py"
         code_file.write_text(code)
 
+        # Log the generated code for debugging
+        import logging
+        import sys
+        log = logging.getLogger("manim")
+        log.debug(f"Generated Manim code for {out_path.name}:\n{code}")
+
         try:
             result = subprocess.run(
                 [
@@ -834,8 +882,16 @@ def _run_manim(code: str, out_path: Path, timeout: int = 120) -> Path:
         except subprocess.TimeoutExpired:
             raise ManimRenderError(f"Manim render timed out after {timeout}s")
 
+        # Log full stderr for debugging (even if return code is 0, there may be warnings)
+        if result.stderr:
+            log.debug(f"Manim stderr: {result.stderr}")
+
         if result.returncode != 0:
-            stderr = result.stderr[-2000:]
+            stderr = result.stderr or result.stdout or ""
+            if not stderr.strip():
+                stderr = "(no stderr captured — process may have crashed silently)"
+            else:
+                stderr = stderr[-3000:]  # Increased from 2000 to 3000
             repeated_kw = re.search(r"keyword argument repeated: ([A-Za-z_]\w*)", stderr)
             if repeated_kw:
                 keyword = repeated_kw.group(1)

@@ -360,6 +360,8 @@ class _ManimCodeNormalizer(ast.NodeTransformer):
             self.changed = True
         if self._rewrite_numpy_point_array(node):
             self.changed = True
+        if self._rewrite_point_keywords(node):
+            self.changed = True
         return node
 
     def visit_Assign(self, node: ast.Assign):  # type: ignore[override]
@@ -488,6 +490,21 @@ class _ManimCodeNormalizer(ast.NodeTransformer):
 
         values.elts.append(ast.Constant(value=0))
         return True
+
+    @staticmethod
+    def _rewrite_point_keywords(call: ast.Call) -> bool:
+        point_kw_map = {"point1": "start", "point2": "end"}
+        changed = False
+        kept = []
+        for kw in call.keywords:
+            if kw.arg in point_kw_map:
+                kept.append(ast.keyword(arg=point_kw_map[kw.arg], value=kw.value))
+                changed = True
+            else:
+                kept.append(kw)
+        if changed:
+            call.keywords = kept
+        return changed
 
     @staticmethod
     def _has_math_import(node: ast.Module) -> bool:

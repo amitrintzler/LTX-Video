@@ -102,6 +102,7 @@ def render(scene: dict, config: PipelineConfig, out_path: Path) -> Path:
             code = _call_claude_cli(model, system, description, last_error)
         try:
             code = _normalize_manim_code(code)
+            code = _inject_point_compatibility_shim(code)
             _ensure_safe_codegen(code)
             rendered = _run_manim(code, out_path, timeout=120)
             _audit_rendered_video(rendered, duration_sec=duration_sec)
@@ -582,6 +583,40 @@ def _normalize_manim_code(code: str) -> str:
     if not normalizer.changed:
         return code
     return ast.unparse(tree)
+
+
+_POINT_COMPAT_SHIM = """
+import numpy as np
+
+def _ltx_pad_points(points):
+    arr = np.asarray(points)
+    if getattr(arr, "ndim", 0) == 2 and arr.shape[1] == 2:
+        arr = np.pad(arr, ((0, 0), (0, 1)), mode="constant")
+    return arr
+
+_ltx_original_set_points_as_corners = VMobject.set_points_as_corners
+
+def _ltx_set_points_as_corners(self, points, *args, **kwargs):
+    return _ltx_original_set_points_as_corners(self, _ltx_pad_points(points), *args, **kwargs)
+
+VMobject.set_points_as_corners = _ltx_set_points_as_corners
+
+_ltx_original_set_points_smoothly = VMobject.set_points_smoothly
+
+def _ltx_set_points_smoothly(self, points, *args, **kwargs):
+    return _ltx_original_set_points_smoothly(self, _ltx_pad_points(points), *args, **kwargs)
+
+VMobject.set_points_smoothly = _ltx_set_points_smoothly
+"""
+
+
+def _inject_point_compatibility_shim(code: str) -> str:
+    marker = "_ltx_pad_points"
+    if marker in code:
+        return code
+    if "from manim import *" in code:
+        return code.replace("from manim import *", f"from manim import *\n{_POINT_COMPAT_SHIM.strip()}", 1)
+    return f"from manim import *\n{_POINT_COMPAT_SHIM.strip()}\n\n{code}"
 
 
 def _audit_rendered_video(video_path: Path, duration_sec: int) -> None:

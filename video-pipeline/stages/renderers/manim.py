@@ -362,6 +362,8 @@ class _ManimCodeNormalizer(ast.NodeTransformer):
             self.changed = True
         if self._rewrite_point_keywords(node):
             self.changed = True
+        if self._rewrite_point_sequences(node):
+            self.changed = True
         return node
 
     def visit_Assign(self, node: ast.Assign):  # type: ignore[override]
@@ -507,6 +509,19 @@ class _ManimCodeNormalizer(ast.NodeTransformer):
         return changed
 
     @staticmethod
+    def _rewrite_point_sequences(call: ast.Call) -> bool:
+        if not isinstance(call.func, ast.Attribute):
+            return False
+        if call.func.attr not in {"set_points_as_corners", "set_points_smoothly"}:
+            return False
+        if not call.args:
+            return False
+
+        padder = _PadPointSequences()
+        call.args[0] = padder.visit(call.args[0])
+        return padder.changed
+
+    @staticmethod
     def _has_math_import(node: ast.Module) -> bool:
         for stmt in node.body:
             if isinstance(stmt, ast.Import):
@@ -528,6 +543,31 @@ class _ManimCodeNormalizer(ast.NodeTransformer):
         if found is not None:
             call.keywords = kept
         return found
+
+
+class _PadPointSequences(ast.NodeTransformer):
+    def __init__(self) -> None:
+        self.changed = False
+
+    def visit_List(self, node: ast.List):  # type: ignore[override]
+        return self._pad_sequence(node)
+
+    def visit_Tuple(self, node: ast.Tuple):  # type: ignore[override]
+        return self._pad_sequence(node)
+
+    def _pad_sequence(self, node: ast.AST) -> ast.AST:
+        node = self.generic_visit(node)
+        if not isinstance(node, (ast.List, ast.Tuple)):
+            return node
+        if len(node.elts) == 2 and self._looks_like_point_pair(node.elts):
+            node.elts.append(ast.Constant(value=0))
+            self.changed = True
+        return node
+
+    @staticmethod
+    def _looks_like_point_pair(elts: list[ast.AST]) -> bool:
+        allowed = (ast.Constant, ast.Name, ast.Attribute, ast.UnaryOp, ast.BinOp, ast.Call)
+        return all(isinstance(elt, allowed) for elt in elts)
 
 
 def _normalize_manim_code(code: str) -> str:

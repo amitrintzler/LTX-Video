@@ -965,6 +965,36 @@ class VideoScene(Scene):
     assert "point2" not in rewritten
 
 
+def test_manim_pads_point_sequences_for_corner_methods_before_running_manim(tmp_path):
+    import stages.renderers.manim as manim_mod
+
+    cfg = _manim_cfg()
+    cfg.render_llm_provider = "lmstudio"
+    cfg.render_llm_model = "local-model"
+    out_path = tmp_path / "scene_001.mp4"
+
+    bad_code = """from manim import *
+import numpy as np
+class VideoScene(Scene):
+    def construct(self):
+        path = VMobject()
+        path.set_points_as_corners([np.array([0, 0]), np.array([1, 1])])
+"""
+
+    with patch("stages.renderers.manim._check_imports"), \
+         patch("stages.renderers.manim._call_lmstudio_api", return_value=bad_code) as lm_call, \
+         patch("stages.renderers.manim._audit_rendered_video"), \
+         patch("stages.renderers.manim._run_manim", return_value=out_path) as run_call:
+        result = manim_mod.render(_manim_scene(), cfg, out_path)
+
+    assert result == out_path
+    assert lm_call.call_count == 1
+    rewritten = run_call.call_args[0][0]
+    assert "np.array([0, 0, 0])" in rewritten
+    assert "np.array([1, 1, 0])" in rewritten
+    assert "set_points_as_corners" in rewritten
+
+
 def test_manim_rejects_axes_helpers_before_running_manim(tmp_path):
     import stages.renderers.manim as manim_mod
     from stages.renderers.manim import ManimRenderError

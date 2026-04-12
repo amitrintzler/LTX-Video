@@ -118,7 +118,8 @@ def render(scene: dict, config: PipelineConfig, out_path: Path) -> Path:
             log.info(f"Starting Manim render for {out_path.name}")
             sys.stderr.flush()
             sys.stdout.flush()
-            rendered = _run_manim(code, out_path, timeout=120)
+            # Use 300s timeout for full-quality renders with potential layout audit retries
+            rendered = _run_manim(code, out_path, timeout=300)
             log.info(f"Manim render completed for {out_path.name}")
             _audit_rendered_video(rendered, duration_sec=duration_sec)
             log.info(f"Layout audit passed for {out_path.name}")

@@ -54,11 +54,8 @@ class RenderStage:
             return
 
         renderer_name = scene.get("renderer") or default_renderer or "manim"
-        if renderer_name == "manim" and shutil.which("latex") is None:
-            self.log.warning(
-                f"  [{scene_id}] latex not found on PATH; falling back from manim to slides"
-            )
-            renderer_name = "slides"
+        # Note: LaTeX is NOT required - our Manim prompt forbids LaTeX usage and the
+        # normalizer catches any LaTeX attempts before rendering. All text uses Text().
         try:
             renderer = get_renderer(renderer_name)
             resolved_name = renderer_name

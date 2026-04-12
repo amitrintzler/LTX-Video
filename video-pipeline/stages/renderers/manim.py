@@ -194,9 +194,12 @@ CRITICAL — LaTeX is NOT installed. You MUST follow these rules:
 - Keep the layout sparse: use one title zone, one primary diagram, and at most one or two short callouts at a time.
 - Do not stack multiple large Text blocks on the same region of the screen.
 - Place supporting text in a margin or side panel, not directly over the main geometry.
-- Keep all text out of the central 55% of the frame. Titles belong in the top band; annotations belong in the outer edges or side panels.
+- CRITICAL: Keep ALL text out of the central 55% of the frame (center_x0=0.24, center_x1=0.76, center_y0=0.30, center_y1=0.78).
+  Titles belong in the top 30% band (above the center). Annotations belong in the outer edges or side panels only.
+- NEVER use next_to() for positioning—it causes unpredictable overlaps. Always use explicit move_to() with hardcoded coordinates.
+- Calculate exact positions: e.g., text.move_to([100, 900, 0]) for top-left, text.move_to([1800, -800, 0]) for bottom-right.
 - Do not pass alignment= or align= into Text, SVGMobject, or any other Mobject constructor.
-  If you need left/right placement, use next_to, to_edge, or arrange instead.
+  If you need left/right/center placement, manually adjust coordinates or use to_edge() only for outer edges.
 - When styling VMobjects, use `width=` for `set_stroke(...)` only. Do not pass `stroke_width=` to `set_stroke(...)`.
   Do not use width= on Mobject constructors such as Text or SVGMobject.
 
@@ -797,8 +800,7 @@ def _find_center_text_like_regions(image_path: Path) -> list[str]:
                 f"bbox=({comp['x0']},{comp['y0']})-({comp['x1']},{comp['y1']}), area={comp['area']}"
             )
 
-    if len(center_hits) < 3:
-        return []
+    # Flag ANY text in center band (was incorrectly requiring 3+)
     return center_hits
 
 

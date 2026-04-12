@@ -125,8 +125,16 @@ def render(scene: dict, config: PipelineConfig, out_path: Path) -> Path:
             return rendered
         except ManimRenderError as e:
             last_error = str(e)
-            log.error(f"Render failed: {last_error[:500]}")
+            # Log just the first line of the error for brevity
+            first_line = last_error.split('\n')[0][:300]
+            log.error(f"Render failed attempt {attempt+1}: {first_line}")
             if attempt == config.renderer_max_retries - 1:
+                # Save generated code for debugging on final failure
+                debug_code_path = Path("/tmp") / f"manim_debug_{out_path.stem}.py"
+                debug_code_path.write_text(code)
+                log.error(f"Generated code saved to: {debug_code_path}")
+                # Log full error on final failure
+                log.error(f"Final render failure after {config.renderer_max_retries} attempts:\n{last_error[:1000]}")
                 raise
 
     raise ManimRenderError(  # unreachable, but satisfies type checkers

@@ -84,9 +84,12 @@ class RenderStage:
         if generated_hint:
             clean_hint = self._sanitize_manim_description(generated_hint)
             sanitized["layout_hint"] = clean_hint
-            sanitized["description"] = (
-                f"{sanitized['description']}\n\nLayout hint: {clean_hint}"
-            )
+            if sanitized.get("description"):
+                sanitized["description"] = (
+                    f"{sanitized['description']}\n\nLayout hint: {clean_hint}"
+                )
+            else:
+                sanitized["description"] = f"Layout hint: {clean_hint}"
         return sanitized
 
     @staticmethod

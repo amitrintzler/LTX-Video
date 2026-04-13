@@ -995,11 +995,16 @@ class ScriptStage:
 
     def _system_prompt(self) -> str:
         return (
-            "You are a senior educational video writer and renderer planner for a topic-driven video pipeline. "
-            "Convert the research and outline into a script that is clear, visually specific, and easy to render. "
-            "Choose the renderer that best fits each scene based on the topic and research, not a fixed renderer for all scenes. "
-            "Every scene must be grounded in the supplied research, avoid filler, and include concrete visual intent. "
-            "Return exactly one JSON object that matches the schema. "
+            "You are a senior educational video writer and professional visual designer. Write a script for high-quality, polished educational videos. "
+            "SCENE QUALITY STANDARDS: "
+            "1. VISUALLY SPECIFIC: Every scene description must name the visual elements (shapes, colors, positions), not just concepts. "
+            "2. DESIGN-FOCUSED: Describe color schemes, typography (font sizes ≥20pt), spatial layout, visual hierarchy, and professional styling. "
+            "3. PROFESSIONAL POLISH: Include details about spacing, alignment, contrast, animation easing, and visual richness (no sparse minimalism). "
+            "4. CONCRETE EXECUTION: Descriptions must guide precise rendering—specify exact positions, sizes, colors (hex), line weights, and animation durations. "
+            "5. PEDAGOGICALLY CLEAR: Every visual element must teach the concept. No decorative clutter. Use color-coding (green=profit, red=loss, gold=highlight) systematically. "
+            "Choose the renderer (manim/motion-canvas/d3) that best fits each scene based on content type. "
+            "Grounded in research: Every scene must connect to the supplied research and outline. No filler. "
+            "Return exactly one JSON object matching the schema. "
             "Do not add explanation, markdown, or code fences."
         )
 

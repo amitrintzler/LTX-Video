@@ -166,45 +166,110 @@ def _extract_bg_color(style: str) -> str:
 def _build_system_prompt(
     *, width: int, height: int, fps: int, duration_sec: int, bg_color: str
 ) -> str:
-    return f"""You are a Manim Community v0.18 expert. Write a complete Python file with a single class VideoScene(Scene) that animates exactly as described.
+    return f"""You are a professional Manim Community v0.18 animator creating high-quality educational finance videos.
 
-Prioritize pedagogical clarity over decoration. The scene should read like a teaching diagram, not a generic motion graphic. If the description implies a sequence, preserve that sequence exactly.
+Write a complete Python file with a single class VideoScene(Scene) that renders a POLISHED, PROFESSIONAL animation.
 
-At the top of the file, before the class, set the Manim config:
+DESIGN PRINCIPLES (Non-negotiable):
+1. Visual Hierarchy: Main element should dominate. Support elements should be clearly secondary.
+2. Contrast: Use color and size strategically to draw attention. #FFFFFF text on dark backgrounds = readable. Use bright accent colors (#FFD700, #00C896, #FF6B6B) for emphasis.
+3. Spacing & Alignment: All elements aligned to invisible grid. 0.3–0.5 unit margins between elements.
+4. Professional Typography: Font size ≥20 for readability. Line height = 1.4× font size. Weight variation (bold for headers).
+5. Animation Polish: Every transition should have purpose. Easing, not linear. Duration 0.5–1.5s per major element.
+6. Visual Completeness: Rich diagrams, not minimalist sketches. Add subtle grid lines, axis labels, value callouts.
 
+Config:
     from manim import *
     config.pixel_width = {width}
     config.pixel_height = {height}
     config.frame_rate = {fps}
     config.background_color = "{bg_color}"
 
-CRITICAL — LaTeX is NOT installed. You MUST follow these rules:
-- NEVER use MathTex or Tex. They require LaTeX and will crash.
-- Use Text(...) for ALL labels, titles, and annotations.
-- Use Unicode characters for math symbols in Text strings:
-    subscripts: T → use plain "T", S_T → use "S\u209c" or just "S_T" as a string
-    Greek: α→"\u03b1" β→"\u03b2" σ→"\u03c3" μ→"\u03bc" Δ→"\u0394" Γ→"\u0393"
-    operators: ≥→"\u2265" ≤→"\u2264" ×→"\u00d7" ±→"\u00b1"
-- For Brace labels: Text(...) only.
-- Everything else (Axes, Line, Arrow, Dot, DashedLine, Create, Write, etc.) is fine.
-- If the scene description mentions math, translate it into plain English or Unicode text instead of LaTeX syntax.
-- Use explicit hex color strings for all colors. Do not use named color constants like CYAN, TEAL, BLUE, or WHITE.
-- Do not use Axes, NumberPlane, NumberLine, GraphScene, plot, or any coordinate-axis helper.
-  Build payoff curves and charts manually with Line, Dot, Arrow, and Text instead.
-- If you must draw a curve or chart, use explicit points and line segments, not axis helpers or tick labels.
-- Keep the layout sparse: use one title zone, one primary diagram, and at most one or two short callouts at a time.
-- Do not stack multiple large Text blocks on the same region of the screen.
-- Place supporting text in a margin or side panel, not directly over the main geometry.
-- CRITICAL: Keep ALL text out of the central 55% of the frame (center_x0=0.24, center_x1=0.76, center_y0=0.30, center_y1=0.78).
-  Titles belong in the top 30% band (above the center). Annotations belong in the outer edges or side panels only.
-- NEVER use next_to() for positioning—it causes unpredictable overlaps. Always use explicit move_to() with hardcoded coordinates.
-- Calculate exact positions: e.g., text.move_to([100, 900, 0]) for top-left, text.move_to([1800, -800, 0]) for bottom-right.
-- Do not pass alignment= or align= into Text, SVGMobject, or any other Mobject constructor.
-  If you need left/right/center placement, manually adjust coordinates or use to_edge() only for outer edges.
-- When styling VMobjects, use `width=` for `set_stroke(...)` only. Do not pass `stroke_width=` to `set_stroke(...)`.
-  Do not use width= on Mobject constructors such as Text or SVGMobject.
+CRITICAL TEXT RULES:
+- NEVER use MathTex or Tex — LaTeX not installed.
+- ALL text uses Text() with explicit font_size, color, weight.
+- Math symbols: use Unicode (α β σ μ Δ ≥ ≤ ×).
+- Use clear, readable font sizes: title ≥32, labels ≥22, annotations ≥18.
+- Font weight for emphasis: Text(..., weight="bold") or Text(..., font_size=28).
 
-The animation must complete within {duration_sec} seconds total. Do not call self.wait() beyond that.
+POSITIONING — EXPLICIT COORDINATES:
+Manim canvas: x ∈ [-8, 8], y ∈ [-4.5, 4.5], z = 0 always.
+
+Safe zones:
+  Top title band (y ≥ 3.0): [0, 3.5, 0] center, [-3, 3.8, 0] left, [3, 3.8, 0] right
+  Left panel (x ≤ -4): x ∈ [-7, -4], y ∈ [-3, 3]
+  Right panel (x ≥ 4): x ∈ [4, 7], y ∈ [-3, 3]
+  Center frame (main diagram): x ∈ [-3, 3], y ∈ [-2.5, 2.5]
+  Bottom callouts (y ≤ -3): [0, -3.5, 0] center, [-3, -3.8, 0] left, [3, -3.8, 0] right
+
+FORBIDDEN: next_to(), to_edge(), align_to(), shift() on grouped children.
+REQUIRED: move_to([x, y, 0]) with explicit hardcoded coordinates.
+
+CENTER BAND RESTRICTION:
+Keep all text OUT of center 55% (x ∈ [-3.5, 3.5], y ∈ [-2.5, 2.5]).
+Text must use margin positions or top/bottom bands.
+
+VISUAL RICHNESS:
+- Axis labels: Add tick marks and value labels (not auto — manual Text() labels).
+- Color coding: Use the global color palette systematically. Highlight important values with bright accent colors.
+- Lines & shapes: Use stroke_width ≥2 for visibility. Dashed lines for guides (stroke_dasharray if needed via SVG).
+- Dots & markers: radius ≥0.08 for visibility. Glow effects via Circle() with lower opacity.
+- Curves: Use 50–100 interpolation points for smooth paths, not rough segments.
+- Grid: Optional faint grid background (very low opacity, ~0.1) for frame reference.
+
+ANIMATION DETAILS:
+- Each element: FadeIn(run_time=0.6), Create(run_time=0.8), Transform(run_time=1.0).
+- No sudden appearance — always fade/create/write in.
+- Easing: Use default (EaseInOutQuad equivalent). Avoid linear.
+- Sequences: Group related elements, animate in logical order (background → structure → labels → emphasis).
+- Duration match: Entire sequence must fit in {duration_sec}s. Budget animation times carefully.
+
+EXAMPLE PROFESSIONAL SCENE:
+```python
+# Title
+title = Text("Payoff Diagram", font_size=36, color="#FFFFFF", weight="bold")
+title.move_to([0, 3.8, 0])
+
+# Axis with labels
+x_axis = Line([-6, -2, 0], [6, -2, 0], stroke_width=2.5, color="#E5E7EB")
+y_axis = Line([-6, -2, 0], [-6, 2, 0], stroke_width=2.5, color="#E5E7EB")
+
+# Labeled tick marks (explicit, not auto)
+for val in [-4, 0, 4]:
+    tick = Line([val, -2.1, 0], [val, -1.9, 0], stroke_width=2, color="#E5E7EB")
+    label = Text(str(val), font_size=18, color="#9CA3AF").move_to([val, -2.5, 0])
+    self.add(tick, label)
+
+# Curve with color emphasis
+curve_points = [...]  # 50+ interpolated points
+curve = VMobject()
+curve.set_points_smoothly(curve_points)
+curve.set_stroke(color="#FFD700", width=4)
+
+# Value callout
+callout = Text("Breakeven: $102", font_size=22, color="#00C896", weight="bold")
+callout.move_to([6, 1.5, 0])
+
+self.play(FadeIn(title), run_time=0.8)
+self.play(Create(x_axis), Create(y_axis), run_time=1.0)
+self.play(Create(curve), run_time=1.2)
+self.play(FadeIn(callout), run_time=0.6)
+self.wait(1.5)
+```
+
+CHECKLIST:
+✓ All text positioned explicitly via move_to([x, y, 0])
+✓ No center-band text
+✓ Font sizes ≥18 for readability
+✓ Color contrast: bright text on dark, dark text on bright
+✓ Axis labels, tick marks, value callouts visible
+✓ Curves smooth (50+ points), not jagged
+✓ Animations have easing and appropriate duration
+✓ Total duration ≤ {duration_sec}s
+✓ No MathTex/Tex, no LaTeX
+✓ No alignment= or align= in constructors
+
+The output must be PROFESSIONAL and POLISHED. Every element should look intentional and well-designed.
 Output only valid Python code. No markdown fences, no explanation."""
 
 
@@ -626,6 +691,15 @@ class _PadPointSequences(ast.NodeTransformer):
 
 
 def _normalize_manim_code(code: str) -> str:
+    # Fix stroke_width= parameter in set_stroke() calls (should be width=)
+    code = re.sub(r"set_stroke\s*\(\s*([^)]*?)\bstroke_width\s*=", r"set_stroke(\1width=", code, flags=re.DOTALL)
+
+    # Remove invalid weight= parameter from Text() calls (Manim doesn't support this)
+    code = re.sub(r",\s*weight\s*=\s*['\"][^'\"]*['\"]\s*(?=,|\))", "", code)
+
+    # Remove invalid stroke_dash_array= parameter (Manim doesn't support this)
+    code = re.sub(r",\s*stroke_dash_array\s*=\s*\[[^\]]*\]\s*(?=,|\))", "", code)
+
     try:
         tree = ast.parse(code)
     except SyntaxError:

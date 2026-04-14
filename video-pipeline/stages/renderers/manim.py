@@ -700,6 +700,9 @@ def _normalize_manim_code(code: str) -> str:
     # Remove invalid stroke_dash_array= parameter (Manim doesn't support this)
     code = re.sub(r",\s*stroke_dash_array\s*=\s*\[[^\]]*\]\s*(?=,|\))", "", code)
 
+    # Remove invalid opacity= parameter (use fill_opacity and stroke_opacity instead)
+    code = re.sub(r",\s*opacity\s*=\s*[0-9.]+\s*(?=,|\))", "", code)
+
     try:
         tree = ast.parse(code)
     except SyntaxError:

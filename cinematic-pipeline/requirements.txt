@@ -1,0 +1,12 @@
+# Cinematic pipeline — orchestration + GPU-free stages.
+# The LTX-2 generation stage uses this repo's own deps (see ../pyproject.toml:
+#   pip install -e ".[inference]"), which pulls torch/diffusers/transformers.
+
+pillow>=10.0            # keyframe + frame rendering
+numpy>=1.24
+imageio-ffmpeg>=0.5     # fallback ffmpeg binary (encode-only) when no system ffmpeg
+piper-tts>=1.2          # offline narration (needs a downloaded voice model)
+
+# Full system ffmpeg (drawtext / subtitles / libass) is strongly recommended:
+#   macOS:  brew install ffmpeg
+#   linux:  apt install ffmpeg

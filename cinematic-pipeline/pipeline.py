@@ -49,12 +49,19 @@ def run(project_path: Path, only: str | None, dry_run: bool, tier_override: str 
     if "keyframes" in stages:
         kp = project.get("keyframe_provider", "placeholder")
         print(f"\n[1/4] keyframes  (provider={kp})")
-        for shot in project["shots"]:
-            if shot.get("keyframe") is None and project.get("auto_keyframes"):
-                kf = work / f"kf_{shot['id']}.png"
-                if not dry_run:
-                    keyframes.make_keyframe(shot, project, kf, kp)
-                shot["keyframe"] = str(kf.relative_to(proj_dir))
+        # Placeholder keyframes are blank gradient cards — useless as i2v
+        # conditioning, and feeding them via --input_media_path trips an
+        # assertion at full-noise timestep. Only real keyframes (flux/stock)
+        # are attached for image-to-video; placeholder => pure text-to-video.
+        if kp == "placeholder":
+            print("  (placeholder provider: running text-to-video, no conditioning)")
+        else:
+            for shot in project["shots"]:
+                if shot.get("keyframe") is None and project.get("auto_keyframes"):
+                    kf = work / f"kf_{shot['id']}.png"
+                    if not dry_run:
+                        keyframes.make_keyframe(shot, project, kf, kp)
+                    shot["keyframe"] = str(kf.relative_to(proj_dir))
 
     # 2. generate shots
     clips: list[Path] = []

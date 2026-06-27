@@ -1,0 +1,26 @@
+{
+  "project": "smoke",
+  "tier": "2b-distilled",
+  "fps": 24,
+  "resolution": { "width": 768, "height": 432 },
+  "auto_keyframes": false,
+  "keyframe_provider": "placeholder",
+  "look": {
+    "letterbox": true,
+    "vignette": true,
+    "grain": 0.02,
+    "transition_sec": 0.4
+  },
+  "narration": "A quick test of the full local pipeline.",
+  "voice_model": "~/piper-voices/en_US-lessac-medium.onnx",
+  "audio": { "music": null, "use_shot_audio": false },
+  "subtitles": null,
+  "shots": [
+    {
+      "id": "01",
+      "prompt": "A calm ocean at golden hour, gentle waves, soft sunlight, cinematic, shallow depth of field",
+      "duration": 3,
+      "seed": 11
+    }
+  ]
+}

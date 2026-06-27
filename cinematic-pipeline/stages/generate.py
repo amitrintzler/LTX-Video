@@ -34,6 +34,9 @@ def generate_shot(shot: dict, project: dict, tier: dict, out_dir: Path,
     w, h = cfg.cap_resolution(res["width"], res["height"], tier["max_pixels"])
     num_frames = frames_for(shot.get("duration", 5), fps)
     out_path = out_dir / f"shot_{shot['id']}.mp4"
+    # inference.py treats --output_path as a DIRECTORY and writes its own
+    # uniquely-named file inside; give it a per-shot dir, then collect the file.
+    gen_dir = out_dir / f"_gen_{shot['id']}"
 
     argv = [
         sys.executable, str(REPO_ROOT / "inference.py"),
@@ -45,7 +48,7 @@ def generate_shot(shot: dict, project: dict, tier: dict, out_dir: Path,
         "--num_frames", str(num_frames),
         "--frame_rate", str(fps),
         "--seed", str(shot.get("seed", 42)),
-        "--output_path", str(out_path),
+        "--output_path", str(gen_dir),
     ]
     # image-to-video: a keyframe still anchors character/scene consistency
     if shot.get("keyframe"):
@@ -60,7 +63,15 @@ def generate_shot(shot: dict, project: dict, tier: dict, out_dir: Path,
         print("    DRY-RUN cmd:", " ".join(_q(a) for a in argv))
         return out_path
 
+    gen_dir.mkdir(parents=True, exist_ok=True)
     subprocess.run(argv, check=True, cwd=str(REPO_ROOT))
+    # collect the file inference.py produced and normalise its name to shot_<id>.mp4
+    produced = sorted(gen_dir.glob("*.mp4"), key=lambda p: p.stat().st_mtime)
+    if not produced:
+        raise RuntimeError(f"generate: no .mp4 produced in {gen_dir}")
+    if out_path.exists():
+        out_path.unlink()
+    produced[-1].replace(out_path)
     return out_path
 
 

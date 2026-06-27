@@ -86,6 +86,8 @@ def run(project_path: Path, only: str | None, dry_run: bool, tier_override: str 
             return
         srt = proj_dir / project["subtitles"] if project.get("subtitles") else None
         final = out_dir / f"{project.get('project', 'film')}_final.mp4"
+        if bed is None and (work / "bed.wav").exists():
+            bed = work / "bed.wav"   # reuse audio from a prior run on --stage edit
         edit.assemble(clips, project, final, audio=bed, subtitles=srt)
         print(f"\n✅ {final}")
     elif dry_run:

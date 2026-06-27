@@ -19,20 +19,25 @@ brew list ffmpeg >/dev/null 2>&1 || brew install ffmpeg
 brew list node   >/dev/null 2>&1 || brew install node
 
 # --- 2. python venv -----------------------------------------------------------
+# Use a non-conda python so the venv is self-contained. `pip` is invoked as
+# `python -m pip` throughout because some base pythons (conda/pyenv) don't put a
+# `pip` shim on PATH inside the venv.
 say "Creating Python venv (.venv)…"
 PY="$(command -v python3.11 || command -v python3)"
 "$PY" -m venv "$ROOT/.venv"
 # shellcheck disable=SC1091
 source "$ROOT/.venv/bin/activate"
-pip install --quiet --upgrade pip wheel
+VPY="$ROOT/.venv/bin/python"
+"$VPY" -m ensurepip --upgrade >/dev/null 2>&1 || true   # bootstrap pip if missing
+"$VPY" -m pip install --quiet --upgrade pip wheel
 
 # --- 3. LTX-Video model deps (the generate stage) -----------------------------
 say "Installing LTX-Video (torch/diffusers/transformers) — this is the big one…"
-pip install --quiet -e "$ROOT[inference]"
+"$VPY" -m pip install --quiet -e "$ROOT[inference]"
 
 # --- 4. pipeline deps ---------------------------------------------------------
 say "Installing pipeline deps…"
-pip install --quiet -r "$PIPE/requirements.txt"
+"$VPY" -m pip install --quiet -r "$PIPE/requirements.txt"
 
 # --- 5. Piper voice (offline narration) ---------------------------------------
 say "Fetching a free Piper voice (en_US-lessac-medium)…"
@@ -45,7 +50,7 @@ done
 
 # --- 6. report detected hardware ---------------------------------------------
 say "Detected hardware / selected model tier:"
-python "$PIPE/pipeline.py" --probe || true
+"$VPY" "$PIPE/pipeline.py" --probe || true
 
 cat <<EOF
 

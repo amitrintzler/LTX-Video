@@ -1,0 +1,264 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>call-payoff-hyperframes</title>
+    <script>
+        window.__hf = {
+            duration: 20,
+            seek: function(t) {
+                // Hyperframes will call this to seek to time t
+            }
+        };
+    </script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        html, body {
+            width: 100%;
+            height: 100%;
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+            background: #0d1117;
+            color: #c9d1d9;
+        }
+
+        .stage {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            background: #0d1117;
+        }
+
+        .text-large {
+            font-size: 100px;
+            font-weight: bold;
+            color: #FFFFFF;
+        }
+
+        .text-title {
+            font-size: 80px;
+            font-weight: bold;
+            color: #FFD700;
+        }
+
+        .text-subtitle {
+            font-size: 60px;
+            color: #38BDF8;
+        }
+
+        .text-body {
+            font-size: 50px;
+            color: #FFFFFF;
+        }
+
+        .text-label {
+            font-size: 40px;
+            color: #8B949E;
+        }
+
+        .color-danger { color: #FF4444; }
+        .color-success { color: #00C896; }
+        .color-gold { color: #FFD700; }
+        .color-info { color: #58a6ff; }
+
+        .text-center {
+            text-align: center;
+        }
+
+        .text-left {
+            text-align: left;
+        }
+
+        .text-right {
+            text-align: right;
+        }
+
+        .flex-center {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-direction: column;
+            height: 100%;
+        }
+
+        .flex-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-around;
+            height: 100%;
+            padding: 0 100px;
+        }
+
+        .column {
+            flex: 1;
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+    <div class="stage">
+
+    <div
+      id="s01"
+      data-start="0"
+      data-duration="3"
+      style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; background: #0d1117; opacity: 1;"
+    >
+      
+        <div class="flex-center">
+            <div class="text-title">Call Option Payoff</div>
+            <div class="text-subtitle" style="margin-top: 40px;">Visual Diagram</div>
+        </div>
+        
+    </div>
+
+    <div
+      id="s02"
+      data-start="3"
+      data-duration="2"
+      style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; background: #0d1117; opacity: 1;"
+    >
+      
+        <div class="flex-center">
+            <svg width="1200" height="600" viewBox="0 0 1200 600" style="background: #0d1117;">
+                <!-- Axes -->
+                <line x1="100" y1="500" x2="1100" y2="500" stroke="#8B949E" stroke-width="3"/>
+                <line x1="100" y1="100" x2="100" y2="500" stroke="#8B949E" stroke-width="3"/>
+
+                <!-- X-axis label -->
+                <text x="1100" y="540" font-size="24" fill="#8B949E">Stock Price</text>
+
+                <!-- Y-axis label -->
+                <text x="20" y="100" font-size="24" fill="#8B949E">Profit/Loss</text>
+            </svg>
+        </div>
+        
+    </div>
+
+    <div
+      id="s03"
+      data-start="5"
+      data-duration="3"
+      style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; background: #0d1117; opacity: 1;"
+    >
+      
+        <div class="flex-center">
+            <svg width="1200" height="600" viewBox="0 0 1200 600" style="background: #0d1117;">
+                <!-- Axes -->
+                <line x1="100" y1="500" x2="1100" y2="500" stroke="#8B949E" stroke-width="3"/>
+                <line x1="100" y1="100" x2="100" y2="500" stroke="#8B949E" stroke-width="3"/>
+
+                <!-- Strike line -->
+                <line x1="400" y1="100" x2="400" y2="500" stroke="#FFD700" stroke-width="2" stroke-dasharray="5,5"/>
+
+                <!-- Loss zone line -->
+                <line x1="100" y1="400" x2="400" y2="400" stroke="#FF4444" stroke-width="4"/>
+
+                <!-- Labels -->
+                <text x="400" y="540" font-size="20" fill="#FFD700" text-anchor="middle">Strike $100</text>
+                <text x="200" y="380" font-size="24" fill="#FF4444">LOSS</text>
+            </svg>
+        </div>
+        
+    </div>
+
+    <div
+      id="s04"
+      data-start="8"
+      data-duration="3"
+      style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; background: #0d1117; opacity: 1;"
+    >
+      
+        <div class="flex-center">
+            <svg width="1200" height="600" viewBox="0 0 1200 600" style="background: #0d1117;">
+                <!-- Axes -->
+                <line x1="100" y1="500" x2="1100" y2="500" stroke="#8B949E" stroke-width="3"/>
+                <line x1="100" y1="100" x2="100" y2="500" stroke="#8B949E" stroke-width="3"/>
+
+                <!-- Strikes -->
+                <line x1="400" y1="100" x2="400" y2="500" stroke="#FFD700" stroke-width="2" stroke-dasharray="5,5"/>
+                <line x1="550" y1="100" x2="550" y2="500" stroke="#FFD700" stroke-width="2" stroke-dasharray="5,5"/>
+
+                <!-- Complete payoff line -->
+                <line x1="100" y1="400" x2="400" y2="400" stroke="#FF4444" stroke-width="4"/>
+                <line x1="400" y1="400" x2="1100" y2="150" stroke="#00C896" stroke-width="4"/>
+
+                <!-- Labels -->
+                <text x="400" y="540" font-size="18" fill="#FFD700" text-anchor="middle">Strike</text>
+                <text x="550" y="540" font-size="18" fill="#FFD700" text-anchor="middle">Breakeven</text>
+                <text x="250" y="380" font-size="20" fill="#FF4444">LOSS</text>
+                <text x="800" y="200" font-size="20" fill="#00C896">PROFIT</text>
+            </svg>
+        </div>
+        
+    </div>
+
+    <div
+      id="s05"
+      data-start="11"
+      data-duration="5"
+      style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; background: #0d1117; opacity: 1;"
+    >
+      
+        <div class="flex-row">
+            <div class="column">
+                <div class="text-title">EXAMPLE</div>
+                <div class="text-body" style="margin-top: 30px;">Apple Call</div>
+                <div class="text-label" style="margin-top: 30px;">Strike: $150</div>
+                <div class="text-label">Premium: $5</div>
+                <div class="text-label">Breakeven: $155</div>
+            </div>
+            <div class="column">
+                <svg width="400" height="500" viewBox="0 0 400 500" style="background: #0d1117;">
+                    <line x1="30" y1="400" x2="370" y2="400" stroke="#8B949E" stroke-width="2"/>
+                    <line x1="30" y1="50" x2="30" y2="400" stroke="#8B949E" stroke-width="2"/>
+
+                    <line x1="150" y1="50" x2="150" y2="400" stroke="#FFD700" stroke-width="2" stroke-dasharray="3,3"/>
+
+                    <line x1="30" y1="320" x2="150" y2="320" stroke="#FF4444" stroke-width="3"/>
+                    <line x1="150" y1="320" x2="370" y2="100" stroke="#00C896" stroke-width="3"/>
+
+                    <text x="150" y="440" font-size="16" fill="#FFD700" text-anchor="middle">$150</text>
+                    <text x="80" y="350" font-size="14" fill="#FF4444">-$5</text>
+                    <text x="250" y="150" font-size="14" fill="#00C896">+∞</text>
+                </svg>
+            </div>
+        </div>
+        
+    </div>
+
+    <div
+      id="s06"
+      data-start="16"
+      data-duration="4"
+      style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; background: #0d1117; opacity: 1;"
+    >
+      
+        <div class="flex-center">
+            <div style="text-align: center;">
+                <div class="text-title">Key Takeaway</div>
+                <div class="text-body color-success" style="margin-top: 40px;">Max Loss: Premium only</div>
+                <div class="text-body color-success" style="margin-top: 40px;">Max Gain: Unlimited ∞</div>
+                <div class="text-label" style="margin-top: 50px;">Bullish Strategy</div>
+            </div>
+        </div>
+        
+    </div>
+
+    </div>
+</body>
+</html>

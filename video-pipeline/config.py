@@ -69,6 +69,13 @@ class PipelineConfig:
     # ── Search ───────────────────────────────────────────────────────
     brave_api_key: str = ""            # Brave Search API key (optional; falls back to DuckDuckGo)
 
+    # ── Critic / semantic validation ─────────────────────────────────
+    critic_enabled: bool = True     # Enable visual critic for Manim scenes
+    critic_max_attempts: int = 3    # Max attempts to pass critic evaluation
+    critic_score_threshold: float = 0.80  # Minimum score to pass (0.0–1.0)
+    llm_retry_delay_sec: float = 2.0     # Sleep between Manim LLM codegen retries
+    critic_retry_delay_sec: float = 5.0  # Sleep between critic loop iterations
+
     # ── Renderers ────────────────────────────────────────────────────
     claude_model: str = "claude-sonnet-4-6"
     codex_model: str = "gpt-5.4"
@@ -120,6 +127,7 @@ class PipelineConfig:
 
     # ── TTS (Kokoro) ─────────────────────────────────────────────────
     tts_enabled: bool = True
+    tts_lang_code: str = "a"
     tts_voice: str = "af_heart"
     tts_speed: float = 1.0
     tts_sample_rate: int = 24000

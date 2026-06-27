@@ -76,8 +76,11 @@ def run(project_path: Path, only: str | None, dry_run: bool, tier_override: str 
     bed = None
     if "audio" in stages and not dry_run:
         print("\n[3/4] audio")
-        total = sum(s.get("duration", 5) for s in project["shots"]) \
-            - project.get("look", {}).get("transition_sec", 0.5) * (len(project["shots"]) - 1)
+        if not clips:
+            clips = sorted(work.glob("shot_*.mp4"))
+        xf = project.get("look", {}).get("transition_sec", 0.5)
+        # use ACTUAL rendered clip lengths (frame-capping can shorten them)
+        total = sum(edit._probe_duration(c) for c in clips) - xf * (len(clips) - 1)
         narration = None
         narr_text = project.get("narration")
         if narr_text:

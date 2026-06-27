@@ -111,10 +111,12 @@ def assemble(clips: list[Path], project: dict, out_path: Path,
                         "-crf", "16", "-pix_fmt", "yuv420p", str(burned)], check=True)
         video_only = burned
 
-    # Final mux.
+    # Final mux. Pad audio with silence (apad) so a short audio bed can NEVER
+    # truncate the video; -shortest then trims the padded audio to video length.
     if audio and audio.exists():
         subprocess.run([FF, "-y", "-loglevel", "error", "-i", str(video_only),
-                        "-i", str(audio), "-c:v", "copy", "-c:a", "aac",
+                        "-i", str(audio), "-filter_complex", "[1:a]apad[a]",
+                        "-map", "0:v", "-map", "[a]", "-c:v", "copy", "-c:a", "aac",
                         "-shortest", str(out_path)], check=True)
     else:
         subprocess.run([FF, "-y", "-loglevel", "error", "-i", str(video_only),

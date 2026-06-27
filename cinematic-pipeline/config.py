@@ -88,15 +88,21 @@ TIERS = [
 # (offload_to_cpu is CUDA-only), so the transformer + T5 text encoder + VAE all
 # stay resident in unified memory at once, and VAE-decoding many frames needs a
 # large single allocation on top. Empirically 13b at 1280x544x113 peaks ~57GB.
-# These are the unified-memory floors to run a tier on MPS *without* swapping.
+# Unified-memory floors to run a tier on MPS without swapping. 13b-distilled was
+# verified to fit 48GB at 832x480x49 (peak ~43GB, ~5GB margin) — so it's the max
+# quality tier on a 48GB Mac. 13b-dev (full, more steps) needs much more.
 MPS_MIN_MEM = {
     "13b-dev": 96,
-    "13b-distilled": 64,
+    "13b-distilled": 40,
     "2b-distilled": 16,
 }
-# Per-device generation caps to keep VAE-decode peak memory bounded.
-MPS_MAX_PIXELS = 768 * 448      # ~344k px; decode of this x ~73 frames fits 48GB
-MPS_MAX_FRAMES = 73             # must satisfy (n-1) % 8 == 0
+# Per-TIER MPS generation caps (pixels, frames) that bound VAE-decode peak memory.
+# Bigger models get tighter caps because their resident footprint is larger.
+MPS_CAPS = {
+    "13b-distilled": (832 * 480, 49),   # verified ~43GB peak on 48GB
+    "2b-distilled":  (768 * 448, 73),
+}
+MPS_CAPS_DEFAULT = (768 * 448, 49)
 
 
 def _tier_dict(name, cfg, maxpx, max_frames):
@@ -104,18 +110,22 @@ def _tier_dict(name, cfg, maxpx, max_frames):
             "max_pixels": maxpx, "max_frames": max_frames}
 
 
+def _mps_caps(name):
+    return MPS_CAPS.get(name, MPS_CAPS_DEFAULT)
+
+
 def select_tier(dev: Device, prefer: Optional[str] = None) -> dict:
     """Return {name, config, max_pixels, max_frames} for the heaviest tier the
     device can actually sustain (MPS uses stricter, no-offload thresholds)."""
     is_mps = dev.kind == "mps"
-    px_cap = MPS_MAX_PIXELS if is_mps else None
-    fr_cap = MPS_MAX_FRAMES if is_mps else 257
 
     if prefer:
         for name, cfg, _, maxpx, _ in TIERS:
             if name == prefer:
-                px = min(maxpx, px_cap) if px_cap else maxpx
-                return _tier_dict(name, cfg, px, fr_cap)
+                if is_mps:
+                    px, fr = _mps_caps(name)
+                    return _tier_dict(name, cfg, min(maxpx, px), fr)
+                return _tier_dict(name, cfg, maxpx, 257)
         raise ValueError(f"Unknown tier '{prefer}'. Options: {[t[0] for t in TIERS]}")
 
     for name, cfg, min_vram, maxpx, cuda_only in TIERS:
@@ -127,13 +137,16 @@ def select_tier(dev: Device, prefer: Optional[str] = None) -> dict:
             need = MPS_MIN_MEM.get(name)
             if need is None or dev.vram_gb < need:
                 continue  # too big to fit without swapping on this Mac
-            return _tier_dict(name, cfg, min(maxpx, px_cap), fr_cap)
+            px, fr = _mps_caps(name)
+            return _tier_dict(name, cfg, min(maxpx, px), fr)
         if dev.vram_gb >= min_vram:
-            return _tier_dict(name, cfg, maxpx, fr_cap)
+            return _tier_dict(name, cfg, maxpx, 257)
 
     # Fallback: smallest non-fp8 tier (CPU or very small device).
-    px = min(1024 * 576, px_cap) if px_cap else 1024 * 576
-    return _tier_dict("2b-distilled", "ltxv-2b-0.9.8-distilled.yaml", px, fr_cap)
+    if is_mps:
+        px, fr = _mps_caps("2b-distilled")
+        return _tier_dict("2b-distilled", "ltxv-2b-0.9.8-distilled.yaml", px, fr)
+    return _tier_dict("2b-distilled", "ltxv-2b-0.9.8-distilled.yaml", 1024 * 576, 257)
 
 
 def cap_resolution(width: int, height: int, max_pixels: int) -> tuple[int, int]:

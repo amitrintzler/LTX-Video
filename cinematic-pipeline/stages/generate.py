@@ -33,6 +33,9 @@ def generate_shot(shot: dict, project: dict, tier: dict, out_dir: Path,
     res = project.get("resolution", {"width": 1280, "height": 704})
     w, h = cfg.cap_resolution(res["width"], res["height"], tier["max_pixels"])
     num_frames = frames_for(shot.get("duration", 5), fps)
+    max_frames = tier.get("max_frames", 257)
+    if num_frames > max_frames:                 # cap clip length to fit device memory
+        num_frames = max_frames - ((max_frames - 1) % 8)
     out_path = out_dir / f"shot_{shot['id']}.mp4"
     # inference.py treats --output_path as a DIRECTORY and writes its own
     # uniquely-named file inside; give it a per-shot dir, then collect the file.

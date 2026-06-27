@@ -84,29 +84,56 @@ TIERS = [
 ]
 
 
+# MPS reality: inference.py CANNOT offload weights to CPU on Apple Silicon
+# (offload_to_cpu is CUDA-only), so the transformer + T5 text encoder + VAE all
+# stay resident in unified memory at once, and VAE-decoding many frames needs a
+# large single allocation on top. Empirically 13b at 1280x544x113 peaks ~57GB.
+# These are the unified-memory floors to run a tier on MPS *without* swapping.
+MPS_MIN_MEM = {
+    "13b-dev": 96,
+    "13b-distilled": 64,
+    "2b-distilled": 16,
+}
+# Per-device generation caps to keep VAE-decode peak memory bounded.
+MPS_MAX_PIXELS = 768 * 448      # ~344k px; decode of this x ~73 frames fits 48GB
+MPS_MAX_FRAMES = 73             # must satisfy (n-1) % 8 == 0
+
+
+def _tier_dict(name, cfg, maxpx, max_frames):
+    return {"name": name, "config": str(CONFIGS / cfg),
+            "max_pixels": maxpx, "max_frames": max_frames}
+
+
 def select_tier(dev: Device, prefer: Optional[str] = None) -> dict:
-    """Return {name, config, max_pixels} for the heaviest tier the device allows."""
+    """Return {name, config, max_pixels, max_frames} for the heaviest tier the
+    device can actually sustain (MPS uses stricter, no-offload thresholds)."""
+    is_mps = dev.kind == "mps"
+    px_cap = MPS_MAX_PIXELS if is_mps else None
+    fr_cap = MPS_MAX_FRAMES if is_mps else 257
+
     if prefer:
         for name, cfg, _, maxpx, _ in TIERS:
             if name == prefer:
-                return {"name": name, "config": str(CONFIGS / cfg), "max_pixels": maxpx}
+                px = min(maxpx, px_cap) if px_cap else maxpx
+                return _tier_dict(name, cfg, px, fr_cap)
         raise ValueError(f"Unknown tier '{prefer}'. Options: {[t[0] for t in TIERS]}")
 
     for name, cfg, min_vram, maxpx, cuda_only in TIERS:
-        if cuda_only and dev.kind != "cuda":
-            continue
-        if cuda_only and not dev.supports_fp8:
-            continue
         if dev.kind == "cpu":
-            continue  # CPU: handled below
+            continue
+        if cuda_only and (dev.kind != "cuda" or not dev.supports_fp8):
+            continue
+        if is_mps:
+            need = MPS_MIN_MEM.get(name)
+            if need is None or dev.vram_gb < need:
+                continue  # too big to fit without swapping on this Mac
+            return _tier_dict(name, cfg, min(maxpx, px_cap), fr_cap)
         if dev.vram_gb >= min_vram:
-            return {"name": name, "config": str(CONFIGS / cfg), "max_pixels": maxpx}
+            return _tier_dict(name, cfg, maxpx, fr_cap)
 
-    # Apple Silicon with lots of unified memory can still run distilled models,
-    # just slowly — fall through to the smallest non-fp8 tier.
-    fallback = "2b-distilled"
-    cfg = next(c for n, c, *_ in TIERS if n == fallback)
-    return {"name": fallback, "config": str(CONFIGS / cfg), "max_pixels": 1024 * 576}
+    # Fallback: smallest non-fp8 tier (CPU or very small device).
+    px = min(1024 * 576, px_cap) if px_cap else 1024 * 576
+    return _tier_dict("2b-distilled", "ltxv-2b-0.9.8-distilled.yaml", px, fr_cap)
 
 
 def cap_resolution(width: int, height: int, max_pixels: int) -> tuple[int, int]:
@@ -148,4 +175,5 @@ if __name__ == "__main__":
     print(f"fp8    : {'yes' if d.supports_fp8 else 'no'}")
     print(f"Tier   : {t['name']}  ({Path(t['config']).name})")
     print(f"Max res: ~{int(t['max_pixels']**0.5)}px equivalent budget")
+    print(f"Max len: {t['max_frames']} frames/shot")
     print(f"ffmpeg : {ffmpeg_bin()}")

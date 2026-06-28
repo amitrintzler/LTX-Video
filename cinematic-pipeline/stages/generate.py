@@ -53,10 +53,16 @@ def generate_shot(shot: dict, project: dict, tier: dict, out_dir: Path,
         "--seed", str(shot.get("seed", 42)),
         "--output_path", str(gen_dir),
     ]
-    # image-to-video: a keyframe still anchors character/scene consistency
+    # image-to-video: anchor the clip to a keyframe still at frame 0 via the
+    # ConditioningItem path (--conditioning_*). This is the correct i2v API —
+    # --input_media_path is for video continuation and trips a full-noise
+    # assertion. Strength ~0.9 keeps the character/composition, lets motion vary.
     if shot.get("keyframe"):
         kf = (out_dir.parent / shot["keyframe"]) if not Path(shot["keyframe"]).is_absolute() else Path(shot["keyframe"])
-        argv += ["--input_media_path", str(kf)]
+        strength = str(shot.get("keyframe_strength", project.get("keyframe_strength", 0.9)))
+        argv += ["--conditioning_media_paths", str(kf),
+                 "--conditioning_start_frames", "0",
+                 "--conditioning_strengths", strength]
     # Apple Silicon / small cards: stream weights through CPU to fit memory
     if device.kind != "cuda" or device.vram_gb < 24:
         argv += ["--offload_to_cpu", "True"]

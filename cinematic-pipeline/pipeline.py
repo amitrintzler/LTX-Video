@@ -55,6 +55,22 @@ def run(project_path: Path, only: str | None, dry_run: bool, tier_override: str 
         # are attached for image-to-video; placeholder => pure text-to-video.
         if kp == "placeholder":
             print("  (placeholder provider: running text-to-video, no conditioning)")
+        elif kp == "sdxl":
+            # character-consistent keyframes: one SDXL load, all shots, fixed
+            # character clause + base seed so the same person appears throughout.
+            char = project.get("character", "")
+            kf_res = project.get("keyframe_resolution", {"width": 1024, "height": 576})
+            if not dry_run:
+                from stages import sdxl_keyframes
+                made = sdxl_keyframes.generate(
+                    char, project["shots"], work,
+                    kf_res["width"], kf_res["height"],
+                    base_seed=project.get("keyframe_base_seed", 1000))
+                for shot in project["shots"]:
+                    shot["keyframe"] = str((made[shot["id"]]).relative_to(proj_dir))
+            else:
+                for shot in project["shots"]:
+                    shot["keyframe"] = str((work / f"kf_{shot['id']}.png").relative_to(proj_dir))
         else:
             for shot in project["shots"]:
                 if shot.get("keyframe") is None and project.get("auto_keyframes"):

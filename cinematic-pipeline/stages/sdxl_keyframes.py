@@ -56,6 +56,21 @@ def generate(character: str, shots: list[dict], out_dir: Path, width: int, heigh
     return results
 
 
+def release():
+    """Free the SDXL pipeline so it doesn't sit resident during LTX generation."""
+    global _PIPE
+    if _PIPE is None:
+        return
+    _PIPE = None
+    try:
+        import gc, torch
+        gc.collect()
+        if torch.backends.mps.is_available():
+            torch.mps.empty_cache()
+    except Exception:
+        pass
+
+
 if __name__ == "__main__":
     # smoke test: one NY trader keyframe
     out = Path(sys.argv[1]) if len(sys.argv) > 1 else Path("/tmp/sdxl_test")

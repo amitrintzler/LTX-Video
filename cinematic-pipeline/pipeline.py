@@ -68,6 +68,7 @@ def run(project_path: Path, only: str | None, dry_run: bool, tier_override: str 
                     base_seed=project.get("keyframe_base_seed", 1000))
                 for shot in project["shots"]:
                     shot["keyframe"] = str((made[shot["id"]]).relative_to(proj_dir))
+                sdxl_keyframes.release()   # free ~12GB before LTX generation
             else:
                 for shot in project["shots"]:
                     shot["keyframe"] = str((work / f"kf_{shot['id']}.png").relative_to(proj_dir))

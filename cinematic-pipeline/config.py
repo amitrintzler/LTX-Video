@@ -99,7 +99,9 @@ MPS_MIN_MEM = {
 # Per-TIER MPS generation caps (pixels, frames) that bound VAE-decode peak memory.
 # Bigger models get tighter caps because their resident footprint is larger.
 MPS_CAPS = {
-    "13b-distilled": (832 * 480, 49),   # verified ~43GB peak on 48GB
+    # 13b t2v fits at 832x480; i2v adds keyframe-conditioning memory (~5GB) so
+    # i2v needs a smaller budget to stay under 48GB. Lowered for safety.
+    "13b-distilled": (704 * 384, 41),
     "2b-distilled":  (768 * 448, 73),
 }
 MPS_CAPS_DEFAULT = (768 * 448, 49)

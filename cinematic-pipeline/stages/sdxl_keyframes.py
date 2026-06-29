@@ -1,10 +1,13 @@
 """
-SDXL keyframe generator for character-consistent shots.
+SDXL + IP-Adapter character-consistent keyframe generator.
 
-Loads SDXL ONCE and renders all shot keyframes in a single process (no per-image
-model reload). Consistency strategy: a fixed, detailed CHARACTER clause prepended
-to every prompt + a fixed base seed, so the same person appears across scenes.
-These stills then drive LTX image-to-video, so each clip animates the same face.
+Strategy that actually locks identity (text+seed alone does not):
+  1. Render ONE hero portrait of the character.
+  2. Load IP-Adapter and use that hero portrait as an IMAGE reference for every
+     scene keyframe, so the SAME face appears in all scenes.
+  3. ip_adapter_scale balances identity (high) vs scene/composition freedom (low).
+
+These stills then drive LTX image-to-video. Loads SDXL once for all shots.
 """
 from __future__ import annotations
 import sys
@@ -14,6 +17,8 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 import config as cfg  # noqa: E402
 
 _PIPE = None
+NEG = ("deformed, disfigured, extra limbs, bad anatomy, blurry, low quality, "
+       "watermark, text, cartoon, 3d render, plastic skin")
 
 
 def _load():
@@ -26,8 +31,8 @@ def _load():
     dtype = torch.float16 if dev.kind in ("cuda", "mps") else torch.float32
     pipe = StableDiffusionXLPipeline.from_pretrained(
         "stabilityai/stable-diffusion-xl-base-1.0",
-        torch_dtype=dtype, use_safetensors=True, variant="fp16" if dtype == torch.float16 else None,
-    )
+        torch_dtype=dtype, use_safetensors=True,
+        variant="fp16" if dtype == torch.float16 else None)
     pipe = pipe.to("mps" if dev.kind == "mps" else dev.kind)
     pipe.set_progress_bar_config(disable=True)
     _PIPE = pipe
@@ -35,20 +40,35 @@ def _load():
 
 
 def generate(character: str, shots: list[dict], out_dir: Path, width: int, height: int,
-             base_seed: int = 1000, steps: int = 30, neg: str = "") -> dict:
-    """Render one keyframe per shot. Returns {shot_id: path}."""
+             base_seed: int = 1000, steps: int = 32, ip_scale: float = 0.6,
+             hero_prompt: str | None = None) -> dict:
+    """Render a hero portrait + one face-locked keyframe per shot.
+    Returns {shot_id: path}. Hero saved as hero.png."""
     import torch
     pipe = _load()
     out_dir.mkdir(parents=True, exist_ok=True)
-    neg = neg or ("deformed, disfigured, extra limbs, bad anatomy, blurry, low quality, "
-                  "watermark, text, cartoon, 3d render")
+
+    # 1) hero portrait defines the identity (no adapter loaded yet)
+    hp = hero_prompt or (f"{character}, professional cinematic headshot portrait, "
+                         "looking at camera, sharp focus, 85mm, studio lighting")
+    g = torch.Generator("cpu").manual_seed(base_seed)
+    hero = pipe(prompt=hp, negative_prompt=NEG, num_inference_steps=steps,
+                guidance_scale=6.5, width=1024, height=1024, generator=g).images[0]
+    hero_path = out_dir / "hero.png"
+    hero.save(hero_path)
+    print(f"  hero -> {hero_path.name}")
+
+    # 2) load IP-Adapter and lock the hero face into every scene keyframe
+    pipe.load_ip_adapter("h94/IP-Adapter", subfolder="sdxl_models",
+                         weight_name="ip-adapter_sdxl.safetensors")
+    pipe.set_ip_adapter_scale(ip_scale)
     results = {}
     for s in shots:
-        prompt = f"{character}, {s['prompt']}, cinematic photography, 35mm, sharp focus, detailed"
-        # same base seed keeps facial structure stable; small per-shot offset varies pose/scene
-        g = torch.Generator(device="cpu").manual_seed(base_seed + int(s["id"]))
-        img = pipe(prompt=prompt, negative_prompt=neg, num_inference_steps=steps,
-                   guidance_scale=6.5, width=width, height=height, generator=g).images[0]
+        prompt = f"{character}, {s['prompt']}, cinematic film still, sharp focus, detailed"
+        g = torch.Generator("cpu").manual_seed(base_seed + int(s["id"]))
+        img = pipe(prompt=prompt, negative_prompt=NEG, ip_adapter_image=hero,
+                   num_inference_steps=steps, guidance_scale=6.5,
+                   width=width, height=height, generator=g).images[0]
         p = out_dir / f"kf_{s['id']}.png"
         img.save(p)
         results[s["id"]] = p
@@ -57,7 +77,7 @@ def generate(character: str, shots: list[dict], out_dir: Path, width: int, heigh
 
 
 def release():
-    """Free the SDXL pipeline so it doesn't sit resident during LTX generation."""
+    """Free SDXL so it doesn't sit resident during LTX generation."""
     global _PIPE
     if _PIPE is None:
         return
@@ -72,11 +92,9 @@ def release():
 
 
 if __name__ == "__main__":
-    # smoke test: one NY trader keyframe
     out = Path(sys.argv[1]) if len(sys.argv) > 1 else Path("/tmp/sdxl_test")
     char = ("a confident 38-year-old male Wall Street stock trader, short dark hair, "
-            "light stubble, sharp navy pinstripe suit, white shirt, loosened red tie")
-    shots = [{"id": "01", "prompt": "standing on a busy New York trading floor, "
-              "screens glowing with stock charts behind him, intense expression"}]
-    generate(char, shots, out, 1024, 576, steps=30)
+            "light stubble, navy pinstripe suit, white shirt, red tie")
+    shots = [{"id": "01", "prompt": "on a busy New York trading floor, glowing stock tickers behind him"}]
+    generate(char, shots, out, 1024, 576)
     print("done ->", out)

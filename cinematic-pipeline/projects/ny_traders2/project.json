@@ -1,0 +1,29 @@
+{
+  "project": "ny_traders2",
+  "tier": "2b-distilled",
+  "fps": 24,
+  "resolution": { "width": 1280, "height": 720 },
+  "keyframe_resolution": { "width": 1024, "height": 576 },
+  "auto_keyframes": true,
+  "keyframe_provider": "sdxl",
+  "keyframe_base_seed": 1000,
+  "ip_adapter_scale": 0.6,
+  "keyframe_strength": 0.95,
+  "character": "Michael, a confident 38-year-old male Wall Street stock trader, short dark hair, light stubble, strong jaw, navy pinstripe suit, white shirt, red tie, the exact same man",
+  "hero_prompt": "a confident 38-year-old male Wall Street stock trader named Michael, short dark hair, light stubble, strong jaw, navy pinstripe suit, white shirt, red tie, cinematic headshot portrait, looking at camera, sharp focus, 85mm, dramatic lighting",
+  "look": { "letterbox": true, "vignette": true, "grain": 0.03, "transition_sec": 0.5 },
+  "narration": "Michael trades a game measured in seconds and millions. One morning on the floor, fortunes turn on a flicker of green and a whisper of red. New York never blinks. Neither does he.",
+  "voice_model": "~/piper-voices/en_US-lessac-medium.onnx",
+  "audio": { "music": null, "use_shot_audio": false },
+  "subtitles": null,
+  "shots": [
+    { "id": "01", "prompt": "wide cinematic shot, walking into the lobby of a Manhattan skyscraper at dawn, briefcase in hand, morning light through tall glass windows", "duration": 3, "seed": 7 },
+    { "id": "02", "prompt": "medium shot on the bustling New York stock exchange trading floor, huge walls of glowing stock tickers behind him, focused, colleagues blurred around him", "duration": 3, "seed": 21 },
+    { "id": "03", "prompt": "close-up at his trading desk, six glowing monitors of rising green stock charts reflected on his face, intense concentration", "duration": 3, "seed": 34 },
+    { "id": "04", "prompt": "medium shot raising a fist in triumph at his desk as green profit numbers spike on the screens behind him, elated", "duration": 3, "seed": 48 },
+    { "id": "05", "prompt": "close-up loosening his red tie, tense and sweating, red crashing stock charts filling the monitors behind him", "duration": 3, "seed": 61 },
+    { "id": "06", "prompt": "wide shot standing alone in a glass corner office looking out over the Manhattan skyline at dusk, contemplative silhouette", "duration": 3, "seed": 73 },
+    { "id": "07", "prompt": "medium shot shaking hands with brokers across a glossy boardroom table, Manhattan skyline through the windows, confident smile", "duration": 3, "seed": 88 },
+    { "id": "08", "prompt": "cinematic close-up of his determined face at night, glowing city lights and stock tickers reflected in the window beside him", "duration": 3, "seed": 95 }
+  ]
+}

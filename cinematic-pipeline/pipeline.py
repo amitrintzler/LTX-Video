@@ -60,12 +60,19 @@ def run(project_path: Path, only: str | None, dry_run: bool, tier_override: str 
             # character clause + base seed so the same person appears throughout.
             char = project.get("character", "")
             kf_res = project.get("keyframe_resolution", {"width": 1024, "height": 576})
-            if not dry_run:
+            existing = {s["id"]: work / f"kf_{s['id']}.png" for s in project["shots"]}
+            if all(p.exists() for p in existing.values()):
+                print("  (reusing existing keyframes on disk)")
+                for shot in project["shots"]:
+                    shot["keyframe"] = str(existing[shot["id"]].relative_to(proj_dir))
+            elif not dry_run:
                 from stages import sdxl_keyframes
                 made = sdxl_keyframes.generate(
                     char, project["shots"], work,
                     kf_res["width"], kf_res["height"],
-                    base_seed=project.get("keyframe_base_seed", 1000))
+                    base_seed=project.get("keyframe_base_seed", 1000),
+                    ip_scale=project.get("ip_adapter_scale", 0.6),
+                    hero_prompt=project.get("hero_prompt"))
                 for shot in project["shots"]:
                     shot["keyframe"] = str((made[shot["id"]]).relative_to(proj_dir))
                 sdxl_keyframes.release()   # free ~12GB before LTX generation

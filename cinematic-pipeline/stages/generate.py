@@ -34,6 +34,9 @@ def generate_shot(shot: dict, project: dict, tier: dict, out_dir: Path,
     w, h = cfg.cap_resolution(res["width"], res["height"], tier["max_pixels"])
     num_frames = frames_for(shot.get("duration", 5), fps)
     max_frames = tier.get("max_frames", 257)
+    pmf = project.get("max_frames")             # project may request longer single clips
+    if pmf:
+        max_frames = pmf
     if num_frames > max_frames:                 # cap clip length to fit device memory
         num_frames = max_frames - ((max_frames - 1) % 8)
     out_path = out_dir / f"shot_{shot['id']}.mp4"

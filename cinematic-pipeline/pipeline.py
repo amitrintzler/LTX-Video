@@ -87,12 +87,27 @@ def run(project_path: Path, only: str | None, dry_run: bool, tier_override: str 
                         keyframes.make_keyframe(shot, project, kf, kp)
                     shot["keyframe"] = str(kf.relative_to(proj_dir))
 
-    # 2. generate shots
+    # 2. generate shots — LTX i2v/t2v, or depth-parallax camera motion on the still
+    motion = project.get("motion", "ltx")
     clips: list[Path] = []
     if "generate" in stages:
-        print(f"\n[2/4] generate  ({len(project['shots'])} shots)")
+        print(f"\n[2/4] generate  ({len(project['shots'])} shots, motion={motion})")
         for shot in project["shots"]:
-            clips.append(generate.generate_shot(shot, project, tier, work, dev, dry_run))
+            if motion == "parallax":
+                from stages import parallax
+                fps = int(project.get("fps", 24))
+                nframes = int(round(shot.get("duration", 5) * fps))
+                kf = Path(shot["keyframe"])
+                kf = kf if kf.is_absolute() else proj_dir / kf
+                out = work / f"shot_{shot['id']}.mp4"
+                print(f"  [{shot['id']}] parallax {nframes}f @ {fps}fps")
+                if not dry_run:
+                    parallax.animate(kf, out, nframes, fps,
+                                     parallax_px=project.get("parallax_px", 22.0),
+                                     zoom=project.get("parallax_zoom", 0.10))
+                clips.append(out)
+            else:
+                clips.append(generate.generate_shot(shot, project, tier, work, dev, dry_run))
     else:
         clips = sorted(work.glob("shot_*.mp4"))
 

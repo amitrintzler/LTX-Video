@@ -103,8 +103,9 @@ def run(project_path: Path, only: str | None, dry_run: bool, tier_override: str 
                 print(f"  [{shot['id']}] parallax {nframes}f @ {fps}fps")
                 if not dry_run:
                     parallax.animate(kf, out, nframes, fps,
-                                     parallax_px=project.get("parallax_px", 22.0),
-                                     zoom=project.get("parallax_zoom", 0.10))
+                                     parallax_px=shot.get("parallax_px", project.get("parallax_px", 22.0)),
+                                     zoom=shot.get("parallax_zoom", project.get("parallax_zoom", 0.10)),
+                                     pan=tuple(shot.get("pan", (1.0, 0.25))))
                 clips.append(out)
             else:
                 clips.append(generate.generate_shot(shot, project, tier, work, dev, dry_run))

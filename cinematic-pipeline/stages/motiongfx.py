@@ -202,6 +202,155 @@ class Promo:
             _ctext(d, "Long Call Payoff", fh, int(H * 0.85), WHITE, a)
             self._save(img)
 
+    # ---- scene: scrolling ticker tape ----
+    def ticker(self, secs=3.4):
+        total = int(secs * FPS)
+        items = [("AAPL", 1.2), ("TSLA", -0.8), ("NVDA", 2.4), ("SPY", 0.3),
+                 ("MSFT", 0.6), ("AMD", -1.1), ("META", 1.8), ("QQQ", 0.4),
+                 ("AMZN", 0.9), ("GOOG", -0.5)]
+        fsym = _font(46); ftitle = _font(40)
+        seg = 360
+        speed = 170.0
+        band_y, bh = int(H * 0.40), 120
+        for fr in range(total):
+            img = _bg(); d = ImageDraw.Draw(img, "RGBA")
+            a = int(255 * _fade_alpha(fr, total))
+            d.rectangle([0, band_y, W, band_y + bh], fill=(20, 24, 52, int(a * 0.85)))
+            d.line([(0, band_y), (W, band_y)], fill=ACCENT + (int(a * 0.5),), width=2)
+            d.line([(0, band_y + bh), (W, band_y + bh)], fill=ACCENT + (int(a * 0.5),), width=2)
+            off = (fr / FPS) * speed
+            base = -(off % seg)
+            for k in range(0, W // seg + 3):
+                sym, pct = items[(int(off // seg) + k) % len(items)]
+                x = int(base + k * seg)
+                col = UP if pct >= 0 else DOWN
+                arrow = "▲" if pct >= 0 else "▼"
+                d.text((x, band_y + 24), sym, font=fsym, fill=WHITE + (a,))
+                d.text((x, band_y + 68), f"{arrow} {abs(pct):.1f}%", font=_font(34), fill=col + (a,))
+            _ctext(d, "Track the Market", ftitle, int(H * 0.72), WHITE, a)
+            self._save(img)
+
+    # ---- scene: volatility expected-move cone ----
+    def vol_cone(self, secs=3.6):
+        total = int(secs * FPS)
+        x0, x1 = int(W * 0.14), int(W * 0.86)
+        midy = int(H * 0.48)
+        maxw = int(H * 0.24)
+        fh = _font(40); fs = _font(22)
+        for fr in range(total):
+            img = _bg(); d = ImageDraw.Draw(img, "RGBA")
+            a = int(255 * _fade_alpha(fr, total))
+            d.line([(x0, midy), (x1, midy)], fill=(90, 96, 130, a), width=2)
+            d.text((x0 - 4, int(H * 0.16)), "price", font=fs, fill=MUTE + (a,))
+            d.text((x1 - 40, midy + 8), "time", font=fs, fill=MUTE + (a,))
+            p = ease(fr / total)
+            steps = 60
+            top_pts, bot_pts = [], []
+            for s in range(steps + 1):
+                t = s / steps
+                if t > p:
+                    break
+                x = x0 + (x1 - x0) * t
+                hw = maxw * math.sqrt(t)
+                top_pts.append((x, midy - hw))
+                bot_pts.append((x, midy + hw))
+            if len(top_pts) > 1:
+                poly = top_pts + bot_pts[::-1]
+                d.polygon(poly, fill=(INDIGO + (int(a * 0.28),)))
+                d.line(top_pts, fill=INDIGO + (a,), width=3)
+                d.line(bot_pts, fill=INDIGO + (a,), width=3)
+                # drifting expected price line
+                cl = [(x0 + (x1 - x0) * (s / steps),
+                       midy - maxw * 0.35 * math.sqrt(s / steps))
+                      for s in range(len(top_pts))]
+                d.line(cl, fill=ACCENT + (a,), width=3)
+            _ctext(d, "Volatility = Range of Outcomes", fh, int(H * 0.82), WHITE, a)
+            self._save(img)
+
+    # ---- scene: implied-volatility smile ----
+    def iv_smile(self, secs=3.4):
+        total = int(secs * FPS)
+        x0, x1 = int(W * 0.18), int(W * 0.82)
+        y0, y1 = int(H * 0.22), int(H * 0.72)
+        fh = _font(40); fs = _font(22)
+        for fr in range(total):
+            img = _bg(); d = ImageDraw.Draw(img, "RGBA")
+            a = int(255 * _fade_alpha(fr, total))
+            d.line([(x0, y0), (x0, y1)], fill=(110, 116, 150, a), width=2)
+            d.line([(x0, y1), (x1, y1)], fill=(110, 116, 150, a), width=2)
+            d.text((x0 - 6, y0 - 26), "IV", font=fs, fill=MUTE + (a,))
+            d.text((x1 - 60, y1 + 8), "strike", font=fs, fill=MUTE + (a,))
+            p = ease(fr / total)
+            pts = []
+            steps = 60
+            for s in range(steps + 1):
+                t = s / steps
+                if t > p:
+                    break
+                x = x0 + (x1 - x0) * t
+                u = (t - 0.5) * 2                      # -1..1
+                iv = 0.25 + 0.55 * (u * u)             # smile
+                y = y1 - iv * (y1 - y0)
+                pts.append((x, y))
+            if len(pts) > 1:
+                d.line(pts, fill=ACCENT + (a,), width=4)
+                d.ellipse([pts[-1][0] - 6, pts[-1][1] - 6, pts[-1][0] + 6, pts[-1][1] + 6],
+                          fill=WHITE + (a,))
+            # ATM marker
+            d.line([((x0 + x1) // 2, y0), ((x0 + x1) // 2, y1)], fill=(INDIGO + (int(a * 0.4),)))
+            d.text(((x0 + x1) // 2 - 16, y1 + 8), "ATM", font=fs, fill=INDIGO + (a,))
+            _ctext(d, "The Volatility Smile", fh, int(H * 0.82), WHITE, a)
+            self._save(img)
+
+    # ---- scene: the Greeks bars ----
+    def greeks(self, secs=3.4):
+        total = int(secs * FPS)
+        rows = [("Delta", 0.55, ACCENT), ("Gamma", 0.30, INDIGO),
+                ("Theta", 0.70, DOWN), ("Vega", 0.45, UP)]
+        fl = _font(38); fv = _font(34); fh = _font(40)
+        bx0 = int(W * 0.30); bx1 = int(W * 0.82)
+        for fr in range(total):
+            img = _bg(); d = ImageDraw.Draw(img, "RGBA")
+            a = int(255 * _fade_alpha(fr, total))
+            p = ease(fr / total)
+            for i, (name, frac, col) in enumerate(rows):
+                y = int(H * 0.26) + i * int(H * 0.13)
+                d.text((int(W * 0.14), y), name, font=fl, fill=WHITE + (a,))
+                d.rounded_rectangle([bx0, y, bx1, y + 34], radius=17,
+                                    fill=(40, 44, 74, a))
+                w = int((bx1 - bx0) * frac * p)
+                d.rounded_rectangle([bx0, y, bx0 + max(34, w), y + 34], radius=17,
+                                    fill=col + (a,))
+                d.text((bx1 + 16, y), f"{frac*p:.2f}", font=fv, fill=col + (a,))
+            _ctext(d, "Know Your Greeks", fh, int(H * 0.84), WHITE, a)
+            self._save(img)
+
+    # ---- scene: long straddle payoff (volatility play) ----
+    def straddle(self, secs=3.4):
+        total = int(secs * FPS)
+        ax0, ax1 = int(W * 0.16), int(W * 0.84)
+        ay0, ay1 = int(H * 0.16), int(H * 0.76)
+        zero_y = int(ay0 + (ay1 - ay0) * 0.58)
+        cx = (ax0 + ax1) // 2
+        cost = (ay1 - zero_y) * 0.7
+        fh = _font(40); fs = _font(22)
+        for fr in range(total):
+            img = _bg(); d = ImageDraw.Draw(img, "RGBA")
+            a = int(255 * _fade_alpha(fr, total))
+            d.line([(ax0, zero_y), (ax1, zero_y)], fill=(110, 116, 150, a), width=2)
+            d.line([(cx, ay0), (cx, ay1)], fill=(INDIGO + (int(a * 0.4),)))
+            d.text((cx - 20, ay1 + 6), "Strike", font=fs, fill=INDIGO + (a,))
+            p = ease(fr / total)
+            reach = (ax1 - cx) * p
+            slope = (zero_y - ay0) / (ax1 - cx)
+            lx = cx - reach; rx = cx + reach
+            ly = (zero_y + cost) - slope * (cx - lx)
+            ry = (zero_y + cost) - slope * (rx - cx)
+            d.line([(cx, zero_y + cost), (rx, ry)], fill=ACCENT + (a,), width=4)
+            d.line([(cx, zero_y + cost), (lx, ly)], fill=ACCENT + (a,), width=4)
+            _ctext(d, "Trade Volatility: The Straddle", fh, int(H * 0.85), WHITE, a)
+            self._save(img)
+
     # ---- scene: counting stat ----
     def stat(self, target, suffix, label, secs=2.4):
         total = int(secs * FPS)

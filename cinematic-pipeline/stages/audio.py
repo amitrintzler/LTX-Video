@@ -21,16 +21,27 @@ import config as cfg  # noqa: E402
 FF = cfg.ffmpeg_bin()
 
 
-def _piper_bin() -> str | None:
-    return shutil.which("piper")
+def _piper_cmd() -> list[str] | None:
+    """piper on PATH, else the venv script, else `python -m piper`."""
+    p = shutil.which("piper")
+    if p:
+        return [p]
+    venv_piper = Path(sys.executable).parent / "piper"
+    if venv_piper.exists():
+        return [str(venv_piper)]
+    try:
+        import piper  # noqa: F401
+        return [sys.executable, "-m", "piper"]
+    except ImportError:
+        return None
 
 
 def narrate(text: str, voice_model: Path, out_wav: Path) -> Path | None:
-    piper = _piper_bin()
-    if not piper or not voice_model.exists():
+    cmd = _piper_cmd()
+    if not cmd or not voice_model.exists():
         print("    (skip narration: piper or voice model unavailable)")
         return None
-    subprocess.run([piper, "-m", str(voice_model), "-f", str(out_wav)],
+    subprocess.run([*cmd, "-m", str(voice_model), "-f", str(out_wav)],
                    input=text, text=True, check=True)
     return out_wav
 

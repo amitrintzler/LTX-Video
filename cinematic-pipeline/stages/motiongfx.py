@@ -406,6 +406,159 @@ class Promo:
             d.text(((W - cw) // 2, y0 + py - bb[1]), cta, font=fc, fill=(8, 20, 14))
             self._save(img)
 
+    # ================= foundations, strategies, story/game =================
+    @staticmethod
+    def _polyline(d, pts, p, color, a, width=4):
+        if len(pts) < 2:
+            return
+        tot = sum(math.dist(pts[i - 1], pts[i]) for i in range(1, len(pts)))
+        target = tot * p
+        acc, drawn = 0.0, [pts[0]]
+        for i in range(1, len(pts)):
+            seg = math.dist(pts[i - 1], pts[i])
+            if acc + seg <= target:
+                drawn.append(pts[i]); acc += seg
+            else:
+                r = (target - acc) / seg if seg else 1
+                drawn.append((pts[i - 1][0] + (pts[i][0] - pts[i - 1][0]) * r,
+                              pts[i - 1][1] + (pts[i][1] - pts[i - 1][1]) * r))
+                break
+        if len(drawn) > 1:
+            d.line(drawn, fill=color + (a,), width=width)
+
+    def payoff_shape(self, title, breaks, secs=1.4, color=ACCENT):
+        """Generic options payoff. breaks: [(tx 0..1, profit -1..1), ...]."""
+        total = int(secs * FPS)
+        ax0, ax1 = int(W * 0.16), int(W * 0.84)
+        ay0, ay1 = int(H * 0.18), int(H * 0.74)
+        zy = int((ay0 + ay1) / 2)
+        sc = (ay1 - zy)
+        pts = [(ax0 + (ax1 - ax0) * tx, zy - prof * sc) for tx, prof in breaks]
+        fh = _font(38)
+        for f in range(total):
+            img = _bg(); d = ImageDraw.Draw(img, "RGBA")
+            a = int(255 * _fade_alpha(f, total, 4, 5))
+            d.line([(ax0, zy), (ax1, zy)], fill=(110, 116, 150, a), width=2)
+            self._polyline(d, pts, ease(f / total), color, a, 5)
+            _ctext(d, title, fh, int(H * 0.83), WHITE, a)
+            self._save(img)
+
+    def bull_bear(self, secs=1.6):
+        total = int(secs * FPS)
+        fbig = _font(84); fs = _font(30)
+        for f in range(total):
+            img = _bg(); d = ImageDraw.Draw(img, "RGBA")
+            a = int(255 * _fade_alpha(f, total, 5, 5))
+            p = ease(f / total)
+            # bull (left) up-arrow, bear (right) down-arrow
+            for side, col, up, lbl in [(-1, UP, True, "BULL"), (1, DOWN, False, "BEAR")]:
+                cx = int(W / 2 + side * W * 0.22)
+                gp = ease(min(1, (p - (0.0 if side < 0 else 0.15)) / 0.5))
+                y0 = int(H * 0.30); y1 = int(H * 0.58)
+                if up:
+                    tip, base = (cx, y0 + int((1 - gp) * (y1 - y0))), (cx, y1)
+                else:
+                    tip, base = (cx, y1 - int((1 - gp) * (y1 - y0))), (cx, y0)
+                d.line([base, tip], fill=col + (a,), width=10)
+                aw = 26
+                dy = -aw if up else aw
+                d.line([tip, (tip[0] - aw, tip[1] - dy)], fill=col + (a,), width=10)
+                d.line([tip, (tip[0] + aw, tip[1] - dy)], fill=col + (a,), width=10)
+                _ctext_side = cx - d.textbbox((0, 0), lbl, font=fbig)[2] // 2
+                d.text((_ctext_side, int(H * 0.62)), lbl, font=fbig, fill=col + (a,))
+            _ctext(d, "Bulls Push Up · Bears Push Down", fs, int(H * 0.80), MUTE, a)
+            self._save(img)
+
+    def supply_demand(self, secs=1.8):
+        total = int(secs * FPS)
+        x0, x1 = int(W * 0.20), int(W * 0.80)
+        y0, y1 = int(H * 0.22), int(H * 0.70)
+        fh = _font(36); fs = _font(24)
+        for f in range(total):
+            img = _bg(); d = ImageDraw.Draw(img, "RGBA")
+            a = int(255 * _fade_alpha(f, total, 4, 5))
+            d.line([(x0, y0), (x0, y1)], fill=(110, 116, 150, a), width=2)
+            d.line([(x0, y1), (x1, y1)], fill=(110, 116, 150, a), width=2)
+            p = ease(f / total)
+            self._polyline(d, [(x0, y1), (x1, y0)], p, UP, a, 4)          # supply up
+            self._polyline(d, [(x0, y0), (x1, y1)], p, DOWN, a, 4)        # demand down
+            if p > 0.85:
+                d.ellipse([(x0 + x1) // 2 - 8, (y0 + y1) // 2 - 8,
+                           (x0 + x1) // 2 + 8, (y0 + y1) // 2 + 8], fill=ACCENT + (a,))
+            d.text((x1 - 90, y0 - 6), "Supply", font=fs, fill=UP + (a,))
+            d.text((x1 - 90, y1 - 40), "Demand", font=fs, fill=DOWN + (a,))
+            _ctext(d, "Price = Supply meets Demand", fh, int(H * 0.82), WHITE, a)
+            self._save(img)
+
+    def pie_stock(self, secs=1.8):
+        total = int(secs * FPS)
+        fh = _font(36)
+        cx, cy, r = W // 2, int(H * 0.42), int(H * 0.20)
+        for f in range(total):
+            img = _bg(); d = ImageDraw.Draw(img, "RGBA")
+            a = int(255 * _fade_alpha(f, total, 4, 5))
+            p = ease(f / total)
+            sweep = 360 * p
+            cols = [(70, 74, 120), (90, 94, 150), (60, 64, 110), (80, 84, 140)]
+            start = -90
+            for i in range(4):
+                seg = min(90, max(0, sweep - i * 90))
+                if seg <= 0:
+                    break
+                d.pieslice([cx - r, cy - r, cx + r, cy + r], start, start + seg,
+                           fill=cols[i] + (a,))
+                start += 90
+            # highlight "your share" wedge pulled out
+            if p > 0.7:
+                off = int(18 * ease((p - 0.7) / 0.3))
+                d.pieslice([cx - r - off, cy - r - off, cx + r - off, cy + r - off],
+                           -90, 0, fill=ACCENT + (a,))
+            _ctext(d, "A Stock = a Slice of a Company", fh, int(H * 0.78), WHITE, a)
+            self._save(img)
+
+    def level_up(self, level, secs=1.6):
+        total = int(secs * FPS)
+        fh = _font(40); fl = _font(64)
+        bx0, bx1 = int(W * 0.22), int(W * 0.78)
+        by = int(H * 0.52)
+        for f in range(total):
+            img = _bg(); d = ImageDraw.Draw(img, "RGBA")
+            a = int(255 * _fade_alpha(f, total, 4, 5))
+            p = ease(f / total)
+            d.rounded_rectangle([bx0, by, bx1, by + 40], radius=20, fill=(40, 44, 74, a))
+            d.rounded_rectangle([bx0, by, bx0 + int((bx1 - bx0) * p), by + 40],
+                                radius=20, fill=ACCENT + (a,))
+            _ctext(d, f"LEVEL {level}", fl, int(H * 0.30), WHITE, a)
+            if p > 0.9:
+                _ctext(d, "UNLOCKED", fh, int(H * 0.66),
+                       ACCENT, int(a * ease((p - 0.9) / 0.1)))
+            self._save(img)
+
+    def quiz(self, question, options, correct, secs=2.0):
+        total = int(secs * FPS)
+        fq = _font(56); fo = _font(44)
+        for f in range(total):
+            img = _bg(); d = ImageDraw.Draw(img, "RGBA")
+            a = int(255 * _fade_alpha(f, total, 4, 5))
+            p = f / total
+            _ctext(d, question, fq, int(H * 0.24), WHITE, a)
+            n = len(options)
+            bw, bh = int(W * 0.30), int(H * 0.20)
+            gap = int(W * 0.06)
+            tw = n * bw + (n - 1) * gap
+            x = (W - tw) // 2
+            y = int(H * 0.46)
+            for i, opt in enumerate(options):
+                reveal = p > 0.6
+                col = ACCENT if (reveal and i == correct) else (44, 48, 78)
+                tcol = (10, 20, 14) if (reveal and i == correct) else WHITE
+                d.rounded_rectangle([x, y, x + bw, y + bh], radius=18, fill=col + (a,))
+                bb = d.textbbox((0, 0), opt, font=fo)
+                d.text((x + (bw - (bb[2] - bb[0])) // 2, y + (bh - (bb[3] - bb[1])) // 2 - bb[1]),
+                       opt, font=fo, fill=tcol + (a,))
+                x += bw + gap
+            self._save(img)
+
     def encode(self, out_path: Path, audio: Path | None = None) -> Path:
         FF = cfg.ffmpeg_bin()
         vf = "vignette=PI/6,noise=alls=6:allf=t,format=yuv420p"

@@ -72,7 +72,8 @@ def run(project_path: Path, only: str | None, dry_run: bool, tier_override: str 
                     kf_res["width"], kf_res["height"],
                     base_seed=project.get("keyframe_base_seed", 1000),
                     ip_scale=project.get("ip_adapter_scale", 0.6),
-                    hero_prompt=project.get("hero_prompt"))
+                    hero_prompt=project.get("hero_prompt"),
+                    use_ip=project.get("ip_adapter", True))
                 for shot in project["shots"]:
                     shot["keyframe"] = str((made[shot["id"]]).relative_to(proj_dir))
                 sdxl_keyframes.release()   # free ~12GB before LTX generation

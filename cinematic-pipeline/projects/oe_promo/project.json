@@ -1,0 +1,36 @@
+{
+  "project": "oe_promo",
+  "tier": "2b-distilled",
+  "motion": "parallax",
+  "fps": 24,
+  "resolution": { "width": 1280, "height": 720 },
+  "keyframe_resolution": { "width": 1280, "height": 720 },
+  "auto_keyframes": true,
+  "keyframe_provider": "sdxl",
+  "ip_adapter": false,
+  "keyframe_base_seed": 2200,
+  "character": "",
+  "parallax_px": 24.0,
+  "parallax_zoom": 0.12,
+  "look": { "letterbox": true, "vignette": true, "grain": 0.02, "transition_sec": 0.6 },
+  "narration": "Options don't have to be confusing. At Options Educator, we turn calls, puts, and strikes into something you actually understand. Learn real strategies, manage your risk, and trade with a plan. Options, finally made clear.",
+  "voice_model": "~/piper-voices/en_US-lessac-medium.onnx",
+  "audio": { "music": null, "use_shot_audio": false },
+  "subtitles": null,
+  "outro": {
+    "brand": "Options Educator",
+    "tagline": "Options, finally made clear.",
+    "cta": "Start Learning  →",
+    "duration": 3.5
+  },
+  "shots": [
+    { "id": "01", "text": "Master Calls & Puts", "duration": 5, "seed": 7,
+      "prompt": "a confident finance educator in a smart blazer presenting in front of a huge glowing wall of options trading charts and green and red candlestick graphs, modern studio, cinematic, photorealistic, depth, indigo and green lighting" },
+    { "id": "02", "text": "Understand Every Strike", "duration": 5, "seed": 21,
+      "prompt": "extreme close-up of a sleek computer screen showing an options chain with calls and puts, strike prices and delta values glowing in green and red, shallow depth of field, cinematic, photorealistic, high detail" },
+    { "id": "03", "text": "Trade With a Plan", "duration": 5, "seed": 34,
+      "prompt": "dynamic upward-trending stock candlestick chart glowing on a dark screen, rising green candles, clean data visualization, bokeh lights, cinematic, photorealistic, depth, indigo accents" },
+    { "id": "04", "text": "Learn at Your Pace", "duration": 5, "seed": 48,
+      "prompt": "a focused young person learning at a laptop at night, an online options trading course on the screen, warm desk lamp, notebook and coffee, cozy modern setting, cinematic, photorealistic, depth" }
+  ]
+}

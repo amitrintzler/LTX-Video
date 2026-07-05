@@ -75,6 +75,45 @@ def _probe_duration(path: Path) -> float:
     return 0.0
 
 
+def _overlay_text(clip: Path, text: str, project: dict, tmp: Path, idx: int) -> Path:
+    """Composite a lower-third headline (fade in/out) over a normalised clip."""
+    from stages import textcards
+    w = project["resolution"]["width"]
+    h = project["resolution"]["height"]
+    png = textcards.lower_third(text, w, h, tmp / f"lt_{idx:03d}.png")
+    out = tmp / f"txt_{idx:03d}.mp4"
+    dur = _probe_duration(clip)
+    fo = max(0.5, dur - 0.6)
+    # loop the still so its alpha fade animates over the clip duration, then overlay
+    subprocess.run([FF, "-y", "-loglevel", "error", "-i", str(clip),
+                    "-loop", "1", "-t", f"{dur:.2f}", "-i", str(png),
+                    "-filter_complex",
+                    f"[1]fade=t=in:st=0.3:d=0.5:alpha=1,"
+                    f"fade=t=out:st={fo:.2f}:d=0.5:alpha=1[t];[0][t]overlay=format=auto[o]",
+                    "-map", "[o]", "-c:v", "libx264", "-crf", "16",
+                    "-pix_fmt", "yuv420p", str(out)], check=True)
+    return out
+
+
+def _brand_clip(outro: dict, project: dict, tmp: Path) -> Path:
+    """Render the brand/CTA end card as a short clip with a slow push-in."""
+    from stages import textcards
+    w = project["resolution"]["width"]
+    h = project["resolution"]["height"]
+    fps = project.get("fps", 24)
+    dur = float(outro.get("duration", 3.0))
+    png = textcards.brand_card(outro.get("brand", ""), outro.get("tagline", ""),
+                               outro.get("cta", ""), w, h, tmp / "brand.png")
+    out = tmp / "brand.mp4"
+    subprocess.run([FF, "-y", "-loglevel", "error", "-loop", "1", "-i", str(png),
+                    "-t", f"{dur:.2f}", "-r", str(fps),
+                    "-vf", f"scale={int(w*1.06)}:{int(h*1.06)},"
+                           f"zoompan=z='min(zoom+0.0006,1.06)':d={int(dur*fps)}:"
+                           f"s={w}x{h}:fps={fps},format=yuv420p",
+                    "-c:v", "libx264", "-crf", "16", str(out)], check=True)
+    return out
+
+
 def assemble(clips: list[Path], project: dict, out_path: Path,
              audio: Path | None = None, subtitles: Path | None = None) -> Path:
     look = project.get("look", {})
@@ -82,7 +121,18 @@ def assemble(clips: list[Path], project: dict, out_path: Path,
     tmp = out_path.parent / "_edit_tmp"
     tmp.mkdir(exist_ok=True)
 
-    normed = [_normalise(c, project, look, tmp, i) for i, c in enumerate(clips)]
+    shots = project.get("shots", [])
+    normed = []
+    for i, c in enumerate(clips):
+        n = _normalise(c, project, look, tmp, i)
+        txt = shots[i].get("text") if i < len(shots) else None
+        if txt:
+            n = _overlay_text(n, txt, project, tmp, i)
+        normed.append(n)
+    # optional brand / CTA end card appended as a short clip
+    outro = project.get("outro")
+    if outro:
+        normed.append(_brand_clip(outro, project, tmp))
 
     # Build xfade chain across all normalised clips.
     inputs, fc, prev, offset = [], [], "0:v", 0.0

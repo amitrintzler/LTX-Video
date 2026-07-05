@@ -41,34 +41,35 @@ def _load():
 
 def generate(character: str, shots: list[dict], out_dir: Path, width: int, height: int,
              base_seed: int = 1000, steps: int = 32, ip_scale: float = 0.6,
-             hero_prompt: str | None = None) -> dict:
-    """Render a hero portrait + one face-locked keyframe per shot.
-    Returns {shot_id: path}. Hero saved as hero.png."""
+             hero_prompt: str | None = None, use_ip: bool = True) -> dict:
+    """Render one keyframe per shot. With use_ip, first render a hero portrait and
+    lock that face into every scene (character consistency). Without use_ip, render
+    each scene independently (varied scenes, e.g. a promo). Returns {shot_id: path}."""
     import torch
     pipe = _load()
     out_dir.mkdir(parents=True, exist_ok=True)
+    hero = None
 
-    # 1) hero portrait defines the identity (no adapter loaded yet)
-    hp = hero_prompt or (f"{character}, professional cinematic headshot portrait, "
-                         "looking at camera, sharp focus, 85mm, studio lighting")
-    g = torch.Generator("cpu").manual_seed(base_seed)
-    hero = pipe(prompt=hp, negative_prompt=NEG, num_inference_steps=steps,
-                guidance_scale=6.5, width=1024, height=1024, generator=g).images[0]
-    hero_path = out_dir / "hero.png"
-    hero.save(hero_path)
-    print(f"  hero -> {hero_path.name}")
+    if use_ip:
+        hp = hero_prompt or (f"{character}, professional cinematic headshot portrait, "
+                             "looking at camera, sharp focus, 85mm, studio lighting")
+        g = torch.Generator("cpu").manual_seed(base_seed)
+        hero = pipe(prompt=hp, negative_prompt=NEG, num_inference_steps=steps,
+                    guidance_scale=6.5, width=1024, height=1024, generator=g).images[0]
+        hero.save(out_dir / "hero.png")
+        print("  hero -> hero.png")
+        pipe.load_ip_adapter("h94/IP-Adapter", subfolder="sdxl_models",
+                             weight_name="ip-adapter_sdxl.safetensors")
+        pipe.set_ip_adapter_scale(ip_scale)
 
-    # 2) load IP-Adapter and lock the hero face into every scene keyframe
-    pipe.load_ip_adapter("h94/IP-Adapter", subfolder="sdxl_models",
-                         weight_name="ip-adapter_sdxl.safetensors")
-    pipe.set_ip_adapter_scale(ip_scale)
     results = {}
     for s in shots:
-        prompt = f"{character}, {s['prompt']}, cinematic film still, sharp focus, detailed"
+        pre = f"{character}, " if character else ""
+        prompt = f"{pre}{s['prompt']}, cinematic film still, sharp focus, detailed"
         g = torch.Generator("cpu").manual_seed(base_seed + int(s["id"]))
-        img = pipe(prompt=prompt, negative_prompt=NEG, ip_adapter_image=hero,
-                   num_inference_steps=steps, guidance_scale=6.5,
-                   width=width, height=height, generator=g).images[0]
+        kw = {"ip_adapter_image": hero} if use_ip else {}
+        img = pipe(prompt=prompt, negative_prompt=NEG, num_inference_steps=steps,
+                   guidance_scale=6.5, width=width, height=height, generator=g, **kw).images[0]
         p = out_dir / f"kf_{s['id']}.png"
         img.save(p)
         results[s["id"]] = p

@@ -78,6 +78,6 @@ subprocess.run([
     FF, "-y", "-loglevel", "error", "-loop", "1", "-i", str(canvas), "-i", str(SRC),
     "-filter_complex",
     f"[1:v]scale={VW}:-2[v];[0:v][v]overlay=(W-w)/2:{vy}:format=auto,format=yuv420p[o]",
-    "-map", "[o]", "-map", "1:a?", "-c:v", "libx264", "-crf", "18", "-c:a", "aac",
+    "-map", "[o]", "-c:v", "libx264", "-crf", "18", "-c:a", "aac",
     "-shortest", str(out)], check=True)
 print("DONE ->", out)

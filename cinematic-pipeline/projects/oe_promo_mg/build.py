@@ -34,5 +34,5 @@ narr = ("It starts with the market. Stocks move, and prices tell a story. "
 voice = Path("~/piper-voices/en_US-lessac-medium.onnx").expanduser()
 narr_wav = audio.narrate(narr, voice, work / "narration.wav")
 bed = audio.build_bed({"audio": {}}, p.n / 24, work, narr_wav)
-p.encode(out, audio=bed)
+p.encode(out)  # muted (audio TBD)
 print("DONE ->", out)

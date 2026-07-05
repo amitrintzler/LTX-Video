@@ -13,7 +13,7 @@ reframe() {  # W H suffix
      [bg]scale=${w}:${h}:force_original_aspect_ratio=increase,crop=${w}:${h},boxblur=42:2,eq=brightness=-0.10[b];\
      [fg]scale=${w}:-2:force_original_aspect_ratio=decrease[f];\
      [b][f]overlay=(W-w)/2:(H-h)/2:format=auto,format=yuv420p[v]" \
-    -map "[v]" -map 0:a? -c:v libx264 -crf 18 -c:a aac -shortest \
+    -map "[v]" -c:v libx264 -crf 18 -an \
     "$OUT/${base}_${sfx}.mp4"
   echo "  -> $OUT/${base}_${sfx}.mp4"
 }

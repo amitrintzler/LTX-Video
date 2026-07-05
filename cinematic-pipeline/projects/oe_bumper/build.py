@@ -38,5 +38,5 @@ music = Path("cinematic-pipeline/assets/music_promo.wav").resolve()
 bed = audio.build_bed({"audio": {"music": str(music)} if music.exists() else {}},
                       p.n / 24, work, narr_wav)
 p.burn_captions(caps)
-p.encode(out, audio=bed)
+p.encode(out)  # muted (audio TBD)
 print("DONE ->", out)

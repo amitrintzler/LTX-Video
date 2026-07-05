@@ -56,15 +56,30 @@ def ease(t):                       # smoothstep 0..1
     return t * t * (3 - 2 * t)
 
 
-def _bg():
-    img = Image.new("RGB", (W, H))
-    px = img.load()
-    for y in range(H):
-        f = y / (H - 1)
-        c = tuple(int(BG_TOP[i] + (BG_BOT[i] - BG_TOP[i]) * f) for i in range(3))
-        for x in range(W):
-            px[x, y] = c
-    return img
+# Persistent "market newsroom" backdrop data (dimmed, always animating behind scenes)
+TAPE = [("AAPL", 189.2, 0.8), ("TSLA", 244.1, -1.2), ("NVDA", 121.6, 2.4),
+        ("SPY", 556.3, 0.3), ("MSFT", 428.7, 0.6), ("AMD", 158.2, -1.1),
+        ("META", 512.9, 1.8), ("QQQ", 487.4, 0.4), ("AMZN", 186.3, 0.9),
+        ("GOOG", 167.5, -0.5), ("BTC", 63120, 1.4), ("VIX", 14.6, -3.1)]
+HEADLINES = ["Fed holds rates steady", "Tech rally lifts major indexes",
+             "Volatility spikes ahead of earnings", "Options volume hits record high",
+             "Oil edges higher on supply data", "Chipmakers lead pre-market gains"]
+
+_GRAD_CACHE = None
+
+
+def _grad_bg():
+    global _GRAD_CACHE
+    if _GRAD_CACHE is None:
+        img = Image.new("RGB", (W, H))
+        px = img.load()
+        for y in range(H):
+            f = y / (H - 1)
+            c = tuple(int(BG_TOP[i] + (BG_BOT[i] - BG_TOP[i]) * f) for i in range(3))
+            for x in range(W):
+                px[x, y] = c
+        _GRAD_CACHE = img
+    return _GRAD_CACHE.copy()
 
 
 def _ctext(d, text, fnt, y, fill=WHITE, alpha=255):
@@ -75,6 +90,24 @@ def _ctext(d, text, fnt, y, fill=WHITE, alpha=255):
     else:
         d.text((x, y), text, font=fnt, fill=fill + (alpha,))
     return x
+
+
+def _tape_items():
+    return [f"{s}  {p:.1f}  {'+' if c >= 0 else ''}{c:.1f}%" for s, p, c in TAPE]
+
+
+def _tape_width(d, fnt):
+    w = 0
+    for it in _tape_items():
+        w += d.textbbox((0, 0), it + "      ", font=fnt)[2]
+    return max(1, w)
+
+
+def _draw_tape(d, fnt, x, y):
+    for (s, p, c), it in zip(TAPE, _tape_items()):
+        col = (UP if c >= 0 else DOWN) + (215,)
+        d.text((x, y), it, font=fnt, fill=col)
+        x += d.textbbox((0, 0), it + "      ", font=fnt)[2]
 
 
 def _fade_alpha(local_f, total, fin=6, fout=6):
@@ -96,12 +129,59 @@ class Promo:
         img.save(self.dir / f"{self.n:05d}.png")
         self.n += 1
 
+    def _bg(self):
+        """Persistent animated market-newsroom backdrop (keyed to the global frame
+        so ticker/news/charts scroll continuously under every scene), dimmed with a
+        scrim so foreground content stays readable."""
+        f = self.n
+        base = _grad_bg().convert("RGBA")
+        d = ImageDraw.Draw(base, "RGBA")
+        # faint moving line charts behind everything
+        for ci, (oy, col, spd, amp) in enumerate(
+                [(H * 0.28, INDIGO, 0.9, 42), (H * 0.52, UP, 1.4, 28), (H * 0.40, DOWN, 1.1, 34)]):
+            pts = [(x, oy + amp * math.sin(x * 0.012 + f * 0.05 * spd + ci * 2)) for x in range(0, W + 8, 10)]
+            d.line(pts, fill=col + (34,), width=2)
+        # dim live-quote cells (top area), values flicker
+        fq = _font(19); fqv = _font(17)
+        for i, (sym, pr, pc) in enumerate(TAPE[:6]):
+            x = int(W * 0.05) + (i % 3) * int(W * 0.20)
+            y = int(H * 0.10) + (i // 3) * 48
+            pc2 = pc + 0.25 * math.sin(f * 0.12 + i)
+            col = UP if pc2 >= 0 else DOWN
+            d.text((x, y), sym, font=fq, fill=(200, 205, 230, 55))
+            d.text((x, y + 20), f"{pr:.1f}  {'+' if pc2 >= 0 else ''}{pc2:.1f}%", font=fqv, fill=col + (70,))
+        # scrim to mute the backdrop so scene content pops
+        d.rectangle([0, 0, W, H], fill=(6, 7, 18, 118))
+        # ---- top breaking-news bar + headline crawl ----
+        d.rectangle([0, 0, W, 46], fill=(70, 14, 20, 200))
+        d.rectangle([0, 0, 150, 46], fill=(198, 40, 50, 235))
+        d.text((16, 11), "BREAKING", font=_font(22), fill=(255, 255, 255, 240))
+        fh = _font(22)
+        hl = "     •     ".join(HEADLINES) + "     •     "
+        hw = d.textbbox((0, 0), hl, font=fh)[2]
+        hoff = int((f * 3) % hw)
+        for rep in range(2):
+            d.text((160 - hoff + rep * hw, 11), hl, font=fh, fill=(245, 232, 232, 215))
+        # ---- bottom ticker crawl (per-symbol colour) ----
+        by = H - 54
+        d.rectangle([0, by, W, H], fill=(12, 14, 34, 225))
+        d.line([(0, by), (W, by)], fill=ACCENT + (130,), width=2)
+        ft = _font(24)
+        toff = int((f * 4) % _tape_width(d, ft))
+        _draw_tape(d, ft, -toff, by + 12)
+        _draw_tape(d, ft, -toff + _tape_width(d, ft), by + 12)
+        # ---- LIVE indicator + market clock ----
+        blink = 235 if (f // 12) % 2 == 0 else 90
+        d.ellipse([W - 96, 13, W - 80, 29], fill=(235, 60, 60, blink))
+        d.text((W - 72, 11), "LIVE", font=_font(20), fill=(255, 255, 255, 210))
+        return base.convert("RGB")
+
     # ---- scene: kinetic title ----
     def title(self, line1, line2, secs=2.6):
         total = int(secs * FPS)
         f1, f2 = _font(90), _font(34)
         for f in range(total):
-            img = _bg(); d = ImageDraw.Draw(img, "RGBA")
+            img = self._bg(); d = ImageDraw.Draw(img, "RGBA")
             p = ease(f / total)
             a = int(255 * _fade_alpha(f, total, 8, 8))
             # accent line grows
@@ -137,7 +217,7 @@ class Promo:
             return gy1 - (v - lo_all) / (hi_all - lo_all) * (gy1 - gy0)
         cw = (gx1 - gx0) / n * 0.55
         for f in range(total):
-            img = _bg(); d = ImageDraw.Draw(img, "RGBA")
+            img = self._bg(); d = ImageDraw.Draw(img, "RGBA")
             a = int(255 * _fade_alpha(f, total, 6, 8))
             # grid
             for gi in range(5):
@@ -172,7 +252,7 @@ class Promo:
         prem = (ay1 - zero_y) * 0.5
         fh = _font(40); fs = _font(22)
         for f in range(total):
-            img = _bg(); d = ImageDraw.Draw(img, "RGBA")
+            img = self._bg(); d = ImageDraw.Draw(img, "RGBA")
             a = int(255 * _fade_alpha(f, total, 6, 8))
             # axes
             d.line([(ax0, ay0), (ax0, ay1)], fill=(120, 126, 160, a), width=2)
@@ -213,7 +293,7 @@ class Promo:
         speed = 170.0
         band_y, bh = int(H * 0.40), 120
         for fr in range(total):
-            img = _bg(); d = ImageDraw.Draw(img, "RGBA")
+            img = self._bg(); d = ImageDraw.Draw(img, "RGBA")
             a = int(255 * _fade_alpha(fr, total))
             d.rectangle([0, band_y, W, band_y + bh], fill=(20, 24, 52, int(a * 0.85)))
             d.line([(0, band_y), (W, band_y)], fill=ACCENT + (int(a * 0.5),), width=2)
@@ -238,7 +318,7 @@ class Promo:
         maxw = int(H * 0.24)
         fh = _font(40); fs = _font(22)
         for fr in range(total):
-            img = _bg(); d = ImageDraw.Draw(img, "RGBA")
+            img = self._bg(); d = ImageDraw.Draw(img, "RGBA")
             a = int(255 * _fade_alpha(fr, total))
             d.line([(x0, midy), (x1, midy)], fill=(90, 96, 130, a), width=2)
             d.text((x0 - 4, int(H * 0.16)), "price", font=fs, fill=MUTE + (a,))
@@ -274,7 +354,7 @@ class Promo:
         y0, y1 = int(H * 0.22), int(H * 0.72)
         fh = _font(40); fs = _font(22)
         for fr in range(total):
-            img = _bg(); d = ImageDraw.Draw(img, "RGBA")
+            img = self._bg(); d = ImageDraw.Draw(img, "RGBA")
             a = int(255 * _fade_alpha(fr, total))
             d.line([(x0, y0), (x0, y1)], fill=(110, 116, 150, a), width=2)
             d.line([(x0, y1), (x1, y1)], fill=(110, 116, 150, a), width=2)
@@ -310,7 +390,7 @@ class Promo:
         fl = _font(38); fv = _font(34); fh = _font(40)
         bx0 = int(W * 0.30); bx1 = int(W * 0.82)
         for fr in range(total):
-            img = _bg(); d = ImageDraw.Draw(img, "RGBA")
+            img = self._bg(); d = ImageDraw.Draw(img, "RGBA")
             a = int(255 * _fade_alpha(fr, total))
             p = ease(fr / total)
             for i, (name, frac, col) in enumerate(rows):
@@ -335,7 +415,7 @@ class Promo:
         cost = (ay1 - zero_y) * 0.7
         fh = _font(40); fs = _font(22)
         for fr in range(total):
-            img = _bg(); d = ImageDraw.Draw(img, "RGBA")
+            img = self._bg(); d = ImageDraw.Draw(img, "RGBA")
             a = int(255 * _fade_alpha(fr, total))
             d.line([(ax0, zero_y), (ax1, zero_y)], fill=(110, 116, 150, a), width=2)
             d.line([(cx, ay0), (cx, ay1)], fill=(INDIGO + (int(a * 0.4),)))
@@ -356,7 +436,7 @@ class Promo:
         total = int(secs * FPS)
         fbig = _font(150); flab = _font(38)
         for f in range(total):
-            img = _bg(); d = ImageDraw.Draw(img, "RGBA")
+            img = self._bg(); d = ImageDraw.Draw(img, "RGBA")
             a = int(255 * _fade_alpha(f, total, 6, 8))
             val = int(round(target * ease(min(1.0, f / (total * 0.7)))))
             _ctext(d, f"{val}{suffix}", fbig, int(H * 0.30), ACCENT, a)
@@ -369,7 +449,7 @@ class Promo:
         fw = _font(96)
         # stagger each word
         for f in range(total):
-            img = _bg(); d = ImageDraw.Draw(img, "RGBA")
+            img = self._bg(); d = ImageDraw.Draw(img, "RGBA")
             ga = _fade_alpha(f, total, 6, 8)
             n = len(words)
             block_h = 120
@@ -390,7 +470,7 @@ class Promo:
         total = int(secs * FPS)
         fb = _font(96); ft = _font(36); fc = _font(40)
         for f in range(total):
-            img = _bg(); d = ImageDraw.Draw(img, "RGBA")
+            img = self._bg(); d = ImageDraw.Draw(img, "RGBA")
             a = int(255 * _fade_alpha(f, total, 8, 6))
             p = ease(min(1.0, f / (total * 0.5)))
             _ctext(d, brand, fb, int(H * 0.30) + int((1 - p) * 20), WHITE, a)
@@ -436,7 +516,7 @@ class Promo:
         pts = [(ax0 + (ax1 - ax0) * tx, zy - prof * sc) for tx, prof in breaks]
         fh = _font(38)
         for f in range(total):
-            img = _bg(); d = ImageDraw.Draw(img, "RGBA")
+            img = self._bg(); d = ImageDraw.Draw(img, "RGBA")
             a = int(255 * _fade_alpha(f, total, 4, 5))
             d.line([(ax0, zy), (ax1, zy)], fill=(110, 116, 150, a), width=2)
             self._polyline(d, pts, ease(f / total), color, a, 5)
@@ -447,7 +527,7 @@ class Promo:
         total = int(secs * FPS)
         fbig = _font(84); fs = _font(30)
         for f in range(total):
-            img = _bg(); d = ImageDraw.Draw(img, "RGBA")
+            img = self._bg(); d = ImageDraw.Draw(img, "RGBA")
             a = int(255 * _fade_alpha(f, total, 5, 5))
             p = ease(f / total)
             # bull (left) up-arrow, bear (right) down-arrow
@@ -475,7 +555,7 @@ class Promo:
         y0, y1 = int(H * 0.22), int(H * 0.70)
         fh = _font(36); fs = _font(24)
         for f in range(total):
-            img = _bg(); d = ImageDraw.Draw(img, "RGBA")
+            img = self._bg(); d = ImageDraw.Draw(img, "RGBA")
             a = int(255 * _fade_alpha(f, total, 4, 5))
             d.line([(x0, y0), (x0, y1)], fill=(110, 116, 150, a), width=2)
             d.line([(x0, y1), (x1, y1)], fill=(110, 116, 150, a), width=2)
@@ -495,7 +575,7 @@ class Promo:
         fh = _font(36)
         cx, cy, r = W // 2, int(H * 0.42), int(H * 0.20)
         for f in range(total):
-            img = _bg(); d = ImageDraw.Draw(img, "RGBA")
+            img = self._bg(); d = ImageDraw.Draw(img, "RGBA")
             a = int(255 * _fade_alpha(f, total, 4, 5))
             p = ease(f / total)
             sweep = 360 * p
@@ -522,7 +602,7 @@ class Promo:
         bx0, bx1 = int(W * 0.22), int(W * 0.78)
         by = int(H * 0.52)
         for f in range(total):
-            img = _bg(); d = ImageDraw.Draw(img, "RGBA")
+            img = self._bg(); d = ImageDraw.Draw(img, "RGBA")
             a = int(255 * _fade_alpha(f, total, 4, 5))
             p = ease(f / total)
             d.rounded_rectangle([bx0, by, bx1, by + 40], radius=20, fill=(40, 44, 74, a))
@@ -538,7 +618,7 @@ class Promo:
         total = int(secs * FPS)
         fq = _font(56); fo = _font(44)
         for f in range(total):
-            img = _bg(); d = ImageDraw.Draw(img, "RGBA")
+            img = self._bg(); d = ImageDraw.Draw(img, "RGBA")
             a = int(255 * _fade_alpha(f, total, 4, 5))
             p = f / total
             _ctext(d, question, fq, int(H * 0.24), WHITE, a)

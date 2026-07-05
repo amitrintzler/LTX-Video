@@ -258,7 +258,7 @@ class Promo:
         n = len(data)
         lo_all = min(x[3] for x in data); hi_all = max(x[2] for x in data)
         gx0, gx1 = int(W * 0.12), int(W * 0.88)
-        gy0, gy1 = int(H * 0.20), int(H * 0.82)
+        gy0, gy1 = int(H * 0.20), int(H * 0.72)
         fh = _font(40); fs = _font(24)
 
         def py(v):
@@ -287,14 +287,14 @@ class Promo:
                 hh = (bot - top) / 2 * grow
                 d.rectangle([cx - cw / 2, mid - hh, cx + cw / 2, mid + hh],
                             fill=col + (a,))
-            _ctext(d, "Read the Charts", fh, int(H * 0.86), WHITE, a)
+            _ctext(d, "Read the Charts", fh, int(H * 0.72), WHITE, a)
             self._save(img)
 
     # ---- scene: call payoff diagram ----
     def payoff(self, secs=4.2):
         total = int(secs * FPS)
         ax0, ax1 = int(W * 0.16), int(W * 0.84)
-        ay0, ay1 = int(H * 0.18), int(H * 0.78)
+        ay0, ay1 = int(H * 0.18), int(H * 0.72)
         zero_y = int(ay0 + (ay1 - ay0) * 0.62)
         strike_x = ax0 + (ax1 - ax0) * 0.45
         prem = (ay1 - zero_y) * 0.5
@@ -327,7 +327,7 @@ class Promo:
                 d.text((strike_x - 20, ay1 + 6), "Strike", font=fs, fill=INDIGO + (ma,))
                 be_x = strike_x + prem / ((ay0 - (zero_y + prem)) / (ax1 - strike_x)) * -1
                 be_x = strike_x + prem * (ax1 - strike_x) / (zero_y + prem - ay0) * -1
-            _ctext(d, "Long Call Payoff", fh, int(H * 0.85), WHITE, a)
+            _ctext(d, "Long Call Payoff", fh, int(H * 0.72), WHITE, a)
             self._save(img)
 
     # ---- scene: scrolling ticker tape ----
@@ -371,7 +371,7 @@ class Promo:
             d.line([(x0, midy), (x1, midy)], fill=(90, 96, 130, a), width=2)
             d.text((x0 - 4, int(H * 0.16)), "price", font=fs, fill=MUTE + (a,))
             d.text((x1 - 40, midy + 8), "time", font=fs, fill=MUTE + (a,))
-            p = ease(fr / total)
+            p = self._prog(fr, total, 0.3)
             steps = 60
             top_pts, bot_pts = [], []
             for s in range(steps + 1):
@@ -392,7 +392,7 @@ class Promo:
                        midy - maxw * 0.35 * math.sqrt(s / steps))
                       for s in range(len(top_pts))]
                 d.line(cl, fill=ACCENT + (a,), width=3)
-            _ctext(d, "Volatility = Range of Outcomes", fh, int(H * 0.82), WHITE, a)
+            _ctext(d, "Volatility = Range of Outcomes", fh, int(H * 0.72), WHITE, a)
             self._save(img)
 
     # ---- scene: implied-volatility smile ----
@@ -408,7 +408,7 @@ class Promo:
             d.line([(x0, y1), (x1, y1)], fill=(110, 116, 150, a), width=2)
             d.text((x0 - 6, y0 - 26), "IV", font=fs, fill=MUTE + (a,))
             d.text((x1 - 60, y1 + 8), "strike", font=fs, fill=MUTE + (a,))
-            p = ease(fr / total)
+            p = self._prog(fr, total, 0.4)
             pts = []
             steps = 60
             for s in range(steps + 1):
@@ -427,7 +427,7 @@ class Promo:
             # ATM marker
             d.line([((x0 + x1) // 2, y0), ((x0 + x1) // 2, y1)], fill=(INDIGO + (int(a * 0.4),)))
             d.text(((x0 + x1) // 2 - 16, y1 + 8), "ATM", font=fs, fill=INDIGO + (a,))
-            _ctext(d, "The Volatility Smile", fh, int(H * 0.82), WHITE, a)
+            _ctext(d, "The Volatility Smile", fh, int(H * 0.72), WHITE, a)
             self._save(img)
 
     # ---- scene: the Greeks bars ----
@@ -440,7 +440,7 @@ class Promo:
         for fr in range(total):
             img = self._bg(); d = ImageDraw.Draw(img, "RGBA")
             a = int(255 * _fade_alpha(fr, total))
-            p = ease(fr / total)
+            p = self._prog(fr, total, 0.4)
             for i, (name, frac, col) in enumerate(rows):
                 y = int(H * 0.26) + i * int(H * 0.13)
                 d.text((int(W * 0.14), y), name, font=fl, fill=WHITE + (a,))
@@ -450,7 +450,7 @@ class Promo:
                 d.rounded_rectangle([bx0, y, bx0 + max(34, w), y + 34], radius=17,
                                     fill=col + (a,))
                 d.text((bx1 + 16, y), f"{frac*p:.2f}", font=fv, fill=col + (a,))
-            _ctext(d, "Know Your Greeks", fh, int(H * 0.84), WHITE, a)
+            _ctext(d, "Know Your Greeks", fh, int(H * 0.72), WHITE, a)
             self._save(img)
 
     # ---- scene: long straddle payoff (volatility play) ----
@@ -476,7 +476,7 @@ class Promo:
             ry = (zero_y + cost) - slope * (rx - cx)
             d.line([(cx, zero_y + cost), (rx, ry)], fill=ACCENT + (a,), width=4)
             d.line([(cx, zero_y + cost), (lx, ly)], fill=ACCENT + (a,), width=4)
-            _ctext(d, "Trade Volatility: The Straddle", fh, int(H * 0.85), WHITE, a)
+            _ctext(d, "Trade Volatility: The Straddle", fh, int(H * 0.72), WHITE, a)
             self._save(img)
 
     # ---- scene: counting stat ----
@@ -554,21 +554,52 @@ class Promo:
         if len(drawn) > 1:
             d.line(drawn, fill=color + (a,), width=width)
 
-    def payoff_shape(self, title, breaks, secs=1.4, color=ACCENT):
-        """Generic options payoff. breaks: [(tx 0..1, profit -1..1), ...]."""
+    @staticmethod
+    def _prog(f, total, hold=0.35):
+        """Eased 0..1 that reaches 1 early then HOLDS the finished state."""
+        return ease(min(1.0, (f / max(1, total)) / (1 - hold)))
+
+    def payoff_shape(self, title, breaks, secs=1.9, color=ACCENT, hold=0.4):
+        """Generic options payoff with axes, zero-line, strike(s) and breakeven(s).
+        breaks: [(tx 0..1, profit -1..1), ...]; interior points are strikes."""
         total = int(secs * FPS)
-        ax0, ax1 = int(W * 0.16), int(W * 0.84)
-        ay0, ay1 = int(H * 0.18), int(H * 0.74)
+        ax0, ax1 = int(W * 0.18), int(W * 0.82)
+        ay0, ay1 = int(H * 0.20), int(H * 0.72)
         zy = int((ay0 + ay1) / 2)
-        sc = (ay1 - zy)
+        sc = (ay1 - zy) * 0.9
         pts = [(ax0 + (ax1 - ax0) * tx, zy - prof * sc) for tx, prof in breaks]
-        fh = _font(38)
+        # breakevens: sign changes in profit between consecutive breaks
+        bes = []
+        for i in range(1, len(breaks)):
+            p0, p1 = breaks[i - 1][1], breaks[i][1]
+            if (p0 < 0) != (p1 < 0) and p0 != p1:
+                r = -p0 / (p1 - p0)
+                tx = breaks[i - 1][0] + (breaks[i][0] - breaks[i - 1][0]) * r
+                bes.append(ax0 + (ax1 - ax0) * tx)
+        fh = _font(38); fs = _font(20)
         for f in range(total):
             img = self._bg(); d = ImageDraw.Draw(img, "RGBA")
             a = int(255 * _fade_alpha(f, total, 4, 5))
-            d.line([(ax0, zy), (ax1, zy)], fill=(110, 116, 150, a), width=2)
-            self._polyline(d, pts, ease(f / total), color, a, 5)
-            _ctext(d, title, fh, int(H * 0.83), WHITE, a)
+            # axes
+            d.line([(ax0, ay0), (ax0, ay1)], fill=(120, 126, 165, a), width=2)     # P/L axis
+            for gx in range(ax0, ax1, 14):                                          # dashed zero
+                d.line([(gx, zy), (gx + 7, zy)], fill=(120, 126, 165, int(a * 0.7)), width=2)
+            d.text((ax0 - 4, ay0 - 26), "P/L", font=fs, fill=MUTE + (a,))
+            d.text((ax1 - 44, zy + 8), "Price", font=fs, fill=MUTE + (a,))
+            p = self._prog(f, total, hold)
+            # strikes (interior kinks) — indigo dashed verticals, appear as line passes
+            for (tx, _pr) in breaks[1:-1]:
+                sx = ax0 + (ax1 - ax0) * tx
+                if p * (ax1 - ax0) + ax0 >= sx - 4:
+                    for gy in range(ay0, ay1, 12):
+                        d.line([(sx, gy), (sx, gy + 6)], fill=INDIGO + (int(a * 0.6),), width=2)
+                    d.text((sx - 6, ay1 + 4), "K", font=fs, fill=INDIGO + (a,))
+            self._polyline(d, pts, p, color, a, 5)
+            # breakeven dots once drawn past them
+            if p > 0.9:
+                for bx in bes:
+                    d.ellipse([bx - 6, zy - 6, bx + 6, zy + 6], fill=WHITE + (a,))
+            _ctext(d, title, fh, int(H * 0.72), WHITE, a)
             self._save(img)
 
     def bull_bear(self, secs=1.6):
@@ -594,7 +625,7 @@ class Promo:
                 d.line([tip, (tip[0] + aw, tip[1] - dy)], fill=col + (a,), width=10)
                 _ctext_side = cx - d.textbbox((0, 0), lbl, font=fbig)[2] // 2
                 d.text((_ctext_side, int(H * 0.62)), lbl, font=fbig, fill=col + (a,))
-            _ctext(d, "Bulls Push Up · Bears Push Down", fs, int(H * 0.80), MUTE, a)
+            _ctext(d, "Bulls Push Up · Bears Push Down", fs, int(H * 0.72), MUTE, a)
             self._save(img)
 
     def supply_demand(self, secs=1.8):
@@ -615,7 +646,7 @@ class Promo:
                            (x0 + x1) // 2 + 8, (y0 + y1) // 2 + 8], fill=ACCENT + (a,))
             d.text((x1 - 90, y0 - 6), "Supply", font=fs, fill=UP + (a,))
             d.text((x1 - 90, y1 - 40), "Demand", font=fs, fill=DOWN + (a,))
-            _ctext(d, "Price = Supply meets Demand", fh, int(H * 0.82), WHITE, a)
+            _ctext(d, "Price = Supply meets Demand", fh, int(H * 0.72), WHITE, a)
             self._save(img)
 
     def pie_stock(self, secs=1.8):
@@ -641,7 +672,7 @@ class Promo:
                 off = int(18 * ease((p - 0.7) / 0.3))
                 d.pieslice([cx - r - off, cy - r - off, cx + r - off, cy + r - off],
                            -90, 0, fill=ACCENT + (a,))
-            _ctext(d, "A Stock = a Slice of a Company", fh, int(H * 0.78), WHITE, a)
+            _ctext(d, "A Stock = a Slice of a Company", fh, int(H * 0.72), WHITE, a)
             self._save(img)
 
     def level_up(self, level, secs=1.6):
@@ -687,9 +718,70 @@ class Promo:
                 x += bw + gap
             self._save(img)
 
-    def encode(self, out_path: Path, audio: Path | None = None) -> Path:
+    def _caption_png(self, text):
+        """Lower-third caption strip (brand-indigo box, white text), above the ticker."""
+        img = Image.new("RGBA", (W, H), (0, 0, 0, 0))
+        d = ImageDraw.Draw(img, "RGBA")
+        fnt = _font(30)
+        bb = d.textbbox((0, 0), text, font=fnt)
+        tw, th = bb[2] - bb[0], bb[3] - bb[1]
+        padx, pady = 26, 14
+        bw, bhh = tw + 2 * padx, th + 2 * pady
+        x0 = (W - bw) // 2
+        y0 = H - 150
+        d.rounded_rectangle([x0, y0, x0 + bw, y0 + bhh], radius=12, fill=PRIMARY + (215,))
+        d.rectangle([x0, y0, x0 + 6, y0 + bhh], fill=ACCENT + (255,))   # accent edge
+        d.text((x0 + padx, y0 + pady - bb[1]), text, font=fnt, fill=(255, 255, 255, 255))
+        return img
+
+    def burn_captions(self, caps):
+        """Composite timed captions onto the rendered frames (no libass needed)."""
+        cache = {}
+        for s, e, text in caps:
+            strip = cache.get(text) or cache.setdefault(text, self._caption_png(text))
+            alpha_ch = strip.getchannel("A")
+            total = max(1, e - s)
+            for fr in range(s, e):
+                fp = self.dir / f"{fr:05d}.png"
+                if not fp.exists():
+                    continue
+                base = Image.open(fp).convert("RGBA")
+                a = _fade_alpha(fr - s, total, 4, 4)
+                if a < 0.999:
+                    st = strip.copy()
+                    st.putalpha(alpha_ch.point(lambda v: int(v * a)))
+                else:
+                    st = strip
+                base.alpha_composite(st)
+                base.convert("RGB").save(fp)
+
+    def write_captions(self, caps, path: Path):
+        """Write styled ASS lower-third captions (indigo box, above the ticker).
+        caps: [(start_frame, end_frame, text), ...]."""
+        def t(fr):
+            s = fr / FPS
+            return f"{int(s // 3600)}:{int(s // 60) % 60:02d}:{s % 60:05.2f}"
+        head = (f"[Script Info]\nScriptType: v4.00+\nPlayResX: {W}\nPlayResY: {H}\n\n"
+                "[V4+ Styles]\nFormat: Name, Fontname, Fontsize, PrimaryColour, "
+                "SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, "
+                "StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, "
+                "Shadow, Alignment, MarginL, MarginR, MarginV, Encoding\n"
+                # white text, opaque box = semi-transparent brand indigo, bottom-centre
+                "Style: Cap,Helvetica,30,&H00FFFFFF,&H00FFFFFF,&H00E5464F,&H64E5464F,"
+                "-1,0,0,0,100,100,0,0,3,1,0,2,140,140,74,1\n\n"
+                "[Events]\nFormat: Layer, Start, End, Style, Name, MarginL, MarginR, "
+                "MarginV, Effect, Text\n")
+        lines = [f"Dialogue: 0,{t(s)},{t(e)},Cap,,0,0,0,,{txt}" for s, e, txt in caps]
+        path.write_text(head + "\n".join(lines) + "\n")
+        return path
+
+    def encode(self, out_path: Path, audio: Path | None = None,
+               subtitles: Path | None = None) -> Path:
         FF = cfg.ffmpeg_bin()
-        vf = "vignette=PI/6,noise=alls=6:allf=t,format=yuv420p"
+        vf = "vignette=PI/6,noise=alls=6:allf=t"
+        if subtitles:
+            vf += f",subtitles={subtitles}"
+        vf += ",format=yuv420p"
         raw = out_path.parent / "_mg_video.mp4"
         subprocess.run([FF, "-y", "-loglevel", "error", "-framerate", str(FPS),
                         "-i", str(self.dir / "%05d.png"), "-vf", vf,

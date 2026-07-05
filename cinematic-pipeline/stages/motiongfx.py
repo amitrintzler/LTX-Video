@@ -64,6 +64,24 @@ TAPE = [("AAPL", 189.2, 0.8), ("TSLA", 244.1, -1.2), ("NVDA", 121.6, 2.4),
 HEADLINES = ["Fed holds rates steady", "Tech rally lifts major indexes",
              "Volatility spikes ahead of earnings", "Options volume hits record high",
              "Oil edges higher on supply data", "Chipmakers lead pre-market gains"]
+INDEX = [("DOW", 39412, 0.61), ("S&P 500", 5563, 0.34), ("NASDAQ", 18247, 0.92)]
+PRIMARY = (79, 70, 229)          # OptionsEducator brand indigo (hsl 243 75% 59%)
+PRIMARY_GLOW = (199, 194, 255)
+
+
+def _draw_logo(d, x, y, s, alpha=255):
+    """OptionsEducator mark: indigo rounded square + white staircase to apex node."""
+    u = s / 40.0
+    d.rounded_rectangle([x, y, x + s, y + s], radius=int(10 * u), fill=PRIMARY + (alpha,))
+    pts = [(x + px * u, y + py * u) for px, py in
+           [(7, 33), (7, 21), (20, 21), (20, 13), (33, 13), (33, 7)]]
+    d.line(pts, fill=(255, 255, 255, alpha), width=max(2, int(2.6 * u)), joint="curve")
+    r = max(2, int(3.6 * u))
+    d.ellipse([x + 33 * u - r, y + 7 * u - r, x + 33 * u + r, y + 7 * u + r],
+              fill=(255, 255, 255, alpha))
+    r2 = max(1, int(2.2 * u))
+    d.ellipse([x + 7 * u - r2, y + 33 * u - r2, x + 7 * u + r2, y + 33 * u + r2],
+              fill=(255, 255, 255, int(alpha * 0.5)))
 
 _GRAD_CACHE = None
 
@@ -138,42 +156,72 @@ class Promo:
         d = ImageDraw.Draw(base, "RGBA")
         # faint moving line charts behind everything
         for ci, (oy, col, spd, amp) in enumerate(
-                [(H * 0.28, INDIGO, 0.9, 42), (H * 0.52, UP, 1.4, 28), (H * 0.40, DOWN, 1.1, 34)]):
+                [(H * 0.34, INDIGO, 0.9, 42), (H * 0.56, UP, 1.4, 28), (H * 0.46, DOWN, 1.1, 34)]):
             pts = [(x, oy + amp * math.sin(x * 0.012 + f * 0.05 * spd + ci * 2)) for x in range(0, W + 8, 10)]
             d.line(pts, fill=col + (34,), width=2)
-        # dim live-quote cells (top area), values flicker
-        fq = _font(19); fqv = _font(17)
-        for i, (sym, pr, pc) in enumerate(TAPE[:6]):
-            x = int(W * 0.05) + (i % 3) * int(W * 0.20)
-            y = int(H * 0.10) + (i // 3) * 48
-            pc2 = pc + 0.25 * math.sin(f * 0.12 + i)
-            col = UP if pc2 >= 0 else DOWN
-            d.text((x, y), sym, font=fq, fill=(200, 205, 230, 55))
-            d.text((x, y + 20), f"{pr:.1f}  {'+' if pc2 >= 0 else ''}{pc2:.1f}%", font=fqv, fill=col + (70,))
         # scrim to mute the backdrop so scene content pops
-        d.rectangle([0, 0, W, H], fill=(6, 7, 18, 118))
-        # ---- top breaking-news bar + headline crawl ----
-        d.rectangle([0, 0, W, 46], fill=(70, 14, 20, 200))
-        d.rectangle([0, 0, 150, 46], fill=(198, 40, 50, 235))
-        d.text((16, 11), "BREAKING", font=_font(22), fill=(255, 255, 255, 240))
+        d.rectangle([0, 0, W, H], fill=(6, 7, 18, 108))
+
+        # ================= TOP BROADCAST BAR (big) =================
+        # breaking-news strip + scrolling headline crawl
+        d.rectangle([0, 0, W, 44], fill=(70, 14, 20, 205))
+        d.rectangle([0, 0, 150, 44], fill=(200, 40, 50, 240))
+        d.text((16, 10), "BREAKING", font=_font(22), fill=(255, 255, 255, 245))
         fh = _font(22)
         hl = "     •     ".join(HEADLINES) + "     •     "
         hw = d.textbbox((0, 0), hl, font=fh)[2]
         hoff = int((f * 3) % hw)
         for rep in range(2):
-            d.text((160 - hoff + rep * hw, 11), hl, font=fh, fill=(245, 232, 232, 215))
-        # ---- bottom ticker crawl (per-symbol colour) ----
-        by = H - 54
-        d.rectangle([0, by, W, H], fill=(12, 14, 34, 225))
-        d.line([(0, by), (W, by)], fill=ACCENT + (130,), width=2)
-        ft = _font(24)
+            d.text((162 - hoff + rep * hw, 10), hl, font=fh, fill=(245, 232, 232, 215))
+
+        # ---- BIG INDEX BOARD: DOW / S&P / NASDAQ, flashing on update ----
+        bx, by0, cw, ch = 20, 56, 300, 62
+        fnm = _font(20); fval = _font(30); fpc = _font(20)
+        for i, (nm, base_v, pc) in enumerate(INDEX):
+            x = bx + i * (cw + 12)
+            tick = math.sin(f * 0.10 + i * 1.7)
+            pc2 = pc + 0.18 * tick
+            val = base_v * (1 + pc2 / 100 * 0.02 * math.sin(f * 0.2 + i))
+            col = UP if pc2 >= 0 else DOWN
+            flash = max(0, math.sin(f * 0.25 + i * 2.1))     # periodic update flash
+            cell_bg = (28 + int(30 * flash), 32 + int(20 * flash), 60, 210)
+            d.rounded_rectangle([x, by0, x + cw, by0 + ch], radius=10, fill=cell_bg)
+            d.text((x + 14, by0 + 8), nm, font=fnm, fill=(200, 205, 235, 235))
+            d.text((x + 14, by0 + 28), f"{val:,.0f}", font=fval, fill=(255, 255, 255, 245))
+            arw = "▲" if pc2 >= 0 else "▼"
+            d.text((x + cw - 120, by0 + 28), f"{arw} {abs(pc2):.2f}%", font=fpc, fill=col + (245,))
+
+        # ---- MARKET CLOCK (big) + LIVE ----
+        secs = 34200 + int(f / FPS)      # ticks up from 09:30:00 ET
+        hh, mm, ss = secs // 3600 % 24, secs // 60 % 60, secs % 60
+        fclk = _font(40)
+        clk = f"{hh:02d}:{mm:02d}:{ss:02d}"
+        cw2 = d.textbbox((0, 0), clk, font=fclk)[2]
+        d.text((W - cw2 - 96, 54), clk, font=fclk, fill=(255, 255, 255, 240))
+        d.text((W - 78, 66), "ET", font=_font(22), fill=(180, 186, 220, 220))
+        blink = 240 if (f // 12) % 2 == 0 else 80
+        d.ellipse([W - cw2 - 128, 62, W - cw2 - 110, 80], fill=(240, 60, 60, blink))
+        d.text((W - cw2 - 104, 92), "LIVE  ·  NYSE", font=_font(18), fill=(210, 214, 235, 200))
+
+        # ================= BOTTOM TICKER CRAWL (tall) =================
+        by = H - 58
+        d.rectangle([0, by, W, H], fill=(12, 14, 34, 230))
+        d.line([(0, by), (W, by)], fill=ACCENT + (140,), width=3)
+        ft = _font(26)
         toff = int((f * 4) % _tape_width(d, ft))
-        _draw_tape(d, ft, -toff, by + 12)
-        _draw_tape(d, ft, -toff + _tape_width(d, ft), by + 12)
-        # ---- LIVE indicator + market clock ----
-        blink = 235 if (f // 12) % 2 == 0 else 90
-        d.ellipse([W - 96, 13, W - 80, 29], fill=(235, 60, 60, blink))
-        d.text((W - 72, 11), "LIVE", font=_font(20), fill=(255, 255, 255, 210))
+        _draw_tape(d, ft, -toff, by + 14)
+        _draw_tape(d, ft, -toff + _tape_width(d, ft), by + 14)
+
+        # ================= LOGO BUG (bottom-right, above ticker) =================
+        lg = 58
+        lx, ly = W - 360, by - lg - 18
+        d.rounded_rectangle([lx - 14, ly - 10, W - 20, ly + lg + 10], radius=12,
+                            fill=(10, 12, 30, 205))
+        _draw_logo(d, lx, ly, lg, alpha=245)
+        d.text((lx + lg + 14, ly + 6), "OPTIONS EDUCATOR", font=_font(24),
+               fill=(255, 255, 255, 240))
+        d.text((lx + lg + 14, ly + 34), "OPTIONS DESK  ·  LIVE", font=_font(17),
+               fill=ACCENT + (220,))
         return base.convert("RGB")
 
     # ---- scene: kinetic title ----

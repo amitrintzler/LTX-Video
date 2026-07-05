@@ -63,7 +63,9 @@ narr = ("Start here. A stock is a slice of a company. Bulls push up, bears push 
         "Options Educator. From zero to strategy.")
 voice = Path("~/piper-voices/en_US-lessac-medium.onnx").expanduser()
 narr_wav = audio.narrate(narr, voice, work / "narration.wav")
-bed = audio.build_bed({"audio": {}}, p.n / 24, work, narr_wav)
+music = Path("cinematic-pipeline/assets/music_promo.wav").resolve()
+bed = audio.build_bed({"audio": {"music": str(music)} if music.exists() else {}},
+                      p.n / 24, work, narr_wav)
 p.burn_captions(caps)                 # composite lower-third captions onto frames
 p.encode(out, audio=bed)
 print("DONE ->", out)

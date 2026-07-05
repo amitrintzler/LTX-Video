@@ -287,7 +287,7 @@ class Promo:
                 hh = (bot - top) / 2 * grow
                 d.rectangle([cx - cw / 2, mid - hh, cx + cw / 2, mid + hh],
                             fill=col + (a,))
-            _ctext(d, "Read the Charts", fh, int(H * 0.72), WHITE, a)
+            _ctext(d, "Price Action", fh, int(H * 0.72), WHITE, a)
             self._save(img)
 
     # ---- scene: call payoff diagram ----
@@ -355,7 +355,7 @@ class Promo:
                 arrow = "▲" if pct >= 0 else "▼"
                 d.text((x, band_y + 24), sym, font=fsym, fill=WHITE + (a,))
                 d.text((x, band_y + 68), f"{arrow} {abs(pct):.1f}%", font=_font(34), fill=col + (a,))
-            _ctext(d, "Track the Market", ftitle, int(H * 0.72), WHITE, a)
+            _ctext(d, "The Tape", ftitle, int(H * 0.72), WHITE, a)
             self._save(img)
 
     # ---- scene: volatility expected-move cone ----
@@ -392,7 +392,7 @@ class Promo:
                        midy - maxw * 0.35 * math.sqrt(s / steps))
                       for s in range(len(top_pts))]
                 d.line(cl, fill=ACCENT + (a,), width=3)
-            _ctext(d, "Volatility = Range of Outcomes", fh, int(H * 0.72), WHITE, a)
+            _ctext(d, "Volatility", fh, int(H * 0.72), WHITE, a)
             self._save(img)
 
     # ---- scene: implied-volatility smile ----
@@ -408,7 +408,7 @@ class Promo:
             d.line([(x0, y1), (x1, y1)], fill=(110, 116, 150, a), width=2)
             d.text((x0 - 6, y0 - 26), "IV", font=fs, fill=MUTE + (a,))
             d.text((x1 - 60, y1 + 8), "strike", font=fs, fill=MUTE + (a,))
-            p = self._prog(fr, total, 0.4)
+            p = self._prog(fr, total, 0.6)
             pts = []
             steps = 60
             for s in range(steps + 1):
@@ -440,7 +440,7 @@ class Promo:
         for fr in range(total):
             img = self._bg(); d = ImageDraw.Draw(img, "RGBA")
             a = int(255 * _fade_alpha(fr, total))
-            p = self._prog(fr, total, 0.4)
+            p = self._prog(fr, total, 0.55)
             for i, (name, frac, col) in enumerate(rows):
                 y = int(H * 0.26) + i * int(H * 0.13)
                 d.text((int(W * 0.14), y), name, font=fl, fill=WHITE + (a,))
@@ -449,8 +449,8 @@ class Promo:
                 w = int((bx1 - bx0) * frac * p)
                 d.rounded_rectangle([bx0, y, bx0 + max(34, w), y + 34], radius=17,
                                     fill=col + (a,))
-                d.text((bx1 + 16, y), f"{frac*p:.2f}", font=fv, fill=col + (a,))
-            _ctext(d, "Know Your Greeks", fh, int(H * 0.72), WHITE, a)
+                d.text((bx1 + 16, y), f"{'-' if name=='Theta' else ''}{frac*p:.2f}", font=fv, fill=col + (a,))
+            _ctext(d, "The Greeks", fh, int(H * 0.72), WHITE, a)
             self._save(img)
 
     # ---- scene: long straddle payoff (volatility play) ----
@@ -555,6 +555,25 @@ class Promo:
             d.line(drawn, fill=color + (a,), width=width)
 
     @staticmethod
+    def _partial(pts, p):
+        """Return the polyline points covering fraction p of the total path length."""
+        if len(pts) < 2:
+            return list(pts)
+        tot = sum(math.dist(pts[i - 1], pts[i]) for i in range(1, len(pts)))
+        target = tot * max(0.0, min(1.0, p))
+        acc, out = 0.0, [pts[0]]
+        for i in range(1, len(pts)):
+            seg = math.dist(pts[i - 1], pts[i])
+            if acc + seg <= target:
+                out.append(pts[i]); acc += seg
+            else:
+                r = (target - acc) / seg if seg else 1
+                out.append((pts[i - 1][0] + (pts[i][0] - pts[i - 1][0]) * r,
+                            pts[i - 1][1] + (pts[i][1] - pts[i - 1][1]) * r))
+                break
+        return out
+
+    @staticmethod
     def _prog(f, total, hold=0.35):
         """Eased 0..1 that reaches 1 early then HOLDS the finished state."""
         return ease(min(1.0, (f / max(1, total)) / (1 - hold)))
@@ -580,25 +599,29 @@ class Promo:
         for f in range(total):
             img = self._bg(); d = ImageDraw.Draw(img, "RGBA")
             a = int(255 * _fade_alpha(f, total, 4, 5))
-            # axes
-            d.line([(ax0, ay0), (ax0, ay1)], fill=(120, 126, 165, a), width=2)     # P/L axis
+            # ---- STATIC scaffold (full alpha from frame 0 so the plot never reads empty) ----
+            for gi in range(1, 5):                                                  # faint grid
+                gy = ay0 + (ay1 - ay0) * gi / 5
+                d.line([(ax0, gy), (ax1, gy)], fill=(60, 64, 96, int(a * 0.5)))
+            d.line([(ax0, ay0), (ax0, ay1)], fill=(130, 136, 175, a), width=2)      # P/L axis
             for gx in range(ax0, ax1, 14):                                          # dashed zero
-                d.line([(gx, zy), (gx + 7, zy)], fill=(120, 126, 165, int(a * 0.7)), width=2)
+                d.line([(gx, zy), (gx + 7, zy)], fill=(130, 136, 175, int(a * 0.8)), width=2)
             d.text((ax0 - 4, ay0 - 26), "P/L", font=fs, fill=MUTE + (a,))
             d.text((ax1 - 44, zy + 8), "Price", font=fs, fill=MUTE + (a,))
-            p = self._prog(f, total, hold)
-            # strikes (interior kinks) — indigo dashed verticals, appear as line passes
-            for (tx, _pr) in breaks[1:-1]:
+            for (tx, _pr) in breaks[1:-1]:                                          # strikes (static)
                 sx = ax0 + (ax1 - ax0) * tx
-                if p * (ax1 - ax0) + ax0 >= sx - 4:
-                    for gy in range(ay0, ay1, 12):
-                        d.line([(sx, gy), (sx, gy + 6)], fill=INDIGO + (int(a * 0.6),), width=2)
-                    d.text((sx - 6, ay1 + 4), "K", font=fs, fill=INDIGO + (a,))
-            self._polyline(d, pts, p, color, a, 5)
-            # breakeven dots once drawn past them
-            if p > 0.9:
-                for bx in bes:
-                    d.ellipse([bx - 6, zy - 6, bx + 6, zy + 6], fill=WHITE + (a,))
+                for gy in range(ay0, ay1, 12):
+                    d.line([(sx, gy), (sx, gy + 6)], fill=INDIGO + (int(a * 0.6),), width=2)
+                d.text((sx - 6, ay1 + 4), "K", font=fs, fill=INDIGO + (a,))
+            for bx in bes:                                                          # breakeven (static)
+                d.ellipse([bx - 6, zy - 6, bx + 6, zy + 6], fill=WHITE + (a,))
+                d.text((bx - 12, zy - 32), "BE", font=fs, fill=(210, 214, 235, a))
+            # ---- animated P/L line: profit-green above zero, loss-red below ----
+            p = self._prog(f, total, 0.6)          # completes early, holds
+            drawn = self._partial(pts, p)
+            for i in range(1, len(drawn)):
+                seg_col = ACCENT if (drawn[i][1] <= zy and drawn[i - 1][1] <= zy) else DOWN
+                d.line([drawn[i - 1], drawn[i]], fill=seg_col + (a,), width=5)
             _ctext(d, title, fh, int(H * 0.72), WHITE, a)
             self._save(img)
 
@@ -625,7 +648,7 @@ class Promo:
                 d.line([tip, (tip[0] + aw, tip[1] - dy)], fill=col + (a,), width=10)
                 _ctext_side = cx - d.textbbox((0, 0), lbl, font=fbig)[2] // 2
                 d.text((_ctext_side, int(H * 0.62)), lbl, font=fbig, fill=col + (a,))
-            _ctext(d, "Bulls Push Up · Bears Push Down", fs, int(H * 0.72), MUTE, a)
+            _ctext(d, "Bulls vs Bears", fs, int(H * 0.72), MUTE, a)
             self._save(img)
 
     def supply_demand(self, secs=1.8):
@@ -646,7 +669,7 @@ class Promo:
                            (x0 + x1) // 2 + 8, (y0 + y1) // 2 + 8], fill=ACCENT + (a,))
             d.text((x1 - 90, y0 - 6), "Supply", font=fs, fill=UP + (a,))
             d.text((x1 - 90, y1 - 40), "Demand", font=fs, fill=DOWN + (a,))
-            _ctext(d, "Price = Supply meets Demand", fh, int(H * 0.72), WHITE, a)
+            _ctext(d, "Supply & Demand", fh, int(H * 0.72), WHITE, a)
             self._save(img)
 
     def pie_stock(self, secs=1.8):
@@ -672,7 +695,7 @@ class Promo:
                 off = int(18 * ease((p - 0.7) / 0.3))
                 d.pieslice([cx - r - off, cy - r - off, cx + r - off, cy + r - off],
                            -90, 0, fill=ACCENT + (a,))
-            _ctext(d, "A Stock = a Slice of a Company", fh, int(H * 0.72), WHITE, a)
+            _ctext(d, "Stocks 101", fh, int(H * 0.72), WHITE, a)
             self._save(img)
 
     def level_up(self, level, secs=1.6):

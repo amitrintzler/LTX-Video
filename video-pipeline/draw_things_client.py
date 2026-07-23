@@ -118,7 +118,7 @@ class DrawThingsClient:
             "width": kwargs.get("width", 1024),
             "height": kwargs.get("height", 576),
             "steps": kwargs.get("steps", 30),
-            "cfg_scale": kwargs.get("cfg_scale", 6.0),
+            "guidance_scale": kwargs.get("cfg_scale", 6.0),
             "seed": kwargs.get("seed", -1),
             "denoising_strength": kwargs.get("denoising_strength", 1.0),
             "num_frames": kwargs.get("frames", 81),

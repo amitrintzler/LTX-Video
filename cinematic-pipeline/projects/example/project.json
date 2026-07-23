@@ -1,0 +1,41 @@
+{
+  "project": "neon_city",
+  "tier": null,
+  "fps": 24,
+  "resolution": { "width": 1280, "height": 544 },
+  "auto_keyframes": true,
+  "keyframe_provider": "placeholder",
+  "look": {
+    "letterbox": true,
+    "vignette": true,
+    "grain": 0.03,
+    "transition_sec": 0.6
+  },
+  "narration": "In a city that never sleeps, the rain remembers every face it has ever touched.",
+  "voice_model": "~/piper-voices/en_US-lessac-medium.onnx",
+  "audio": {
+    "music": null,
+    "use_shot_audio": false
+  },
+  "subtitles": null,
+  "shots": [
+    {
+      "id": "01",
+      "prompt": "Cinematic aerial shot descending through neon-lit rain over a futuristic city at night, reflections on wet streets, volumetric fog, anamorphic lens, shallow depth of field, 35mm film grain",
+      "duration": 5,
+      "seed": 7
+    },
+    {
+      "id": "02",
+      "prompt": "Close-up of a lone figure in a long coat walking through a crowded neon market, slow motion, bokeh lights, moody teal and orange grade, cinematic",
+      "duration": 6,
+      "seed": 21
+    },
+    {
+      "id": "03",
+      "prompt": "A sleek car glides across a rain-soaked bridge under towering holographic billboards, motion blur, reflective puddles, dramatic key light, cinematic wide shot",
+      "duration": 5,
+      "seed": 34
+    }
+  ]
+}

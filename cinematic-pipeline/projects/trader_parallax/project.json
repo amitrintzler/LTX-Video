@@ -1,0 +1,24 @@
+{
+  "project": "trader_parallax",
+  "tier": "2b-distilled",
+  "motion": "parallax",
+  "fps": 24,
+  "resolution": { "width": 1280, "height": 720 },
+  "keyframe_resolution": { "width": 1280, "height": 720 },
+  "auto_keyframes": true,
+  "keyframe_provider": "sdxl",
+  "keyframe_base_seed": 1000,
+  "ip_adapter_scale": 0.55,
+  "parallax_px": 26.0,
+  "parallax_zoom": 0.12,
+  "character": "a confident 38-year-old male Wall Street stock trader, short dark hair, light stubble, strong jaw, navy pinstripe suit, white shirt, red tie",
+  "hero_prompt": "a confident 38-year-old male Wall Street stock trader, short dark hair, light stubble, strong jaw, navy pinstripe suit, white shirt, red tie, cinematic headshot portrait, sharp focus, 85mm, dramatic lighting",
+  "look": { "letterbox": true, "vignette": true, "grain": 0.03, "transition_sec": 0.5 },
+  "narration": "On the floor, fortunes turn on a flicker of green and a whisper of red. New York never blinks. And neither does he.",
+  "voice_model": "~/piper-voices/en_US-lessac-medium.onnx",
+  "audio": { "music": null, "use_shot_audio": false },
+  "subtitles": null,
+  "shots": [
+    { "id": "01", "prompt": "medium shot standing on a busy New York stock exchange trading floor, huge walls of glowing green and red stock tickers and charts behind him, colleagues blurred in the background, cinematic, sharp focus, photorealistic, depth", "duration": 8, "seed": 7 }
+  ]
+}

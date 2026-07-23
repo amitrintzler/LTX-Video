@@ -1,0 +1,56 @@
+{
+  "title": "Draw-Things-60s-Showcase",
+  "global_style": "cinematic 35mm documentary realism, natural color, detailed textures, no text, no captions",
+  "scenes": [
+    {
+      "id": "s01",
+      "renderer": "ltx",
+      "storyboard_prompt": "A quiet mountain lake at blue hour, glassy water reflecting snow-covered peaks, a small wooden pier in the foreground, mist hovering over the surface",
+      "video_prompt": "Mist slowly drifts across a quiet mountain lake at blue hour, reflections ripple gently, camera performs a slow forward push from the wooden pier toward the mountains",
+      "camera": "slow forward dolly, wide establishing shot, 35mm lens",
+      "motion": "soft water ripples, drifting mist, subtle dawn light change",
+      "style": "realistic alpine landscape, calm cinematic atmosphere",
+      "duration_hint": "12s"
+    },
+    {
+      "id": "s02",
+      "renderer": "ltx",
+      "storyboard_prompt": "A narrow rain-soaked city street at night, neon signs reflecting on wet pavement, a cyclist paused at the end of the alley, steam rising from a street vent",
+      "video_prompt": "Neon reflections shimmer across wet pavement in a narrow city street at night, steam rises from a street vent, a cyclist slowly rolls through the alley",
+      "camera": "low angle tracking shot along the street, 50mm lens",
+      "motion": "rain falling, reflections shimmering, steam curling upward, slow bicycle movement",
+      "style": "photoreal urban night, vivid neon, cinematic contrast",
+      "duration_hint": "12s"
+    },
+    {
+      "id": "s03",
+      "renderer": "ltx",
+      "storyboard_prompt": "A sunlit desert highway stretching toward distant red rock mesas, heat haze above the road, a classic convertible parked on the shoulder",
+      "video_prompt": "Heat haze waves above a sunlit desert highway, the camera slowly glides past a classic convertible toward distant red rock mesas, dust moves lightly in the wind",
+      "camera": "smooth lateral tracking shot, wide 35mm anamorphic",
+      "motion": "heat shimmer, light dust movement, slow camera glide",
+      "style": "warm western road film look, realistic desert sunlight",
+      "duration_hint": "12s"
+    },
+    {
+      "id": "s04",
+      "renderer": "ltx",
+      "storyboard_prompt": "A cozy workshop table covered with brass gears, small tools, sketches, and a half-built mechanical clock, warm lamp light illuminating floating dust",
+      "video_prompt": "A half-built mechanical clock ticks softly on a cozy workshop table, brass gears turn slowly, warm lamp light catches floating dust as the camera pushes in",
+      "camera": "macro push-in over the table, shallow depth of field",
+      "motion": "tiny gears turning, dust drifting, warm light flicker",
+      "style": "tactile handcrafted realism, warm cinematic macro detail",
+      "duration_hint": "12s"
+    },
+    {
+      "id": "s05",
+      "renderer": "ltx",
+      "storyboard_prompt": "A peaceful coastal cliff at sunset, tall grass moving in the wind, waves crashing far below, golden sunlight breaking through scattered clouds",
+      "video_prompt": "Tall grass bends in the coastal wind on a sunset cliff, waves crash far below, clouds drift as golden light spills across the ocean, camera slowly rises to reveal the horizon",
+      "camera": "slow crane up, wide cinematic landscape shot",
+      "motion": "grass swaying, waves rolling, clouds drifting, sunlight shifting",
+      "style": "natural coastal realism, golden hour, calm cinematic ending",
+      "duration_hint": "12s"
+    }
+  ]
+}

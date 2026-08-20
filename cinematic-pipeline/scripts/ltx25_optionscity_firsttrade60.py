@@ -106,30 +106,43 @@ ACTS = [
         "id": "03_reading_the_storm",
         "seed": 26043,
         "camera": "dolly_in",
-        "use_keyframe": False,
+        "use_keyframe": True,
+        "keyframe_from": "01_city_reveal",
+        "keyframe": (
+            "Transform the reference into a storm-lit district of pale Greek stone towers, gold-capped domes, and teal "
+            "energy channels running through the streets. Remove every word, ticker, sign, letter, number, and interface. "
+            "Cinematic realistic game concept art, huge scale, clean image without any text."
+        ),
         "prompt": (
-            "The newcomer climbs onto a high open platform in Volatility Heights as an enormous storm builds between the "
-            "towers of Options City. Instead of running, the player plants their feet and studies it, and the storm resolves "
-            "into a readable structure of slowly rotating bands, sweeping probability arcs, and one clear leading edge "
-            "advancing at a steady speed. Lightning bends along the arcs, sheets of rain move across the district far below, "
-            "wind drives the player's coat and hair, and glowing energy contours ripple outward through the streets. Powerful "
-            "forward camera push, spectacular coherent weather, premium cinematic game trailer, no interface and no readable "
-            "signage."
+            "A lone traveller in a worn coat stands on a high stone balcony in Volatility Heights, a district of pale Greek "
+            "stone towers, gold-capped domes, and teal energy channels running through the streets far below. An enormous "
+            "storm builds over the district and resolves into a readable structure: slowly rotating cloud bands, sweeping "
+            "probability arcs, and one clear leading edge advancing at a steady speed. Lightning bends along the arcs, sheets "
+            "of rain sweep across the pale stone rooftops, wind drives the traveller's coat and hair, and teal light pulses "
+            "outward along the streets. The traveller stays large and clearly visible in the foreground the whole time. "
+            "Powerful forward camera push, spectacular coherent weather, premium cinematic game trailer."
         ),
     },
     {
         "id": "04_the_first_trade",
         "seed": 26044,
         "camera": "dolly_in",
-        "use_keyframe": False,
+        "use_keyframe": True,
+        "keyframe_from": "05_one_open_city",
+        "keyframe": (
+            "Transform the reference into a luminous elevated stone bridge above a city of pale Greek architecture and "
+            "gold-capped domes, with teal energy channels along the roads below. Remove every word, ticker, sign, letter, "
+            "number, and interface. Cinematic realistic game concept art, clean image without any text."
+        ),
         "prompt": (
-            "The decisive moment in Options City. On a high bridge above the district the newcomer plants a single luminous "
-            "hedge node and a compact trading terminal that assemble themselves from glowing modular pieces. The player draws "
-            "one bright line across the street below, marking the limit they will not cross, then commits with a decisive "
-            "gesture. A wave of teal and gold energy rushes outward from the node along every road, protective shields rise "
-            "over the buildings, the incoming storm front breaks apart against them, and the whole district steadies and "
-            "brightens. Strong forward camera motion, large-scale energy effects without injury, dramatic cinematic payoff, "
-            "no interface and no readable signage."
+            "A lone traveller in a worn coat stands at the centre of a luminous elevated stone bridge above Options City, a "
+            "metropolis of pale Greek architecture, gold-capped domes, and teal energy channels. Beside the traveller a tall "
+            "glowing hedge node assembles itself from floating modular pieces and locks into place. The traveller sweeps one "
+            "arm and a single bright gold line draws itself across the bridge deck in front of them. Teal and gold energy "
+            "then rushes outward from the node along the roads below, curved protective shields of light rise over the pale "
+            "stone buildings, and the storm front breaks apart against them as the whole district steadies and brightens. "
+            "The traveller remains large and clearly visible in frame throughout. Strong forward camera motion, large-scale "
+            "energy effects without injury, dramatic cinematic payoff."
         ),
     },
     {
@@ -260,7 +273,8 @@ def cached_keyframe(act: dict, cache_dir: Path) -> Path | None:
 
     The LTX Desktop backend is a separate process, so imagePath must be absolute.
     """
-    cached_file = cache_dir / f"{act['id']}_keyframe_result.json"
+    source_id = act.get("keyframe_from", act["id"])
+    cached_file = cache_dir / f"{source_id}_keyframe_result.json"
     if not cached_file.exists():
         return None
     recorded = Path(json.loads(cached_file.read_text())["image_paths"][0])

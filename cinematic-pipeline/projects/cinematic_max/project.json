@@ -1,0 +1,44 @@
+{
+  "project": "cinematic_max",
+  "tier": null,
+  "fps": 24,
+  "resolution": { "width": 1280, "height": 544 },
+  "auto_keyframes": false,
+  "keyframe_provider": "placeholder",
+  "look": {
+    "letterbox": true,
+    "vignette": true,
+    "grain": 0.03,
+    "transition_sec": 0.7
+  },
+  "narration": "Some cities never close their eyes. They breathe in neon and exhale rain, remembering every face that ever passed through the light.",
+  "voice_model": "~/piper-voices/en_US-lessac-medium.onnx",
+  "audio": { "music": null, "use_shot_audio": false },
+  "subtitles": null,
+  "shots": [
+    {
+      "id": "01",
+      "prompt": "Cinematic aerial shot slowly descending through heavy neon-lit rain over a vast futuristic megacity at night, glowing skyscrapers, wet reflective streets far below, volumetric fog, anamorphic lens flares, shallow depth of field, 35mm film grain, Blade Runner atmosphere, ultra detailed",
+      "duration": 2,
+      "seed": 7
+    },
+    {
+      "id": "02",
+      "prompt": "Close tracking shot of a lone figure in a long dark coat walking slowly through a crowded rain-soaked neon street market at night, glowing signage bokeh, steam rising, moody teal and orange cinematic color grade, shallow depth of field, slow motion, cinematic",
+      "duration": 2,
+      "seed": 21
+    },
+    {
+      "id": "03",
+      "prompt": "A sleek black car glides across a rain-soaked suspension bridge beneath towering animated holographic billboards at night, glistening wet asphalt reflections, motion blur, dramatic rim lighting, cinematic wide establishing shot, moody atmosphere, film grain",
+      "duration": 2,
+      "seed": 34
+    },
+    {
+      "id": "04",
+      "prompt": "Extreme close-up of rain streaming down a window at night, blurred neon city lights refracting through the droplets, a faint silhouette reflected in the glass, intimate cinematic mood, shallow focus, teal and amber palette, 35mm",
+      "duration": 2,
+      "seed": 48
+    }
+  ]
+}

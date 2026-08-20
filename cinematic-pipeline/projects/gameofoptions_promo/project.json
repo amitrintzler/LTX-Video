@@ -1,0 +1,38 @@
+{
+  "project": "gameofoptions_promo",
+  "tier": "2b-distilled",
+  "motion": "parallax",
+  "fps": 24,
+  "resolution": { "width": 1280, "height": 720 },
+  "keyframe_resolution": { "width": 1280, "height": 720 },
+  "auto_keyframes": true,
+  "keyframe_provider": "sdxl",
+  "ip_adapter": false,
+  "keyframe_base_seed": 2200,
+  "character": "",
+  "parallax_px": 24.0,
+  "parallax_zoom": 0.12,
+  "look": { "letterbox": true, "vignette": true, "grain": 0.035, "transition_sec": 0.5 },
+  "narration": "Options don't have to feel like gambling. Every trade is a move — and every move has a framework. Know your risk before you enter. Play the strikes, not your luck. Game of Options: trade like it's a game you can win. Explore the framework.",
+  "voice_model": "~/piper-voices/en_US-lessac-medium.onnx",
+  "audio": { "music": null, "use_shot_audio": false },
+  "subtitles": null,
+  "outro": {
+    "brand": "Game of Options",
+    "tagline": "Trade like it's a game you can win.",
+    "cta": "Explore the framework  →",
+    "duration": 3.5
+  },
+  "shots": [
+    { "id": "01", "text": "Feels like gambling?", "duration": 4, "seed": 7,
+      "prompt": "a lone retail trader silhouetted against a huge wall of glowing red and green market screens at night, tense and uncertain mood, low-key indigo rim light, cinematic, photorealistic, depth, shallow depth of field" },
+    { "id": "02", "text": "Every trade is a move", "duration": 5, "seed": 21,
+      "prompt": "extreme close-up of an options chain on a sleek dark screen, calls and puts with strike prices and delta glowing green and red, chess-like grid feeling, shallow depth of field, cinematic, photorealistic, high detail, indigo accents" },
+    { "id": "03", "text": "Every move has a framework", "duration": 5, "seed": 34,
+      "prompt": "abstract glowing geometric framework of clean interconnected lines assembling in the dark like a game board lighting up, indigo and green accents, hopeful confident turn, cinematic reveal, photorealistic, depth" },
+    { "id": "04", "text": "Risk defined before you enter", "duration": 5, "seed": 48,
+      "prompt": "a confident trader calmly placing one decisive move on a modern trading terminal, a clean risk-defined payoff diagram glowing on screen, warm key light breaking through, control and clarity, cinematic, photorealistic, depth" },
+    { "id": "05", "text": "Play the game. Win it.", "duration": 4, "seed": 61,
+      "prompt": "wide hero shot, sunrise over a calm modern city skyline reflected in glass towers, warm resolved golden and indigo tone, sense of mastery and freedom, cinematic, photorealistic, depth" }
+  ]
+}

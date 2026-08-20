@@ -1,0 +1,34 @@
+{
+  "project": "neon_noir_long",
+  "tier": "2b-distilled",
+  "fps": 24,
+  "resolution": { "width": 1280, "height": 544 },
+  "auto_keyframes": false,
+  "keyframe_provider": "placeholder",
+  "look": {
+    "letterbox": true,
+    "vignette": true,
+    "grain": 0.03,
+    "transition_sec": 0.5
+  },
+  "narration": "Some cities never close their eyes. They breathe in neon and exhale rain. Every street remembers a face, every window holds a story it will never tell. And somewhere in the glow, a lone figure keeps walking, chasing a light that always stays just out of reach.",
+  "voice_model": "~/piper-voices/en_US-lessac-medium.onnx",
+  "audio": { "music": null, "use_shot_audio": false },
+  "subtitles": null,
+  "shots": [
+    { "id": "01", "prompt": "Cinematic aerial establishing shot descending through heavy neon rain over a vast futuristic megacity at night, glowing skyscrapers, wet reflective streets, volumetric fog, anamorphic flares, 35mm film grain, Blade Runner mood", "duration": 3, "seed": 7 },
+    { "id": "02", "prompt": "Wide shot of a rain-soaked neon street market at night, dense glowing signage, steam rising from vents, puddle reflections, moody teal and orange grade, cinematic, shallow depth of field", "duration": 3, "seed": 21 },
+    { "id": "03", "prompt": "Tracking shot of a lone figure in a long dark coat walking slowly through the crowded neon market in the rain, bokeh signage lights, slow motion, cinematic noir", "duration": 3, "seed": 34 },
+    { "id": "04", "prompt": "Low angle shot of towering animated holographic billboards glowing above a wet city street at night, reflections on glistening asphalt, drifting fog, cinematic, film grain", "duration": 3, "seed": 48 },
+    { "id": "05", "prompt": "A sleek black car glides slowly along a rain-soaked street beneath neon signs at night, glistening reflections, motion blur, dramatic rim lighting, cinematic wide shot", "duration": 3, "seed": 61 },
+    { "id": "06", "prompt": "Narrow neon alley at night drenched in rain, flickering signs in pink and cyan, steam, puddles rippling, a distant silhouette, atmospheric cinematic noir, shallow focus", "duration": 3, "seed": 73 },
+    { "id": "07", "prompt": "Close-up of rain falling through the colored glow of a neon sign at night, droplets catching pink and blue light, bokeh background, intimate cinematic mood, 35mm", "duration": 3, "seed": 88 },
+    { "id": "08", "prompt": "Reflection of glowing neon skyscrapers in a rippling rain puddle on a city street at night, distorted colorful lights, cinematic abstract, shallow focus, film grain", "duration": 3, "seed": 95 },
+    { "id": "09", "prompt": "The lone figure pauses under a glowing neon archway in the rain, looking up at the city lights, moody backlight, teal and amber palette, cinematic noir, slow motion", "duration": 3, "seed": 102 },
+    { "id": "10", "prompt": "Crowd of people with umbrellas moving through a brightly lit neon crossing at night in the rain, motion blur, glowing reflections, cinematic high angle, atmospheric", "duration": 3, "seed": 119 },
+    { "id": "11", "prompt": "Rooftop view over the glittering neon megacity skyline at night, rain falling, distant lightning, vast glowing towers, cinematic establishing shot, volumetric haze", "duration": 3, "seed": 126 },
+    { "id": "12", "prompt": "Extreme close-up of rain streaming down a window at night, blurred neon city lights refracting through droplets, faint silhouette reflected in the glass, intimate cinematic, teal and amber", "duration": 3, "seed": 137 },
+    { "id": "13", "prompt": "The lone figure walks away down a glowing wet neon street into the fog, seen from behind, lights fading into rain, cinematic noir farewell shot, shallow focus, film grain", "duration": 3, "seed": 144 },
+    { "id": "14", "prompt": "Slow cinematic pull back from the neon city at night as rain falls, the glow softening into haze, moody atmospheric closing shot, anamorphic, 35mm film grain", "duration": 3, "seed": 151 }
+  ]
+}

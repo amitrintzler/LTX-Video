@@ -1,0 +1,56 @@
+{
+  "title": "LTX23-Masterpiece-Creation",
+  "global_style": "museum-grade cinematic realism, controlled studio lighting, rich texture detail, no text, no watermark, sharp focus, high dynamic range",
+  "scenes": [
+    {
+      "id": "s01",
+      "renderer": "ltx",
+      "storyboard_prompt": "A master artist's studio before dawn, an empty linen canvas on a wooden easel, jars of pigment, sharpened charcoal, marble dust, gold leaf, and brushes arranged with ritual precision, soft blue window light and one warm desk lamp",
+      "video_prompt": "The empty canvas waits in a quiet master artist studio, dust motes drift through blue dawn light, a warm lamp glows over pigments and brushes, camera slowly pushes toward the canvas",
+      "camera": "slow forward dolly, 50mm lens, shallow depth of field",
+      "motion": "dust motes drifting, lamp glow subtly flickering, curtains barely moving",
+      "style": "tactile realism, painterly but photoreal, crisp canvas fibers, no blur",
+      "duration_hint": "12s"
+    },
+    {
+      "id": "s02",
+      "renderer": "ltx",
+      "storyboard_prompt": "Close-up of the artist's hand drawing the first charcoal line on the canvas, powdered charcoal texture visible, knuckles and brush hairs sharply detailed, the first elegant curve beginning a masterpiece",
+      "video_prompt": "A hand draws the first charcoal line on raw canvas, charcoal dust falls in tiny particles, the line grows into an elegant curve, camera tracks the moving hand in macro detail",
+      "camera": "macro tracking shot, 85mm lens, shallow but sharp focus on charcoal tip",
+      "motion": "hand gliding, charcoal particles falling, line appearing progressively",
+      "style": "ultra detailed handcraft realism, crisp edges, zero smear",
+      "duration_hint": "12s"
+    },
+    {
+      "id": "s03",
+      "renderer": "ltx",
+      "storyboard_prompt": "A palette knife mixing deep ultramarine, crimson lake, titanium white, and gold pigment on a glass palette, thick oil paint ridges glossy and dimensional under studio light",
+      "video_prompt": "A palette knife folds ultramarine, crimson, white, and gold pigment together, glossy oil paint ridges move and catch the light, camera orbits slowly around the glass palette",
+      "camera": "slow macro orbit, 100mm lens, high detail",
+      "motion": "paint folding, highlights sliding across wet pigment, palette knife scraping softly",
+      "style": "luxury macro realism, high texture, sharp wet paint detail",
+      "duration_hint": "12s"
+    },
+    {
+      "id": "s04",
+      "renderer": "ltx",
+      "storyboard_prompt": "The masterpiece emerging on canvas: luminous portrait and abstract gold geometry, layers of brushwork, precise highlights, the artist's hand applying final strokes with a fine sable brush",
+      "video_prompt": "A luminous masterpiece emerges on canvas as the artist applies precise final brush strokes, gold geometry catches the light, paint layers shimmer, camera rises from brush tip to full artwork reveal",
+      "camera": "controlled crane up from brush tip to artwork, 35mm lens",
+      "motion": "brush stroke appearing, gold leaf shimmer, subtle hand movement, reveal upward",
+      "style": "gallery quality realism, crisp brush detail, no flicker, no deformation",
+      "duration_hint": "12s"
+    },
+    {
+      "id": "s05",
+      "renderer": "ltx",
+      "storyboard_prompt": "Finished masterpiece in a dark gallery, dramatic spotlight on the artwork, the artist standing in silhouette, visitors blurred only in the far background, polished floor reflection, sense of awe",
+      "video_prompt": "The finished masterpiece hangs in a dark gallery under a dramatic spotlight, the artist stands in silhouette, polished floor reflections glow, camera slowly pulls back to reveal the room and audience hush",
+      "camera": "slow pullback, symmetrical gallery composition, 40mm lens",
+      "motion": "subtle spotlight shimmer, reflections breathing, camera pulling back, viewers barely shifting",
+      "style": "prestige museum realism, cinematic ending, sharp artwork, no text",
+      "duration_hint": "12s"
+    }
+  ]
+}

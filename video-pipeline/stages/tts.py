@@ -44,7 +44,7 @@ class TTSStage:
                 continue
 
             if pipeline is None:
-                pipeline = KPipeline(lang_code="a")
+                pipeline = KPipeline(lang_code=getattr(self.cfg, "tts_lang_code", "a"))
 
             self.log.info(f"  [scene_{i+1:03d}] generating TTS...")
             self._generate(pipeline, narration, out_path)

@@ -1,6 +1,6 @@
 {
   "api_host": "http://localhost:7859",
-  "api_timeout": 3600,
+  "api_timeout": 7200,
 
   "image_model": "flux_1_schnell_q8p.ckpt",
   "image_width": 1024,
@@ -11,16 +11,16 @@
 
   "video_model": "ltx_2.3_22b_distilled_q6p.ckpt",
   "video_refiner_model": "",
-  "video_width": 1920,
-  "video_height": 1080,
-  "video_fps": 60,
+  "video_width": 1024,
+  "video_height": 576,
+  "video_fps": 8,
   "video_frames": 97,
   "video_steps": 30,
   "video_cfg": 3.5,
   "video_negative": "morphing, warping, distortion, flickering, jittering, blurry, face deformation, extra objects, watermark, text, letters, words, writing, numbers, digits, characters, script, subtitles, captions, foreign text, gibberish",
   "use_tea_cache": true,
 
-  "crossfade_sec": 0.5,
+  "crossfade_sec": 0.15625,
   "output_codec": "libx264",
   "output_crf": 18,
   "output_preset": "slow",
@@ -40,6 +40,12 @@
   "retry_delay": 10,
 
   "brave_api_key": "",
+
+  "critic_enabled": true,
+  "critic_max_attempts": 3,
+  "critic_score_threshold": 0.8,
+  "llm_retry_delay_sec": 2.0,
+  "critic_retry_delay_sec": 5.0,
 
   "claude_model": "claude-sonnet-4-6",
   "codex_model": "gpt-5.4",

@@ -1,0 +1,28 @@
+{
+  "project": "trader_film",
+  "tier": "2b-distilled",
+  "motion": "parallax",
+  "fps": 24,
+  "resolution": { "width": 1280, "height": 720 },
+  "keyframe_resolution": { "width": 1280, "height": 720 },
+  "auto_keyframes": true,
+  "keyframe_provider": "sdxl",
+  "keyframe_base_seed": 1000,
+  "ip_adapter_scale": 0.55,
+  "parallax_px": 26.0,
+  "parallax_zoom": 0.12,
+  "character": "a confident 38-year-old male Wall Street stock trader, short dark hair, light stubble, strong jaw, navy pinstripe suit, white shirt, red tie",
+  "hero_prompt": "a confident 38-year-old male Wall Street stock trader, short dark hair, light stubble, strong jaw, navy pinstripe suit, white shirt, red tie, cinematic headshot portrait, sharp focus, 85mm, dramatic lighting",
+  "look": { "letterbox": true, "vignette": true, "grain": 0.03, "transition_sec": 0.6 },
+  "narration": "Michael trades a game measured in seconds and millions. On the floor, fortunes turn on a flicker of green and a whisper of red. He has won here, and he has lost here. But New York never blinks. And neither does he.",
+  "voice_model": "~/piper-voices/en_US-lessac-medium.onnx",
+  "audio": { "music": null, "use_shot_audio": false },
+  "subtitles": null,
+  "shots": [
+    { "id": "01", "prompt": "medium shot on a busy New York stock exchange trading floor, huge walls of glowing green and red stock tickers behind him, colleagues blurred, cinematic, sharp, photorealistic, depth", "duration": 5, "seed": 7, "parallax_zoom": 0.14, "pan": [0.6, 0.2] },
+    { "id": "02", "prompt": "close-up at his trading desk, glowing monitors of rising green stock charts reflected on his face, intense concentration, cinematic, photorealistic, depth", "duration": 5, "seed": 21, "parallax_zoom": 0.10, "pan": [-1.0, 0.1] },
+    { "id": "03", "prompt": "standing in a glass corner office looking out over the Manhattan skyline at dusk, city lights and skyscrapers behind him, contemplative, cinematic, photorealistic, depth", "duration": 5, "seed": 34, "parallax_zoom": 0.08, "pan": [1.0, 0.3] },
+    { "id": "04", "prompt": "close-up tense expression as red crashing stock charts fill the screens behind him, dramatic, cinematic, photorealistic, depth", "duration": 5, "seed": 48, "parallax_zoom": 0.15, "pan": [0.3, -0.2] },
+    { "id": "05", "prompt": "cinematic portrait at night, glowing city lights and stock tickers reflected in the window beside him, determined, moody, photorealistic, depth", "duration": 5, "seed": 61, "parallax_zoom": 0.12, "pan": [-0.6, 0.25] }
+  ]
+}

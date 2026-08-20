@@ -1,0 +1,32 @@
+{
+  "project": "ny_traders",
+  "tier": "2b-distilled",
+  "fps": 24,
+  "resolution": { "width": 1280, "height": 720 },
+  "keyframe_resolution": { "width": 1024, "height": 576 },
+  "auto_keyframes": true,
+  "keyframe_provider": "sdxl",
+  "keyframe_base_seed": 1000,
+  "keyframe_strength": 0.9,
+  "character": "a confident 38-year-old male Wall Street stock trader, short dark hair, light stubble, strong jaw, sharp navy pinstripe suit, crisp white shirt, loosened red silk tie, the exact same man",
+  "look": {
+    "letterbox": true,
+    "vignette": true,
+    "grain": 0.03,
+    "transition_sec": 0.5
+  },
+  "narration": "He plays a game measured in seconds and millions. On the floor, fortunes turn on a flicker of green, a whisper of red. New York never blinks, and neither does he.",
+  "voice_model": "~/piper-voices/en_US-lessac-medium.onnx",
+  "audio": { "music": null, "use_shot_audio": false },
+  "subtitles": null,
+  "shots": [
+    { "id": "01", "prompt": "standing on a busy New York stock exchange trading floor, huge walls of glowing stock tickers and charts behind him, intense focused expression, subtle head movement, cinematic", "duration": 3, "seed": 7 },
+    { "id": "02", "prompt": "shouting a buy order into a desk phone at his trading desk, surrounded by six glowing monitors of stock charts, urgent energy, cinematic", "duration": 3, "seed": 21 },
+    { "id": "03", "prompt": "walking fast down a Wall Street sidewalk in the morning, skyscrapers and yellow cabs behind him, briefcase in hand, determined stride, cinematic", "duration": 3, "seed": 34 },
+    { "id": "04", "prompt": "standing in a glass corner office looking out over the Manhattan skyline at dusk, reflection in the window, contemplative, cinematic", "duration": 3, "seed": 48 },
+    { "id": "05", "prompt": "raising a fist in triumph at his desk as green profit charts spike on the monitors behind him, elated, cinematic", "duration": 3, "seed": 61 },
+    { "id": "06", "prompt": "loosening his red tie with a tense expression as red crashing stock charts fill the screens behind him, dramatic, cinematic", "duration": 3, "seed": 73 },
+    { "id": "07", "prompt": "shaking hands with brokers across a glossy boardroom table, Manhattan skyline through the windows, confident smile, cinematic", "duration": 3, "seed": 88 },
+    { "id": "08", "prompt": "intense close-up of his determined face, glowing stock charts reflected in his eyes, neon trading floor bokeh behind him, cinematic", "duration": 3, "seed": 95 }
+  ]
+}

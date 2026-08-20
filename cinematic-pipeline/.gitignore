@@ -1,0 +1,12 @@
+__pycache__/
+*.pyc
+# Render artifacts — regenerated per run, never committed.
+projects/*/work/
+projects/*/output/
+**/_edit_tmp/
+.env
+.venv/
+*.mp4
+*.wav
+# keep example project.json and committed assets
+!projects/*/project.json

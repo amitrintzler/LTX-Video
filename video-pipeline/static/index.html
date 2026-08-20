@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>LTX Video Pipeline</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background: #0d1117;
+            color: #c9d1d9;
+            display: flex;
+            height: 100vh;
+            overflow: hidden;
+        }
+        .container { display: grid; grid-template-columns: 1fr 2fr 1.5fr; gap: 1rem; padding: 1rem; width: 100%; height: 100%; }
+        .panel { display: flex; flex-direction: column; background: #161b22; border: 1px solid #30363d; border-radius: 6px; padding: 1.5rem; overflow: hidden; }
+        .panel h2 { font-size: 1.1rem; margin-bottom: 1rem; color: #58a6ff; }
+        .input-section { margin-bottom: 1rem; }
+        label { display: block; margin-bottom: 0.5rem; font-size: 0.9rem; color: #8b949e; font-weight: 500; }
+        textarea, select, input[type="number"], input[type="file"] {
+            width: 100%; padding: 0.75rem; background: #0d1117; border: 1px solid #30363d;
+            border-radius: 4px; color: #c9d1d9; font-family: monospace; font-size: 0.85rem; margin-bottom: 0.5rem;
+        }
+        textarea { resize: vertical; min-height: 80px; }
+        button { padding: 0.75rem 1rem; background: #238636; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: 600; }
+        button:hover { background: #2ea043; }
+        button:disabled { background: #30363d; cursor: not-allowed; color: #8b949e; }
+        #logViewer { flex: 1; background: #0d1117; border: 1px solid #30363d; border-radius: 4px; padding: 1rem; overflow-y: auto; font-family: monospace; font-size: 0.8rem; }
+        .log-line { margin: 0.25rem 0; white-space: pre-wrap; word-wrap: break-word; }
+        .log-error { color: #f85149; }
+        .log-warning { color: #d29922; }
+        #jobsTable { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+        #jobsTable th { text-align: left; padding: 0.75rem; border-bottom: 2px solid #30363d; color: #58a6ff; font-weight: 600; }
+        #jobsTable td { padding: 0.75rem; border-bottom: 1px solid #30363d; }
+        .status-badge { display: inline-block; padding: 0.3rem 0.6rem; border-radius: 12px; font-weight: 600; font-size: 0.75rem; }
+        .status-running { background: #1f6feb; color: #fff; animation: pulse 1.5s infinite; }
+        .status-complete { background: #238636; color: #fff; }
+        .status-failed { background: #da3633; color: #fff; }
+        .status-pending { background: #30363d; color: #8b949e; }
+        @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.6; } }
+        .actions { display: flex; gap: 0.25rem; }
+        .actions button { padding: 0.4rem 0.6rem; font-size: 0.75rem; flex: 1; white-space: nowrap; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="panel">
+            <h2>Submit Job</h2>
+            <div class="input-section">
+                <label>Topic</label>
+                <textarea id="topicInput" placeholder="e.g. call option pricing"></textarea>
+            </div>
+            <div class="input-section">
+                <label for="stageSelect">Stage</label>
+                <select id="stageSelect">
+                    <option value="all">All</option>
+                    <option value="research">Research</option>
+                    <option value="render">Render</option>
+                </select>
+            </div>
+            <button id="submitBtn" style="width: 100%">Submit Job</button>
+        </div>
+
+        <div class="panel">
+            <h2>Logs</h2>
+            <div id="logViewer"></div>
+        </div>
+
+        <div class="panel">
+            <h2>Jobs</h2>
+            <div style="flex: 1; overflow-y: auto">
+                <table id="jobsTable">
+                    <thead><tr><th>Topic</th><th>Stage</th><th>Status</th><th>Elapsed</th><th>Action</th></tr></thead>
+                    <tbody id="jobsTableBody"></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        async function apiCall(method, path, body = null) {
+            const opts = { method, headers: { "Content-Type": "application/json" } };
+            if (body) opts.body = JSON.stringify(body);
+            const resp = await fetch(path, opts);
+            if (!resp.ok) throw new Error(`${resp.status}`);
+            return resp.json();
+        }
+
+        document.getElementById("submitBtn").addEventListener("click", async () => {
+            const topic = document.getElementById("topicInput").value.trim();
+            if (!topic) { alert("Enter topic"); return; }
+            try {
+                document.getElementById("submitBtn").disabled = true;
+                await apiCall("POST", "/jobs", { topic, stage: document.getElementById("stageSelect").value });
+                document.getElementById("topicInput").value = "";
+                refreshJobs();
+            } finally {
+                document.getElementById("submitBtn").disabled = false;
+            }
+        });
+
+        let eventSource = null;
+        async function refreshJobs() {
+            try {
+                const data = await apiCall("GET", "/jobs");
+                const jobs = data.jobs || [];
+                const tbody = document.getElementById("jobsTableBody");
+                tbody.innerHTML = jobs.map(job => `
+                    <tr onclick="showLogs('${job.job_id}')">
+                        <td>${job.topic_or_title.substring(0, 25)}</td>
+                        <td>${job.stage}</td>
+                        <td><span class="status-badge status-${job.status}">${job.status}</span></td>
+                        <td>${job.status === "running" ? "..." : "-"}</td>
+                        <td><button onclick="event.stopPropagation(); showLogs('${job.job_id}')">Logs</button></td>
+                    </tr>
+                `).join("");
+            } catch (e) { console.error(e); }
+        }
+
+        function showLogs(jobId) {
+            const logViewer = document.getElementById("logViewer");
+            logViewer.innerHTML = "<div class='log-line'>Loading...</div>";
+            if (eventSource) eventSource.close();
+            eventSource = new EventSource(`/jobs/${jobId}/logs`);
+            eventSource.onmessage = (e) => {
+                if (e.data === "[DONE]") { eventSource.close(); return; }
+                const msg = JSON.parse(e.data);
+                logViewer.innerHTML += `<div class="log-line">${msg}</div>`;
+                logViewer.scrollTop = logViewer.scrollHeight;
+            };
+            eventSource.onerror = () => eventSource.close();
+        }
+
+        refreshJobs();
+        setInterval(refreshJobs, 3000);
+    </script>
+</body>
+</html>

@@ -1,0 +1,32 @@
+{
+  "date": "2026-08-20",
+  "script": "cinematic-pipeline/scripts/ltx25_optionscity_openworld60.py",
+  "profile": "final",
+  "model": "ltx-2.5-22b-distilled",
+  "text_encoder": "gemma4-12b-with-proj-ltx-2.5",
+  "local_text_encoding": true,
+  "source_clips": 5,
+  "source_duration_seconds": 10,
+  "act_duration_seconds": 12,
+  "clip_generation_seconds": [1481.8, 1557.6, 1536.8, 1524.7, 1571.1],
+  "output": {
+    "duration_seconds": 60.0,
+    "width": 1280,
+    "height": 720,
+    "fps": 24,
+    "video_codec": "h264",
+    "audio_codec": "aac",
+    "audio_bitrate": 267402,
+    "integrated_loudness_lufs": -15.4,
+    "true_peak_dbfs": -1.5,
+    "size_bytes": 64721199
+  },
+  "qa": {
+    "freeze_detection_threshold": "-45dB for 1 second",
+    "freeze_events": 0,
+    "silence_detection_threshold": "-45dB for 1.5 seconds",
+    "silence_events": 0,
+    "title_frames_visually_inspected": true,
+    "video_and_audio_streams_verified": true
+  }
+}

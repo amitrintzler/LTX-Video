@@ -170,6 +170,7 @@ runs/
 *.aiff
 *.png
 !tests/utils/car.png
+!cinematic-pipeline/examples/ltx25-desktop-openworld/keyframes/*.png
 .DS_Store
 .worktrees/
 

@@ -91,3 +91,45 @@ title placement — never describe it as final-quality.
 Run the full check set from the reference README against the output, and inspect
 extracted frames inside every title window. API status alone is not evidence of a
 successful film.
+
+## Preview run, 2026-08-21
+
+Two preview passes. The first generated all five acts (~17.8 min per act, 1h32m total).
+Signal QA passed, but visual inspection rejected acts 3 and 4: both drifted out of the
+Options City world into a generic contemporary city, and act 4 failed to communicate its
+story beat — no character, no hedge node, no drawn line, with the energy reading as an
+eruption rather than protection. The character was absent from every act that had no
+keyframe anchor, which is what motivated `keyframe_from`.
+
+The second pass regenerated only acts 3 and 4 with anchors and rewritten prompts
+(~35 min). Acts 1, 2 and 5 were reused. Rejected act 3/4 clips were moved to Trash.
+
+Measured on the accepted preview:
+
+| Check | Result |
+|-------|--------|
+| Duration / streams | 60.000s, 1280x720 @ 24fps, h264 + aac |
+| Freeze (-45dB, 1s) | 0 events |
+| Duplicate frames (mpdecimate) | 0 |
+| Silence (-45dB, 1.5s) | 0 events |
+| Integrated loudness | -15.2 LUFS |
+| True peak | -1.5 dBFS |
+| Voiceover track | 55.02s |
+| Title cards | all six render, correct copy, no clipping |
+
+Anchoring the two `dolly_in` acts to a still did not cost motion: freeze detection and
+mpdecimate both stayed at zero.
+
+Known weaknesses carried by this preview:
+
+- Act 3's storm reads as haze rather than the structured bands the title "VOLATILITY HAS
+  A SHAPE" promises. The rejected unanchored version delivered that shape better but in
+  the wrong world.
+- Acts 4 and 5 share the anchor and composition. They read as a deliberate before/after
+  pair — district under protective energy, then the same city clear — but the variety is
+  reduced.
+- Small generated glyph panels appear in acts 4 and 5. They stay incidental and never
+  become a visual focus, which is the reference README's rejection criterion.
+
+Narration intelligibility has not been machine-verified. Duration and loudness are
+measured; audibility is not.

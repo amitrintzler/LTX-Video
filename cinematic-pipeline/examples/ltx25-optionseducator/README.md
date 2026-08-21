@@ -148,9 +148,9 @@ python3 cinematic-pipeline/scripts/ltx25_optionseducator_trailer60.py --profile 
 Iterate on the edit with `--offline-cut` first; only regenerate atmosphere when a
 prompt changes. Delete that clip's `_result.json` and `_payload.json` to force it.
 
-## Preview run, 2026-08-21
+## Preview run, 2026-08-21 (Options City cut)
 
-Four atmosphere clips at 1454–1466s each. Measured on the assembled preview:
+Six atmosphere clips at 1694-1726s each, ~2.8h total. Measured on the assembled preview:
 
 | Check | Result |
 |-------|--------|
@@ -161,10 +161,25 @@ Four atmosphere clips at 1454–1466s each. Measured on the assembled preview:
 | Integrated loudness | -16.0 LUFS |
 | True peak | -1.5 dBFS |
 
-Known weakness: `atm_city` came back as a fairly generic photoreal night skyline with
-warm window light, rather than the glass-tower "dashboard made architectural" the prompt
-described. It is the least on-brand shot in the film. The other three atmosphere beats
-land.
+The generated city reads convincingly like the real Options City: flat-shaded tan and
+blue blocks, green cone trees, glowing cyan lane lines down the avenues, dusk light.
+
+Known weaknesses in this cut:
+
+- The `hi_journey` skill-map panel is used as the inset twice, at 8.9s and 43.9s.
+- `regime_flip`'s two ranges look similar to each other; the calm-to-storm change is
+  less legible than the title claims.
+- Inset panels are too small for their internal text to be read at video size. They
+  register as "a real product screen" rather than legible content, which is the cost
+  of keeping the product inside the world instead of cutting to full-screen pages.
+- The city is generated in the game's style. It is **not** footage of the real game and
+  must not be presented as such. Real gameplay capture was blocked: the site's CSP
+  (`connect-src 'self' https:`) refuses a local frame recorder, and pointer lock is
+  unavailable to automation.
+
+Podcasts and live market news appear in the titles on the owner's explicit
+confirmation. Neither could be verified from the public site, where the career page's
+live feed reads NO SIGNAL and `world-daily-pack` returns 404.
 
 ## QA
 

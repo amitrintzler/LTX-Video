@@ -316,34 +316,77 @@ def make_clip(act: dict, args: argparse.Namespace, token: str, keyframe: Path | 
     return Path(path)
 
 
-def font(size: int, bold: bool = False) -> ImageFont.FreeTypeFont:
-    name = "Arial Bold.ttf" if bold else "Arial.ttf"
-    return ImageFont.truetype(f"/System/Library/Fonts/Supplemental/{name}", size)
+AVENIR = "/System/Library/Fonts/Avenir Next.ttc"
+FACE_HEAVY, FACE_DEMI, FACE_MEDIUM = 8, 2, 5
+
+
+def font(size: int, face: int = FACE_DEMI) -> ImageFont.FreeTypeFont:
+    """Avenir Next matches the site's geometric sans far better than Arial."""
+    return ImageFont.truetype(AVENIR, size, index=face)
+
+
+def tracked(draw: ImageDraw.ImageDraw, xy, text: str, f, fill, spacing: float = 0.0) -> int:
+    """Draw letterspaced text and return its width. Pillow has no tracking option."""
+    x, y = xy
+    for ch in text:
+        draw.text((x, y), ch, font=f, fill=fill)
+        x += draw.textlength(ch, font=f) + spacing
+    return int(x - xy[0])
+
+
+def tracked_width(draw: ImageDraw.ImageDraw, text: str, f, spacing: float = 0.0) -> int:
+    return int(sum(draw.textlength(c, font=f) for c in text) + spacing * max(0, len(text) - 1))
 
 
 def make_overlays(out_dir: Path) -> list[tuple[Path, float, float]]:
+    """Full-canvas PNG title overlays.
+
+    A soft bottom scrim plus left-aligned type, rather than the reference film's
+    boxed HUD card, which read as a game overlay on a software product.
+    """
     target = out_dir / "overlays"
     target.mkdir(parents=True, exist_ok=True)
     outputs = []
     last_index = len(TITLES) - 1
     for index, (start, end, heading, subheading) in enumerate(TITLES):
         canvas = Image.new("RGBA", (1280, 720), (0, 0, 0, 0))
+
+        # Bottom scrim: guarantees legibility over any shot without a hard box edge.
+        scrim = Image.new("RGBA", (1280, 720), (0, 0, 0, 0))
+        sdraw = ImageDraw.Draw(scrim)
+        for y in range(350, 720):
+            alpha = int(248 * ((y - 350) / 370) ** 0.85)
+            sdraw.line([(0, y), (1280, y)], fill=(4, 6, 12, min(248, alpha)))
+        canvas.alpha_composite(scrim)
+
         draw = ImageDraw.Draw(canvas)
-        heading_font = font(54 if len(heading) < 24 else 45, True)
-        sub_font = font(25 if len(subheading) < 42 else 20, True)
-        heading_box = draw.textbbox((0, 0), heading, font=heading_font)
-        sub_box = draw.textbbox((0, 0), subheading, font=sub_font)
-        width = max(heading_box[2], sub_box[2]) + 112
-        left = 64
-        top = 474
-        draw.rounded_rectangle((left, top, left + width, 646), radius=7, fill=INK, outline=EDGE, width=2)
-        draw.rectangle((left, top, left + 9, 646), fill=ACCENT)
-        draw.text((left + 52, top + 31), heading, font=heading_font, fill=HEADING_RGB)
-        draw.text((left + 54, top + 106), subheading, font=sub_font, fill=SUB_RGB)
+        heading_size = 62 if len(heading) <= 19 else 52
+        head_font = font(heading_size, FACE_HEAVY)
+        sub_font = font(22, FACE_DEMI)
+
+        left = 92
+        base = 512 if index == last_index else 548
+        # Accent rule in the product's blue-to-violet gradient.
+        head_w = tracked_width(draw, heading, head_font, 1.0)
+        bar_w = max(head_w, tracked_width(draw, subheading, sub_font, 2.6))
+        for x in range(bar_w):
+            t = x / max(1, bar_w - 1)
+            colour = (
+                int(56 + (129 - 56) * t),
+                int(189 + (108 - 189) * t),
+                int(248 + (245 - 248) * t),
+                255,
+            )
+            draw.line([(left + x, base - 26), (left + x, base - 23)], fill=colour)
+
+        tracked(draw, (left, base), heading, head_font, HEADING_RGB, 1.0)
+        tracked(draw, (left, base + heading_size + 18), subheading, sub_font, SUB_RGB, 2.6)
+
         if index == last_index:
-            foot_font = font(15, True)
+            foot_font = font(15, FACE_MEDIUM)
             for offset, line in enumerate(END_CARD_FOOTNOTES):
-                draw.text((left + 54, 660 + offset * 20), line, font=foot_font, fill=FOOT_RGB)
+                tracked(draw, (left, base + heading_size + 62 + offset * 21), line, foot_font, FOOT_RGB, 1.4)
+
         path = target / f"{index:02d}.png"
         canvas.save(path)
         outputs.append((path, start, end))

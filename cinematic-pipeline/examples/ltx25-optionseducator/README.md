@@ -59,99 +59,114 @@ overwhelm rather than on the product, because the overwhelm is what the viewer r
 
 ## Creative treatment
 
-**Concept — "One Clear Next Step."** The film is one continuous forward movement. It
-begins in scattered chaos and never scatters again: the noise collapses into a single lit
-path, the path gains a rhythm, the path climbs, the path opens into a city.
+**Concept — "One Clear Next Step."** The film starts in scattered chaos and never
+scatters again: the noise collapses into a single lit path, the path gains a rhythm,
+the path climbs, the path opens into a city. Product screens carry the proof between
+those beats.
 
-**Visual language.** The product's own palette, made cinematic — near-black rooms, glass
-panels, indigo and violet light, teal edges, emerald accents, volumetric haze. Deliberately
-*not* the warm gold fantasy look of the earlier Options City film; that read as a game
-trailer and misrepresented what the site sells.
+**No voiceover.** Titles carry the message. No premium system voice is installed on
+this Mac and XTTS is not available, so synthesised narration was the weakest element in
+the build; a music-and-type cut is also how most premium software trailers work.
 
-**Tone.** Calm confidence. Premium software product film, not a hype reel.
+**Visual language.** The product's own palette made cinematic — near-black, deep navy,
+indigo and violet, teal edges, emerald accents. Deliberately not the warm gold fantasy
+look of the earlier Options City film, which read as a game trailer.
 
-**Format.** 60s, 16:9, 1280x720 — a landing-page hero. Matches the verified timing exactly.
+**Format.** 60s, 16:9, 1280x720, 24fps.
 
-## Narration
+## Two kinds of shot
 
-Measured at **52.0s** with `say -v "Reed (English (US))" -r 150`, plus the 650 ms mix
-delay = 52.7s, inside the 60s hard cut with margin. Re-measure after any rewrite.
+**Product shots** are post-rendered camera moves over real 2560px screenshots. An
+image-to-video test (`atm` anchor test) showed LTX reproduces large UI text faithfully
+for about 1.5s, then drifts off the page and washes the near-black palette pale blue.
+A post move keeps the product pixel-perfect at any length and costs no GPU time. Each
+shot crops a true 16:9 region first: `zoompan` otherwise takes a window with the source
+aspect ratio and stretches it, badly squashing full-page captures.
 
-> There is no shortage of options education. That is the problem. Endless videos, endless
-> strategies, and still no clear answer to what you should learn today. Options Educator
-> gives you one path, and one clear next step at a time. Study a short lesson, then apply
-> it immediately in a guided drill before you move on. Six skill tracks, from foundations
-> to the Greeks, strategies and risk. Modules unlock in order, so your progress stays
-> visible. And when you would rather learn by playing, Options City is waiting, with
-> mini-games and contracts tied to those same lessons. Stop collecting content. Start
-> making progress. Options Educator. Start your learning path.
+**Atmosphere shots** are LTX text-to-video, carrying what a screenshot cannot. Ranges
+are cut from the generated clips at natural speed. The earlier films stretched a 5s
+source across a 12s act — 2.4x slow-motion, and the likely cause of their softness.
 
-## Storyboard
+## Timeline
 
-Five acts, twelve seconds each. Act count and duration are fixed — the 60s timing is
-hardcoded across the audio mix and assembly graph.
+Sixteen shots, 2.2s to 6.5s, summing to exactly 60s. `validate_timeline()` enforces it
+and `check_ltx_ranges()` proves every atmosphere range fits inside its source clip.
+See `timeline` in the generated `storyboard.json` for the exact cut list.
 
-| # | Act id | Beat | Visual | Camera | Source |
-|---|--------|------|--------|--------|--------|
-| 1 | `01_overwhelm` | Hook / Problem | Adult at a dark desk engulfed by dozens of chaotic floating glass panels | `dolly_in` | keyframe from `reference/oe_home.png` |
-| 2 | `02_one_path` | Promise | The swarm collapses into one luminous walkway; they step on and walk | `dolly_out` | T2V |
-| 3 | `03_lesson_then_practice` | Mechanism | Paired panels rise beside the path — concept, then live drill — in rhythm | `dolly_right` | T2V |
-| 4 | `04_six_tracks` | Proof | Path splits into six climbing lanes, progress columns filling, nodes igniting | `dolly_in` | T2V |
-| 5 | `05_options_city` | Payoff | The path opens over a luminous city built like a dashboard made architectural | `dolly_out` | keyframe from `reference/oe_career.png` |
+Claims land on their evidence: "six skill tracks" plays over the real skill map,
+"practise by playing" over Career Games with the capital and rank row, the end card
+over the actual call to action.
 
-Keyframes are generated from real product screenshots at `strength: 0.84`, so the film
-inherits the product's actual palette rather than a look invented from nothing.
+## Audio
+
+- **Music**: an original three-movement bed generated for this trailer
+  (`music/bed_1_unsettled`, `bed_2_resolve`, `bed_3_lift`), crossfaded to 60s so the
+  score follows the film's arc. The earlier `cinematic-ambient.mp3` was borrowed from
+  the game demo and is no longer used.
+- **SFX**: the product's own `whoosh`, `click`, `pop` and `levelup` on cuts.
+- **No voiceover.**
 
 ## Titles
 
-All readable copy is post-produced as PNG overlays; generated scenes are prompted and
-negative-prompted to contain no typography. Widest card right edge is 866 px of the
-1216 px safe limit.
-
-| Window | Heading | Subheading |
-|--------|---------|------------|
-| 0.6–5.7 | TOO MUCH TO LEARN | NO CLEAR PLACE TO START |
-| 12.4–17.5 | ONE CLEAR NEXT STEP | AT A TIME |
-| 24.4–30.2 | LESSON, THEN PRACTICE | A GUIDED DRILL BEFORE YOU ADVANCE |
-| 36.4–42.6 | SIX SKILL TRACKS | MODULES UNLOCK IN ORDER |
-| 48.4–54.0 | PRACTICE BY PLAYING | OPTIONS CITY \| MINI-GAMES \| CONTRACTS |
-| 55.0–59.4 | OPTIONS EDUCATOR | START YOUR LEARNING PATH |
-
-The end card also carries small print, which the site's own footer requires:
+Avenir Next Heavy over a soft bottom scrim, letterspaced Demi Bold subheads, and a
+blue-to-violet rule sampled from the site. The end card carries small print the site's
+own footer requires:
 
 - ENGLISH AND HEBREW, MORE LANGUAGES IN PROGRESS
 - EDUCATIONAL PURPOSES ONLY. NOT FINANCIAL ADVICE.
 
-The language line is worded to match the site's own statement ("Full support is available
-in English and Hebrew, with more languages in progress") rather than claiming the seven
+The language line matches the site's own statement rather than claiming the seven
 locales in the switcher.
 
 ## Honesty notes
 
-- Career Games is labelled PREVIEW ACCESS on the site. The film presents Options City as
-  somewhere to practise, and never claims a finished open world.
-- No pricing, user counts, testimonials, or performance outcomes are claimed anywhere,
-  because the site supports none.
+- Career Games is labelled PREVIEW ACCESS on the site. The film shows it as somewhere
+  to practise and never claims a finished open world.
+- No pricing, user counts, testimonials, or performance outcomes are claimed anywhere.
 - The disclaimer travels with the film rather than being left behind on the site.
 
 ## Running it
 
-Preview first. Only one LTX Desktop generation at a time on this Mac.
+Verify the whole edit, mix, and titles with no GPU time at all — about 20 seconds:
+
+```bash
+python3 cinematic-pipeline/scripts/ltx25_optionseducator_trailer60.py --profile preview --offline-cut
+```
+
+Generate the four atmosphere clips and assemble (~25 min per clip):
 
 ```bash
 python3 cinematic-pipeline/scripts/ltx25_optionseducator_trailer60.py --profile preview --reuse-existing
 ```
 
-Final, only after the preview is approved:
+Final, after approval:
 
 ```bash
 python3 cinematic-pipeline/scripts/ltx25_optionseducator_trailer60.py --profile final --reuse-existing
 ```
 
-Outputs land in `~/LTX-Renders/ltx25-optionseducator-trailer60[-preview]`. Expect roughly
-18 minutes per act on this hardware, so ~1.5 h for a five-act preview, plus two keyframes.
+Iterate on the edit with `--offline-cut` first; only regenerate atmosphere when a
+prompt changes. Delete that clip's `_result.json` and `_payload.json` to force it.
+
+## Preview run, 2026-08-21
+
+Four atmosphere clips at 1454–1466s each. Measured on the assembled preview:
+
+| Check | Result |
+|-------|--------|
+| Duration / streams | 60.000s, 1280x720 @ 24fps, h264 + aac |
+| Freeze (-45dB, 1s) | 0 events |
+| Duplicate frames | 0 |
+| Silence (-45dB, 1.5s) | 0 events |
+| Integrated loudness | -16.0 LUFS |
+| True peak | -1.5 dBFS |
+
+Known weakness: `atm_city` came back as a fairly generic photoreal night skyline with
+warm window light, rather than the glass-tower "dashboard made architectural" the prompt
+described. It is the least on-brand shot in the film. The other three atmosphere beats
+land.
 
 ## QA
 
-Run the reference README's full check set, and inspect extracted frames inside every title
-window. API status alone is never evidence of a successful film.
+Run the reference README's full check set, and inspect extracted frames inside every
+title window. API status alone is never evidence of a successful film.

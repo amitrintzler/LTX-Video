@@ -66,50 +66,74 @@ PALETTE = (
 )
 
 # Atmosphere clips. Text-to-video only: a still would constrain the motion these beats need.
+LOOK = (
+    "Stylised low-poly 3D game world, flat shaded, clean minimal geometry: tan, sand and deep blue "
+    "geometric buildings, simple green cone trees, wide dark asphalt avenues with bright glowing cyan lane "
+    "lines running down them, dusk sky with soft volumetric light shafts. Looks like a modern indie open-world "
+    "game, not photoreal. Confident and calm."
+)
+
 ATMOSPHERE = [
     {
-        "id": "atm_overwhelm",
-        "seed": 31041,
-        "camera": "dolly_in",
-        "prompt": (
-            "A lone adult sits at a dark desk in a near-black room, surrounded by dozens of floating translucent "
-            "glass panels swarming chaotically around them: scattered abstract chart shapes and data cards drifting "
-            "in every direction at different speeds, overlapping and colliding. The panels tumble and swirl faster "
-            "and faster while the person turns their head trying to follow them, overwhelmed. A single cool blue rim "
-            "light picks out the person against the darkness. " + PALETTE
-        ),
-    },
-    {
-        "id": "atm_one_path",
-        "seed": 31042,
+        "id": "city_reveal",
+        "seed": 41041,
         "camera": "dolly_out",
         "prompt": (
-            "Dozens of chaotic floating glass panels sweep inward and collapse into a single luminous indigo line "
-            "stretching forward across a dark reflective floor. The line brightens and resolves into a clean elevated "
-            "walkway with softly glowing edges, and a lone adult steps onto it and walks forward with purpose while "
-            "the last stray panels dissolve behind them. " + PALETTE
+            "Camera rises from a glowing avenue to reveal an enormous stylised open-world game city stretching to "
+            "the horizon, districts of low-poly towers separated by wide luminous cyan roads, small vehicles moving "
+            "along them, a great domed hall at the centre. " + LOOK
         ),
     },
     {
-        "id": "atm_climb",
-        "seed": 31043,
+        "id": "street_walk",
+        "seed": 41042,
         "camera": "dolly_in",
         "prompt": (
-            "A glowing walkway rises and splits into six parallel luminous lanes climbing gently upward through a vast "
-            "dark space. Along each lane a tall slim column fills steadily from the bottom with light, and small "
-            "hexagonal marker nodes ignite one after another in sequence as a lone figure ascends between them. "
-            "Soft volumetric beams cut through the darkness. " + PALETTE
+            "First-person walk forward down the centre of a wide avenue in a stylised game city, bright cyan light "
+            "strips glowing along the road surface rushing past, flat-shaded tan and blue tower blocks and simple "
+            "green cone trees sliding by on both sides, distant skyline ahead. Fast steady forward traversal. " + LOOK
         ),
     },
     {
-        "id": "atm_city",
-        "seed": 31044,
+        "id": "regime_flip",
+        "seed": 41043,
+        "camera": "dolly_in",
+        "prompt": (
+            "The calm dusk sky over a stylised low-poly game district darkens hard as a volatility storm rolls in "
+            "between the towers: clouds churn, sheet lightning pulses, the glowing cyan road lines flare brighter "
+            "and shift to warning amber, and light ripples outward through the streets. The city itself stays calm "
+            "and geometric while the weather turns violent above it. " + LOOK
+        ),
+    },
+    {
+        "id": "trade_execute",
+        "seed": 41044,
+        "camera": "dolly_in",
+        "prompt": (
+            "Above a glowing avenue in a stylised game city, large translucent holographic panels assemble in mid air "
+            "from clean geometric pieces and lock together in a row, glowing cyan and violet, while beams of light "
+            "run outward along the roads below and the district brightens in response. Confident, precise, "
+            "mechanical assembly motion. " + LOOK
+        ),
+    },
+    {
+        "id": "daily_feed",
+        "seed": 41045,
+        "camera": "dolly_right",
+        "prompt": (
+            "Camera tracks sideways along a plaza in a stylised game city lined with tall glowing screens and kiosks, "
+            "each one lit and animating with abstract shapes, waveforms and moving light, people-scale figures walking "
+            "between them. A continuous parade of luminous panels sliding past. " + LOOK
+        ),
+    },
+    {
+        "id": "city_night_vista",
+        "seed": 41046,
         "camera": "dolly_out",
         "prompt": (
-            "A vast luminous night city built from softly glowing glass towers, arranged like a dark clean dashboard "
-            "made architectural. Small bright vehicles move through the streets far below, light ripples outward "
-            "district by district, and the camera sweeps upward and far backward to reveal the whole city glowing "
-            "against a dark horizon. " + PALETTE
+            "Final wide vista of a vast stylised low-poly game city at blue hour, every avenue traced in glowing cyan "
+            "light running to the horizon, districts lit across the whole landscape, a domed hall glowing at the "
+            "centre, distant hills behind. Camera sweeps upward and far backward. Inspiring and expansive. " + LOOK
         ),
     },
 ]
@@ -122,47 +146,43 @@ ATMOSPHERE = [
 # ltx fields: clip (atmosphere id), start (seconds into that clip)
 # title:      (heading, subheading, delay_from_shot_start, hold_seconds)
 TIMELINE = [
-    # -- Problem -------------------------------------------------------------
-    {"kind": "ltx", "clip": "atm_overwhelm", "start": 0.4, "duration": 4.2,
-     "title": ("TOO MUCH TO LEARN", "AND NO CLEAR PLACE TO START", 0.7, 3.2)},
-    {"kind": "ltx", "clip": "atm_overwhelm", "start": 5.0, "duration": 2.6},
-    {"kind": "ui", "image": "hi_lessons.png", "duration": 2.2,
-     "region": (0.5, 0.17, 0.52), "zoom": (1.0, 1.07), "sfx": "whoosh"},
-    # -- The turn ------------------------------------------------------------
-    {"kind": "ltx", "clip": "atm_one_path", "start": 0.6, "duration": 4.5,
-     "title": ("ONE CLEAR NEXT STEP", "AT A TIME", 1.1, 3.2), "sfx": "whoosh"},
-    {"kind": "ui", "image": "hi_home.png", "duration": 3.0,
-     "region": (0.34, 0.33, 0.56), "zoom": (1.0, 1.06)},
-    # -- Mechanism -----------------------------------------------------------
-    {"kind": "ui", "image": "hi_journey.png", "duration": 3.0,
-     "region": (0.5, 0.585, 0.62), "zoom": (1.05, 1.0),
-     "title": ("STUDY ONE LESSON", "ONE CANONICAL PATH, IN ORDER", 0.4, 2.4), "sfx": "click"},
-    {"kind": "ui", "image": "hi_simulator.png", "duration": 3.0,
-     "region": (0.42, 0.40, 0.60), "zoom": (1.0, 1.06),
-     "title": ("THEN PRACTISE IT", "A GUIDED DRILL BEFORE YOU ADVANCE", 0.4, 2.4), "sfx": "pop"},
-    {"kind": "ltx", "clip": "atm_climb", "start": 0.5, "duration": 4.0, "sfx": "whoosh"},
-    {"kind": "ui", "image": "hi_journey.png", "duration": 3.5,
-     "region": (0.5, 0.345, 0.60), "zoom": (1.0, 1.06),
-     "title": ("SIX SKILL TRACKS", "FOUNDATIONS TO THE GREEKS, STRATEGIES AND RISK", 0.4, 2.9),
-     "sfx": "levelup"},
-    # -- Proof ---------------------------------------------------------------
-    {"kind": "ui", "image": "hi_lessons.png", "duration": 3.5,
-     "region": (0.5, 0.30, 0.52), "zoom": (1.05, 1.0),
-     "title": ("MODULES UNLOCK IN ORDER", "EVERY LESSON BUILDS ON THE LAST", 0.4, 2.9)},
-    {"kind": "ltx", "clip": "atm_climb", "start": 5.2, "duration": 3.0},
-    {"kind": "ui", "image": "hi_career.png", "duration": 3.5,
-     "region": (0.5, 0.105, 0.60), "zoom": (1.0, 1.06),
-     "title": ("PRACTISE BY PLAYING", "OPTIONS CITY | MINI-GAMES | CONTRACTS", 0.4, 2.9), "sfx": "whoosh"},
-    {"kind": "ltx", "clip": "atm_city", "start": 0.4, "duration": 4.5},
-    {"kind": "ltx", "clip": "atm_city", "start": 5.2, "duration": 4.5,
-     "title": ("CONTRACTS TIED TO LESSONS", "READ A CHAIN | EARN THE GREEKS BADGE", 0.5, 3.4)},
-    # -- Payoff --------------------------------------------------------------
-    {"kind": "ui", "image": "hi_home.png", "duration": 4.5,
-     "region": (0.5, 0.785, 0.72), "zoom": (1.04, 1.0),
-     "title": ("STOP COLLECTING CONTENT", "START MAKING PROGRESS", 0.5, 3.4), "sfx": "whoosh"},
-    {"kind": "ui", "image": "hi_home.png", "duration": 6.5,
-     "region": (0.30, 0.31, 0.50), "zoom": (1.0, 1.08), "end_card": True,
-     "title": ("OPTIONS EDUCATOR", "START YOUR LEARNING PATH", 0.6, 5.4)},
+    # -- Hook, at trader altitude --------------------------------------------
+    {"kind": "ltx", "clip": "street_walk", "start": 0.2, "duration": 4.4,
+     "title": ("EVERY FOUNDATION.", "EVERY STRATEGY.", 0.6, 3.4)},
+    {"kind": "ltx", "clip": "city_reveal", "start": 0.3, "duration": 4.5,
+     "title": ("WELCOME TO OPTIONS CITY", "A LIVE TRADING SANDBOX", 0.6, 3.4), "sfx": "whoosh"},
+    # -- The city is the curriculum ------------------------------------------
+    {"kind": "ltx", "clip": "street_walk", "start": 4.8, "duration": 4.6,
+     "title": ("OLD TOWN", "CHAIN LITERACY | YOUR FIRST COVERED CALL", 0.4, 3.6),
+     "inset": {"image": "hi_journey.png", "region": (0.5, 0.345, 0.60)}},
+    {"kind": "ltx", "clip": "city_reveal", "start": 5.2, "duration": 4.4,
+     "title": ("GAMMA STREET | THETA PATH", "THE GREEKS ARE THE MAP", 0.4, 3.4), "sfx": "click"},
+    # -- Regime drives the play ----------------------------------------------
+    {"kind": "ltx", "clip": "regime_flip", "start": 0.4, "duration": 4.2,
+     "title": ("VOLATILITY HEIGHTS", "VOL CRUSH AND EVENT REPRICING", 0.4, 3.4), "sfx": "whoosh"},
+    {"kind": "ltx", "clip": "regime_flip", "start": 5.0, "duration": 4.8,
+     "title": ("THE REGIME DECIDES THE PLAY", "CALM: SELL PREMIUM | TRENDING: SPREADS", 0.4, 4.0)},
+    # -- You actually trade ---------------------------------------------------
+    {"kind": "ltx", "clip": "trade_execute", "start": 0.4, "duration": 4.4,
+     "title": ("EXECUTE. HOLD. CLOSE FOR P&L.", "CREDITS FUND THE NEXT POSITION", 0.4, 3.6),
+     "inset": {"image": "hi_career.png", "region": (0.5, 0.105, 0.60)}, "sfx": "levelup"},
+    {"kind": "ltx", "clip": "trade_execute", "start": 5.2, "duration": 4.0,
+     "title": ("PANTHEON ROW", "GREEK SENSITIVITIES AND RISK EXPOSURE", 0.4, 3.2)},
+    # -- The daily habit ------------------------------------------------------
+    {"kind": "ltx", "clip": "daily_feed", "start": 0.4, "duration": 4.4,
+     "title": ("DAILY STORIES, ANIMATIONS, VIDEO", "PODCASTS AND MARKET NEWS", 0.4, 3.6), "sfx": "whoosh"},
+    {"kind": "ltx", "clip": "daily_feed", "start": 5.2, "duration": 4.2,
+     "title": ("FIVE MINI-GAMES", "MARKET MAKER DEFENSE | RISK LADDER", 0.4, 3.4),
+     "inset": {"image": "hi_lessons.png", "region": (0.5, 0.30, 0.52)}, "sfx": "pop"},
+    # -- Proof and payoff -----------------------------------------------------
+    {"kind": "ltx", "clip": "city_night_vista", "start": 0.4, "duration": 4.5,
+     "title": ("THIRTY-FOUR SKILLS", "SIX TRACKS | FOUNDATIONS TO RISK", 0.4, 3.6),
+     "inset": {"image": "hi_journey.png", "region": (0.5, 0.345, 0.60)}},
+    {"kind": "ltx", "clip": "city_night_vista", "start": 5.2, "duration": 4.6,
+     "title": ("THE MARKET IS THE WORLD", "AND THE WORLD IS PLAYABLE", 0.4, 3.8), "sfx": "whoosh"},
+    {"kind": "ui", "image": "hi_home.png", "duration": 7.0,
+     "region": (0.30, 0.31, 0.50), "zoom": (1.0, 1.07), "end_card": True,
+     "title": ("OPTIONS EDUCATOR", "START YOUR LEARNING PATH", 0.5, 5.8)},
 ]
 
 END_CARD_FOOTNOTES = [
@@ -351,6 +371,34 @@ def render_ltx_shot(shot: dict, index: int, clips: dict[str, Path], work: Path) 
         ),
         "-frames:v", str(frames), "-an",
         "-c:v", "libx264", "-crf", "16", "-preset", "medium", str(out),
+    ])
+    return out
+
+
+def render_inset(shot: dict, index: int, base: Path, work: Path) -> Path:
+    """Composite a real product panel into the world shot.
+
+    Cutting to a full-screen page made the product feel bolted on. Showing it as a
+    lit panel inside the city keeps the app and the world in the same frame.
+    """
+    inset = shot["inset"]
+    framed = crop_region(
+        REFERENCE_DIR / inset["image"], inset["region"], work / f"shot_{index:02d}_inset.png"
+    )
+    with Image.open(framed) as im:
+        panel = im.convert("RGB").resize((548, 308), Image.LANCZOS)
+        bordered = Image.new("RGB", (560, 320), (56, 120, 200))
+        bordered.paste(panel, (6, 6))
+        card = work / f"shot_{index:02d}_panel.png"
+        bordered.save(card)
+    out = work / f"shot_{index:02d}_composited.mp4"
+    run([
+        "ffmpeg", "-y", "-loglevel", "error",
+        "-i", str(base), "-loop", "1", "-i", str(card),
+        "-filter_complex",
+        "[1:v]format=rgba,colorchannelmixer=aa=0.96[panel];"
+        "[0:v][panel]overlay=x=636:y=96:shortest=1,format=yuv420p[v]",
+        "-map", "[v]", "-an", "-c:v", "libx264", "-crf", "16", "-preset", "medium", str(out),
     ])
     return out
 
@@ -620,9 +668,12 @@ def main() -> int:
     shot_files = []
     for index, shot in enumerate(TIMELINE):
         if shot["kind"] == "ui":
-            shot_files.append(render_ui_shot(shot, index, work))
+            rendered = render_ui_shot(shot, index, work)
         else:
-            shot_files.append(render_ltx_shot(shot, index, clips, work))
+            rendered = render_ltx_shot(shot, index, clips, work)
+        if shot.get("inset"):
+            rendered = render_inset(shot, index, rendered, work)
+        shot_files.append(rendered)
 
     audio = make_audio(args.output_dir)
     final = assemble(shot_files, audio, args)

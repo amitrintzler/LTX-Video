@@ -2,16 +2,21 @@
 """Create the 60-second Options Educator trailer with local LTX Desktop 2.5.
 
 Source of truth for the creative is the live product at gameofoptions.netlify.app.
-Every claim in the narration and titles maps to copy on that site; nothing is invented.
+Every claim in the titles maps to copy on that site; nothing is invented.
 
-Copied from the verified ltx25_optionscity_openworld60.py workflow. The 60-second
-timing math, audio mix, and assembly graph are unchanged. What differs:
+This is a music-and-type trailer with no voiceover, cut from two kinds of shot:
 
-- Keyframes are generated from real product screenshots, so the film inherits the
-  product's actual palette (near-black ground, indigo/violet, teal, emerald) instead
-  of a fantasy look. Each keyframe act names its own reference image.
-- Readable product copy is never generated. All words in the film are post-produced
-  PNG overlays, including the educational-only disclaimer on the end card.
+- **Product shots** are rendered in post as camera moves over real high-resolution
+  screenshots. An LTX image-to-video test showed the model reproduces large UI text
+  faithfully for about a second and a half, then drifts off the page and washes the
+  near-black palette pale blue. A post move keeps the product pixel-perfect at any
+  length, costs no GPU time, and never drifts.
+- **Atmosphere shots** are LTX text-to-video, carrying the emotional beats that a
+  screenshot cannot: the overwhelm, the single path, the climb, the city.
+
+Nothing here is inherited from the earlier Options City film: the music is generated
+for this trailer, the type is Avenir Next over a scrim, and the timeline is a cut
+list of sixteen shots rather than five twelve-second acts.
 """
 
 from __future__ import annotations
@@ -33,167 +38,166 @@ BASE_URL = "http://127.0.0.1:41954"
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 PROJECT_DIR = PROJECT_ROOT / "examples" / "ltx25-optionseducator"
 REFERENCE_DIR = PROJECT_DIR / "reference"
+MUSIC_DIR = PROJECT_DIR / "music"
 RENDER_ROOT = Path.home() / "LTX-Renders"
 OUTPUT_DIR = RENDER_ROOT / "ltx25-optionseducator-trailer60"
 PREVIEW_DIR = RENDER_ROOT / "ltx25-optionseducator-trailer60-preview"
-PROJECT_MUSIC = Path(
-    "/Users/amitri/Projects/optionseducator/public/assets/videos/"
-    "open-world/game-demo/music/cinematic-ambient.mp3"
+SFX_DIR = Path(
+    "/Users/amitri/Projects/optionseducator/public/assets/videos/sfx"
 )
 FINAL_NAME = "optionseducator_ltx25_trailer60.mp4"
 PREVIEW_NAME = "optionseducator_ltx25_trailer60_preview.mp4"
-ACT_SECONDS = 12
 
-# Every sentence maps to live site copy. Assembly hard-cuts at 60s, so re-measure
-# with `say -v "Reed (English (US))" -r 150` after any rewrite and stay under ~57s.
-NARRATION = (
-    "There is no shortage of options education. That is the problem. "
-    "Endless videos, endless strategies, and still no clear answer to what you should learn today. "
-    "Options Educator gives you one path, and one clear next step at a time. "
-    "Study a short lesson, then apply it immediately in a guided drill before you move on. "
-    "Six skill tracks, from foundations to the Greeks, strategies and risk. "
-    "Modules unlock in order, so your progress stays visible. "
-    "And when you would rather learn by playing, Options City is waiting, with mini-games and contracts "
-    "tied to those same lessons. "
-    "Stop collecting content. Start making progress. "
-    "Options Educator. Start your learning path."
-)
+TOTAL_SECONDS = 60.0
+FPS = 24
 
 NEGATIVE = (
     "low quality, low resolution, blurry, static image, still frame, slideshow, no movement, weak motion, "
     "camera shake, jitter, flicker, duplicated people, distorted face, deformed hands, extra limbs, "
-    "warm orange lighting, golden fantasy architecture, medieval, greek temple, cartoon, garish saturated colors, "
+    "washed out, pale blue background, bright white background, faded, hazy grey, overexposed, "
+    "warm orange lighting, golden fantasy architecture, greek temple, medieval, cartoon, garish saturated colors, "
     "text, typography, letters, words, numbers, captions, subtitles, signs, labels, ticker, watermark, logo"
 )
 
-ACTS = [
+PALETTE = (
+    "Near-black background, deep navy shadows, indigo and violet accent light, cyan-teal edge glow, "
+    "occasional emerald highlights. Dark premium software product film. The background must stay dark "
+    "throughout and never wash out to pale blue or grey."
+)
+
+# Atmosphere clips. Text-to-video only: a still would constrain the motion these beats need.
+ATMOSPHERE = [
     {
-        "id": "01_overwhelm",
+        "id": "atm_overwhelm",
         "seed": 31041,
         "camera": "dolly_in",
-        "use_keyframe": True,
-        "reference_image": REFERENCE_DIR / "oe_home.png",
-        "keyframe": (
-            "Transform the reference into a cinematic near-black room where a lone adult sits at a dark desk, "
-            "surrounded by dozens of floating translucent glass panels scattered chaotically in every direction. "
-            "Keep the deep navy and near-black ground, the indigo and violet accent light, and the cool blue glow. "
-            "Remove every word, letter, number, and interface label. Premium dark software product film, volumetric "
-            "haze, shallow depth of field, clean image without any text."
-        ),
         "prompt": (
-            "A lone adult sits at a dark desk in a near-black room, surrounded by dozens of floating translucent glass "
-            "panels swarming chaotically around them: scattered abstract charts, candlestick shapes, and data cards "
-            "drifting in every direction at different speeds, overlapping and colliding. The panels tumble and swirl "
-            "faster and faster while the person turns their head trying to follow them, overwhelmed. Cold indigo and "
-            "violet light, deep navy shadows, a single blue rim light on the person. Premium dark software product "
-            "film aesthetic, shallow depth of field, volumetric haze, continuous restless motion."
+            "A lone adult sits at a dark desk in a near-black room, surrounded by dozens of floating translucent "
+            "glass panels swarming chaotically around them: scattered abstract chart shapes and data cards drifting "
+            "in every direction at different speeds, overlapping and colliding. The panels tumble and swirl faster "
+            "and faster while the person turns their head trying to follow them, overwhelmed. A single cool blue rim "
+            "light picks out the person against the darkness. " + PALETTE
         ),
     },
     {
-        "id": "02_one_path",
+        "id": "atm_one_path",
         "seed": 31042,
         "camera": "dolly_out",
-        "use_keyframe": False,
         "prompt": (
-            "The chaotic swarm of floating glass panels sweeps inward and collapses into a single luminous blue-violet "
-            "line stretching forward across a dark reflective floor into deep space. The line brightens and resolves "
-            "into a clean elevated walkway with softly glowing edges. The adult steps onto it and walks forward with "
-            "purpose while the last stray panels dissolve behind them. Near-black environment, indigo and teal light, "
-            "calm confident premium product film, smooth continuous camera motion, volumetric glow."
+            "Dozens of chaotic floating glass panels sweep inward and collapse into a single luminous indigo line "
+            "stretching forward across a dark reflective floor. The line brightens and resolves into a clean elevated "
+            "walkway with softly glowing edges, and a lone adult steps onto it and walks forward with purpose while "
+            "the last stray panels dissolve behind them. " + PALETTE
         ),
     },
     {
-        "id": "03_lesson_then_practice",
+        "id": "atm_climb",
         "seed": 31043,
-        "camera": "dolly_right",
-        "use_keyframe": False,
-        "prompt": (
-            "Smooth tracking shot alongside the walker moving steadily along a glowing elevated path. At regular "
-            "intervals a pair of large translucent glass panels rises from the floor beside them: the first lights up "
-            "with soft abstract diagram shapes, then immediately a second panel beside it flares brighter with a live "
-            "moving line chart and animated markers, and both sink away as the walker continues. The two-beat rhythm "
-            "repeats down the path. Deep navy environment, indigo, violet and teal accents with emerald highlights, "
-            "clean premium interface aesthetic, continuous lateral camera motion."
-        ),
-    },
-    {
-        "id": "04_six_tracks",
-        "seed": 31044,
         "camera": "dolly_in",
-        "use_keyframe": False,
         "prompt": (
-            "The glowing path rises and splits into six parallel luminous lanes climbing gently upward through a vast "
-            "dark cathedral-like space. Along each lane a tall slim column fills steadily from the bottom with light, "
-            "and small hexagonal marker nodes ignite one after another in sequence as the walker ascends between them. "
-            "Indigo, violet, teal and emerald light against near-black, soft volumetric beams, steady upward camera "
-            "push, clean premium data visualisation aesthetic."
+            "A glowing walkway rises and splits into six parallel luminous lanes climbing gently upward through a vast "
+            "dark space. Along each lane a tall slim column fills steadily from the bottom with light, and small "
+            "hexagonal marker nodes ignite one after another in sequence as a lone figure ascends between them. "
+            "Soft volumetric beams cut through the darkness. " + PALETTE
         ),
     },
     {
-        "id": "05_options_city",
-        "seed": 31045,
+        "id": "atm_city",
+        "seed": 31044,
         "camera": "dolly_out",
-        "use_keyframe": True,
-        "reference_image": REFERENCE_DIR / "oe_career.png",
-        "keyframe": (
-            "Transform the reference into a vast luminous night city built from softly glowing glass towers, like a "
-            "dark clean dashboard made architectural. Keep the near-black ground, indigo and violet accents, teal edge "
-            "light, and emerald highlights. Remove every word, letter, number, and interface label. Premium dark "
-            "product film key art, huge scale, clean image without any text."
-        ),
         "prompt": (
-            "The glowing path opens out high above a vast luminous city built from softly glowing glass towers, "
-            "arranged like a dark clean dashboard made architectural. Deep navy and near-black buildings edged in "
-            "indigo, violet and teal light, with emerald accents pulsing along the avenues. Small bright vehicles move "
-            "through the streets, light ripples outward district by district, and the camera sweeps upward and far "
-            "backward to reveal the whole city glowing against a dark horizon. Calm, confident, premium product film, "
-            "inspiring continuous motion, clean cinematic ending."
+            "A vast luminous night city built from softly glowing glass towers, arranged like a dark clean dashboard "
+            "made architectural. Small bright vehicles move through the streets far below, light ripples outward "
+            "district by district, and the camera sweeps upward and far backward to reveal the whole city glowing "
+            "against a dark horizon. " + PALETTE
         ),
     },
 ]
 
-# Hook -> Problem -> Promise -> Mechanism -> Proof -> Payoff/CTA.
-TITLES = [
-    (0.6, 5.7, "TOO MUCH TO LEARN", "NO CLEAR PLACE TO START"),
-    (12.4, 17.5, "ONE CLEAR NEXT STEP", "AT A TIME"),
-    (24.4, 30.2, "LESSON, THEN PRACTICE", "A GUIDED DRILL BEFORE YOU ADVANCE"),
-    (36.4, 42.6, "SIX SKILL TRACKS", "MODULES UNLOCK IN ORDER"),
-    (48.4, 54.0, "PRACTICE BY PLAYING", "OPTIONS CITY | MINI-GAMES | CONTRACTS"),
-    (55.0, 59.4, "OPTIONS EDUCATOR", "START YOUR LEARNING PATH"),
+# The cut list. `ui` shots are post camera moves over real screenshots; `ltx` shots
+# are ranges taken from the generated atmosphere clips at natural speed, never
+# slowed down. Durations sum to TOTAL_SECONDS.
+#
+# ui fields:  image, zoom (start, end), centre (x, y) as fractions of the source
+# ltx fields: clip (atmosphere id), start (seconds into that clip)
+# title:      (heading, subheading, delay_from_shot_start, hold_seconds)
+TIMELINE = [
+    # -- Problem -------------------------------------------------------------
+    {"kind": "ltx", "clip": "atm_overwhelm", "start": 0.4, "duration": 4.2,
+     "title": ("TOO MUCH TO LEARN", "AND NO CLEAR PLACE TO START", 0.7, 3.2)},
+    {"kind": "ltx", "clip": "atm_overwhelm", "start": 5.0, "duration": 2.6},
+    {"kind": "ui", "image": "hi_lessons.png", "duration": 2.2,
+     "zoom": (1.02, 1.10), "centre": (0.5, 0.30), "sfx": "whoosh"},
+    # -- The turn ------------------------------------------------------------
+    {"kind": "ltx", "clip": "atm_one_path", "start": 0.6, "duration": 4.5,
+     "title": ("ONE CLEAR NEXT STEP", "AT A TIME", 1.1, 3.2), "sfx": "whoosh"},
+    {"kind": "ui", "image": "hi_home.png", "duration": 3.0,
+     "zoom": (1.05, 1.15), "centre": (0.32, 0.45)},
+    # -- Mechanism -----------------------------------------------------------
+    {"kind": "ui", "image": "hi_journey.png", "duration": 3.0,
+     "zoom": (1.10, 1.02), "centre": (0.5, 0.16),
+     "title": ("STUDY ONE LESSON", "ONE CANONICAL PATH, IN ORDER", 0.4, 2.4), "sfx": "click"},
+    {"kind": "ui", "image": "hi_simulator.png", "duration": 3.0,
+     "zoom": (1.04, 1.14), "centre": (0.42, 0.45),
+     "title": ("THEN PRACTISE IT", "A GUIDED DRILL BEFORE YOU ADVANCE", 0.4, 2.4), "sfx": "pop"},
+    {"kind": "ltx", "clip": "atm_climb", "start": 0.5, "duration": 4.0, "sfx": "whoosh"},
+    {"kind": "ui", "image": "hi_journey.png", "duration": 3.5,
+     "zoom": (1.02, 1.09), "centre": (0.5, 0.30),
+     "title": ("SIX SKILL TRACKS", "FOUNDATIONS TO THE GREEKS, STRATEGIES AND RISK", 0.4, 2.9),
+     "sfx": "levelup"},
+    # -- Proof ---------------------------------------------------------------
+    {"kind": "ui", "image": "hi_lessons.png", "duration": 3.5,
+     "zoom": (1.06, 1.00), "centre": (0.5, 0.55),
+     "title": ("MODULES UNLOCK IN ORDER", "EVERY LESSON BUILDS ON THE LAST", 0.4, 2.9)},
+    {"kind": "ltx", "clip": "atm_climb", "start": 5.2, "duration": 3.0},
+    {"kind": "ui", "image": "hi_career.png", "duration": 3.5,
+     "zoom": (1.04, 1.12), "centre": (0.5, 0.14),
+     "title": ("PRACTISE BY PLAYING", "OPTIONS CITY | MINI-GAMES | CONTRACTS", 0.4, 2.9), "sfx": "whoosh"},
+    {"kind": "ltx", "clip": "atm_city", "start": 0.4, "duration": 4.5},
+    {"kind": "ltx", "clip": "atm_city", "start": 5.2, "duration": 4.5,
+     "title": ("CONTRACTS TIED TO LESSONS", "READ A CHAIN | EARN THE GREEKS BADGE", 0.5, 3.4)},
+    # -- Payoff --------------------------------------------------------------
+    {"kind": "ui", "image": "hi_home.png", "duration": 4.5,
+     "zoom": (1.12, 1.04), "centre": (0.32, 0.46),
+     "title": ("STOP COLLECTING CONTENT", "START MAKING PROGRESS", 0.5, 3.4), "sfx": "whoosh"},
+    {"kind": "ui", "image": "hi_home.png", "duration": 6.5,
+     "zoom": (1.16, 1.24), "centre": (0.20, 0.62), "end_card": True,
+     "title": ("OPTIONS EDUCATOR", "START YOUR LEARNING PATH", 0.6, 5.4)},
 ]
 
-# Small print carried on the end card only. The product is educational, and the site
-# says so; a trailer for it should not quietly drop that.
 END_CARD_FOOTNOTES = [
     "ENGLISH AND HEBREW, MORE LANGUAGES IN PROGRESS",
     "EDUCATIONAL PURPOSES ONLY. NOT FINANCIAL ADVICE.",
 ]
 
 # Product palette, sampled from the live site.
-INK = (7, 10, 18, 232)
-EDGE = (99, 102, 241, 235)
-ACCENT = (56, 189, 248, 255)
 HEADING_RGB = (255, 255, 255, 255)
 SUB_RGB = (165, 180, 252, 255)
 FOOT_RGB = (128, 141, 166, 255)
+
+AVENIR = "/System/Library/Fonts/Avenir Next.ttc"
+FACE_HEAVY, FACE_DEMI, FACE_MEDIUM = 8, 2, 5
 
 
 def run(cmd: list[str]) -> None:
     subprocess.run(cmd, check=True)
 
 
-def atempo_chain(source_seconds: int, target_seconds: int) -> str:
-    """Return an FFmpeg atempo chain for stretching source audio to target length."""
-    factor = source_seconds / target_seconds
-    filters: list[str] = []
-    while factor < 0.5:
-        filters.append("atempo=0.5")
-        factor /= 0.5
-    while factor > 2.0:
-        filters.append("atempo=2.0")
-        factor /= 2.0
-    filters.append(f"atempo={factor:.6f}")
-    return ",".join(filters)
+def font(size: int, face: int = FACE_DEMI) -> ImageFont.FreeTypeFont:
+    """Avenir Next matches the site's geometric sans far better than Arial."""
+    return ImageFont.truetype(AVENIR, size, index=face)
+
+
+def tracked(draw: ImageDraw.ImageDraw, xy, text: str, f, fill, spacing: float = 0.0) -> None:
+    """Draw letterspaced text. Pillow has no tracking option."""
+    x, y = xy
+    for ch in text:
+        draw.text((x, y), ch, font=f, fill=fill)
+        x += draw.textlength(ch, font=f) + spacing
+
+
+def tracked_width(draw: ImageDraw.ImageDraw, text: str, f, spacing: float = 0.0) -> int:
+    return int(sum(draw.textlength(c, font=f) for c in text) + spacing * max(0, len(text) - 1))
 
 
 def auth_token() -> str:
@@ -244,45 +248,7 @@ def ensure_ready(base_url: str, token: str) -> None:
     )
 
 
-def make_keyframe(act: dict, args: argparse.Namespace, token: str) -> Path:
-    reference = act.get("reference_image")
-    if reference is None or not Path(reference).is_file():
-        raise SystemExit(f"Reference image missing for {act['id']}: {reference}")
-    payload = {
-        "prompt": act["keyframe"],
-        "width": 1280,
-        "height": 720,
-        "numSteps": args.keyframe_steps,
-        "numImages": 1,
-        "imagePath": str(Path(reference).resolve()),
-        "strength": 0.84,
-    }
-    (args.output_dir / f"{act['id']}_keyframe_payload.json").write_text(json.dumps(payload, indent=2) + "\n")
-    result = request("POST", f"{args.base_url}/api/generate-image", token, payload, args.timeout)
-    (args.output_dir / f"{act['id']}_keyframe_result.json").write_text(json.dumps(result, indent=2) + "\n")
-    paths = result.get("image_paths") or []
-    if result.get("status") != "complete" or not paths:
-        raise SystemExit(f"Keyframe failed for {act['id']}: {json.dumps(result)}")
-    return Path(paths[0])
-
-
-def cached_keyframe(act: dict, cache_dir: Path) -> Path | None:
-    """Resolve an approved keyframe to an absolute path.
-
-    The LTX Desktop backend is a separate process, so imagePath must be absolute.
-    """
-    cached_file = cache_dir / f"{act['id']}_keyframe_result.json"
-    if not cached_file.exists():
-        return None
-    recorded = Path(json.loads(cached_file.read_text())["image_paths"][0])
-    resolved = recorded if recorded.is_absolute() else cached_file.parent / recorded
-    resolved = resolved.resolve()
-    if not resolved.is_file():
-        raise SystemExit(f"Cached keyframe for {act['id']} is missing on disk: {resolved}")
-    return resolved
-
-
-def video_payload(act: dict, args: argparse.Namespace, keyframe: Path | None) -> dict:
+def video_payload(act: dict, args: argparse.Namespace) -> dict:
     return {
         "prompt": (
             f"{act['prompt']} No visible text, letters, words, numbers, captions, signs, screens, watermark, or logos. "
@@ -293,17 +259,17 @@ def video_payload(act: dict, args: argparse.Namespace, keyframe: Path | None) ->
         "model": "fast",
         "cameraMotion": act["camera"],
         "duration": args.source_seconds,
-        "fps": args.fps,
-        "audio": True,
-        "imagePath": str(keyframe) if keyframe else None,
+        "fps": FPS,
+        "audio": False,
+        "imagePath": None,
         "aspectRatio": "16:9",
         "seed": act["seed"],
         "loras": [],
     }
 
 
-def make_clip(act: dict, args: argparse.Namespace, token: str, keyframe: Path | None) -> Path:
-    payload = video_payload(act, args, keyframe)
+def make_clip(act: dict, args: argparse.Namespace, token: str) -> Path:
+    payload = video_payload(act, args)
     (args.output_dir / f"{act['id']}_payload.json").write_text(json.dumps(payload, indent=2) + "\n")
     print(f"Generating {act['id']}...", flush=True)
     started = time.time()
@@ -316,42 +282,77 @@ def make_clip(act: dict, args: argparse.Namespace, token: str, keyframe: Path | 
     return Path(path)
 
 
-AVENIR = "/System/Library/Fonts/Avenir Next.ttc"
-FACE_HEAVY, FACE_DEMI, FACE_MEDIUM = 8, 2, 5
+def render_ui_shot(shot: dict, index: int, work: Path) -> Path:
+    """A camera move across a real screenshot, rendered at full source resolution."""
+    image = REFERENCE_DIR / shot["image"]
+    if not image.is_file():
+        raise SystemExit(f"Screenshot missing: {image}")
+    duration = shot["duration"]
+    frames = max(2, int(round(duration * FPS)))
+    z0, z1 = shot["zoom"]
+    cx, cy = shot["centre"]
+    out = work / f"shot_{index:02d}_ui.mp4"
+    vf = (
+        "scale=2560:-2,"
+        f"zoompan=z='{z0}+({z1}-{z0})*on/{frames - 1}':"
+        f"x='iw*{cx}-(iw/zoom)/2':y='ih*{cy}-(ih/zoom)/2':"
+        f"d=1:s=1280x720,"
+        "eq=contrast=1.03:saturation=1.02,format=yuv420p"
+    )
+    run([
+        "ffmpeg", "-y", "-loglevel", "error",
+        "-loop", "1", "-t", f"{duration}", "-r", str(FPS), "-i", str(image),
+        "-vf", vf, "-r", str(FPS), "-frames:v", str(frames),
+        "-c:v", "libx264", "-crf", "16", "-preset", "medium", str(out),
+    ])
+    return out
 
 
-def font(size: int, face: int = FACE_DEMI) -> ImageFont.FreeTypeFont:
-    """Avenir Next matches the site's geometric sans far better than Arial."""
-    return ImageFont.truetype(AVENIR, size, index=face)
+def render_ltx_shot(shot: dict, index: int, clips: dict[str, Path], work: Path) -> Path:
+    """A range taken from a generated clip at natural speed.
+
+    The earlier films stretched a five-second source across a twelve-second act, a
+    2.4x slow-motion that softened everything. Cutting within the clip keeps motion real.
+    """
+    source = clips[shot["clip"]]
+    duration = shot["duration"]
+    frames = max(2, int(round(duration * FPS)))
+    out = work / f"shot_{index:02d}_ltx.mp4"
+    run([
+        "ffmpeg", "-y", "-loglevel", "error",
+        "-ss", f"{shot['start']}", "-i", str(source),
+        "-vf", (
+            "scale=1280:720:force_original_aspect_ratio=increase,crop=1280:720,"
+            f"fps={FPS},eq=contrast=1.05:saturation=1.04,format=yuv420p"
+        ),
+        "-frames:v", str(frames), "-an",
+        "-c:v", "libx264", "-crf", "16", "-preset", "medium", str(out),
+    ])
+    return out
 
 
-def tracked(draw: ImageDraw.ImageDraw, xy, text: str, f, fill, spacing: float = 0.0) -> int:
-    """Draw letterspaced text and return its width. Pillow has no tracking option."""
-    x, y = xy
-    for ch in text:
-        draw.text((x, y), ch, font=f, fill=fill)
-        x += draw.textlength(ch, font=f) + spacing
-    return int(x - xy[0])
-
-
-def tracked_width(draw: ImageDraw.ImageDraw, text: str, f, spacing: float = 0.0) -> int:
-    return int(sum(draw.textlength(c, font=f) for c in text) + spacing * max(0, len(text) - 1))
+def shot_times() -> list[tuple[float, float]]:
+    """Absolute (start, end) for each shot, so titles stay pinned to their shot."""
+    times, cursor = [], 0.0
+    for shot in TIMELINE:
+        times.append((cursor, cursor + shot["duration"]))
+        cursor += shot["duration"]
+    return times
 
 
 def make_overlays(out_dir: Path) -> list[tuple[Path, float, float]]:
-    """Full-canvas PNG title overlays.
-
-    A soft bottom scrim plus left-aligned type, rather than the reference film's
-    boxed HUD card, which read as a game overlay on a software product.
-    """
+    """Full-canvas PNG title overlays: a soft bottom scrim plus left-aligned type."""
     target = out_dir / "overlays"
     target.mkdir(parents=True, exist_ok=True)
     outputs = []
-    last_index = len(TITLES) - 1
-    for index, (start, end, heading, subheading) in enumerate(TITLES):
+    for index, (shot, (shot_start, _)) in enumerate(zip(TIMELINE, shot_times())):
+        title = shot.get("title")
+        if not title:
+            continue
+        heading, subheading, delay, hold = title
+        is_end_card = bool(shot.get("end_card"))
         canvas = Image.new("RGBA", (1280, 720), (0, 0, 0, 0))
 
-        # Bottom scrim: guarantees legibility over any shot without a hard box edge.
         scrim = Image.new("RGBA", (1280, 720), (0, 0, 0, 0))
         sdraw = ImageDraw.Draw(scrim)
         for y in range(350, 720):
@@ -360,115 +361,154 @@ def make_overlays(out_dir: Path) -> list[tuple[Path, float, float]]:
         canvas.alpha_composite(scrim)
 
         draw = ImageDraw.Draw(canvas)
-        heading_size = 62 if len(heading) <= 19 else 52
+        heading_size = 62 if len(heading) <= 19 else 50
         head_font = font(heading_size, FACE_HEAVY)
         sub_font = font(22, FACE_DEMI)
-
         left = 92
-        base = 512 if index == last_index else 548
-        # Accent rule in the product's blue-to-violet gradient.
-        head_w = tracked_width(draw, heading, head_font, 1.0)
-        bar_w = max(head_w, tracked_width(draw, subheading, sub_font, 2.6))
+        base = 512 if is_end_card else 548
+
+        bar_w = max(tracked_width(draw, heading, head_font, 1.0),
+                    tracked_width(draw, subheading, sub_font, 2.6))
         for x in range(bar_w):
             t = x / max(1, bar_w - 1)
-            colour = (
-                int(56 + (129 - 56) * t),
-                int(189 + (108 - 189) * t),
-                int(248 + (245 - 248) * t),
-                255,
+            draw.line(
+                [(left + x, base - 26), (left + x, base - 23)],
+                fill=(int(56 + 73 * t), int(189 - 81 * t), int(248 - 3 * t), 255),
             )
-            draw.line([(left + x, base - 26), (left + x, base - 23)], fill=colour)
 
         tracked(draw, (left, base), heading, head_font, HEADING_RGB, 1.0)
         tracked(draw, (left, base + heading_size + 18), subheading, sub_font, SUB_RGB, 2.6)
 
-        if index == last_index:
+        if is_end_card:
             foot_font = font(15, FACE_MEDIUM)
             for offset, line in enumerate(END_CARD_FOOTNOTES):
                 tracked(draw, (left, base + heading_size + 62 + offset * 21), line, foot_font, FOOT_RGB, 1.4)
 
         path = target / f"{index:02d}.png"
         canvas.save(path)
-        outputs.append((path, start, end))
+        outputs.append((path, shot_start + delay, shot_start + delay + hold))
     return outputs
 
 
-def make_audio(clips: list[Path], out_dir: Path, args: argparse.Namespace) -> Path:
-    voice_aiff = out_dir / "voiceover.aiff"
-    run(["say", "-v", "Reed (English (US))", "-r", "150", "-o", str(voice_aiff), NARRATION])
-    voice_wav = out_dir / "voiceover.wav"
-    run([
-        "ffmpeg", "-y", "-loglevel", "error", "-i", str(voice_aiff),
-        "-af", "highpass=f=90,lowpass=f=9500,acompressor=threshold=-22dB:ratio=3:attack=8:release=160,volume=1.45",
-        str(voice_wav),
-    ])
-
-    ambience_inputs: list[str] = []
-    ambience_filters: list[str] = []
-    tempo = atempo_chain(args.source_seconds, args.act_seconds)
-    for index, clip in enumerate(clips):
-        ambience_inputs += ["-i", str(clip)]
-        ambience_filters.append(
-            f"[{index}:a]aresample=48000,{tempo},atrim=duration={args.act_seconds},"
-            f"afade=t=in:d=0.35,afade=t=out:st=11.3:d=0.7[a{index}]"
+def make_music(out_dir: Path) -> Path:
+    """Assemble the generated movements into one 60s bed with crossfades."""
+    movements = [MUSIC_DIR / f"{name}.wav" for name in
+                 ("bed_1_unsettled", "bed_2_resolve", "bed_3_lift")]
+    missing = [m for m in movements if not m.is_file()]
+    if missing:
+        raise SystemExit(
+            "Music movements are missing: " + ", ".join(str(m) for m in missing)
+            + "\nGenerate them first with the project's gen_music_bed.py."
         )
-    ambience = out_dir / "scene_ambience.wav"
-    run([
-        "ffmpeg", "-y", "-loglevel", "error", *ambience_inputs,
-        "-filter_complex", ";".join(ambience_filters) + ";" + "".join(f"[a{i}]" for i in range(len(clips))) + f"concat=n={len(clips)}:v=0:a=1[a]",
-        "-map", "[a]", "-t", "60", str(ambience),
-    ])
-
-    if not PROJECT_MUSIC.is_file():
-        raise SystemExit(f"Project music is missing: {PROJECT_MUSIC}")
-    final_audio = out_dir / "trailer_audio.wav"
+    bed = out_dir / "music_bed.wav"
     run([
         "ffmpeg", "-y", "-loglevel", "error",
-        "-i", str(PROJECT_MUSIC), "-i", str(ambience), "-i", str(voice_wav),
+        "-i", str(movements[0]), "-i", str(movements[1]), "-i", str(movements[2]),
         "-filter_complex",
-        "[0:a]atrim=0:60,afade=t=in:d=1.2,afade=t=out:st=57:d=3,volume=0.34[music];"
-        "[1:a]highpass=f=80,lowpass=f=8000,volume=0.16[amb];"
-        "[2:a]adelay=650|650,volume=1.1[voice];"
-        "[music][amb]amix=inputs=2:duration=longest[bed];"
-        "[bed][voice]sidechaincompress=threshold=0.012:ratio=12:attack=8:release=450[ducked];"
-        "[ducked][voice]amix=inputs=2:duration=longest,loudnorm=I=-15.5:TP=-1.5:LRA=7[a]",
-        "-map", "[a]", "-t", "60", str(final_audio),
+        "[0:a]aresample=48000,atrim=0:24,afade=t=in:d=1.5[m0];"
+        "[1:a]aresample=48000,atrim=0:24[m1];"
+        "[2:a]aresample=48000,atrim=0:22[m2];"
+        "[m0][m1]acrossfade=d=3:c1=tri:c2=tri[a01];"
+        f"[a01][m2]acrossfade=d=3:c1=tri:c2=tri,atrim=0:{TOTAL_SECONDS},"
+        f"afade=t=out:st={TOTAL_SECONDS - 3.5}:d=3.5[a]",
+        "-map", "[a]", "-t", str(TOTAL_SECONDS), str(bed),
+    ])
+    return bed
+
+
+def make_audio(out_dir: Path) -> Path:
+    """Music bed plus the product's own SFX on cuts. No voiceover by design."""
+    bed = make_music(out_dir)
+    inputs = ["-i", str(bed)]
+    filters = ["[0:a]volume=0.92[bed]"]
+    mix_labels = ["[bed]"]
+    slot = 1
+    for shot, (start, _) in zip(TIMELINE, shot_times()):
+        name = shot.get("sfx")
+        if not name:
+            continue
+        path = SFX_DIR / f"{name}.mp3"
+        if not path.is_file():
+            print(f"warning: sfx missing, skipping: {path}", file=sys.stderr)
+            continue
+        gain = {"whoosh": 0.30, "click": 0.22, "pop": 0.24, "levelup": 0.26}.get(name, 0.25)
+        inputs += ["-i", str(path)]
+        delay_ms = int(max(0.0, start) * 1000)
+        filters.append(
+            f"[{slot}:a]aresample=48000,adelay={delay_ms}|{delay_ms},volume={gain}[s{slot}]"
+        )
+        mix_labels.append(f"[s{slot}]")
+        slot += 1
+    filters.append(
+        "".join(mix_labels)
+        + f"amix=inputs={len(mix_labels)}:duration=first:normalize=0,"
+        f"loudnorm=I=-16:TP=-1.5:LRA=9[a]"
+    )
+    final_audio = out_dir / "trailer_audio.wav"
+    run([
+        "ffmpeg", "-y", "-loglevel", "error", *inputs,
+        "-filter_complex", ";".join(filters),
+        "-map", "[a]", "-t", str(TOTAL_SECONDS), str(final_audio),
     ])
     return final_audio
 
 
-def assemble(clips: list[Path], audio: Path, args: argparse.Namespace) -> Path:
+def assemble(shot_files: list[Path], audio: Path, args: argparse.Namespace) -> Path:
     overlays = make_overlays(args.output_dir)
     inputs: list[str] = []
     filters: list[str] = []
-    for index, clip in enumerate(clips):
+    for index, clip in enumerate(shot_files):
         inputs += ["-i", str(clip)]
-        filters.append(
-            f"[{index}:v]scale=1280:720:force_original_aspect_ratio=increase,crop=1280:720,"
-            f"setpts={args.act_seconds}/{args.source_seconds}*PTS,minterpolate=fps={args.fps}:mi_mode=mci:mc_mode=aobmc:me_mode=bidir,"
-            "eq=contrast=1.04:saturation=1.02,format=yuv420p"
-            f"[v{index}]"
-        )
-    filters.append("".join(f"[v{i}]" for i in range(len(clips))) + f"concat=n={len(clips)}:v=1:a=0[base]")
-    audio_index = len(inputs) // 2
+        filters.append(f"[{index}:v]setsar=1,format=yuv420p[v{index}]")
+    filters.append(
+        "".join(f"[v{i}]" for i in range(len(shot_files)))
+        + f"concat=n={len(shot_files)}:v=1:a=0[base]"
+    )
+    audio_index = len(shot_files)
     inputs += ["-i", str(audio)]
     previous = "base"
     for index, (overlay, start, end) in enumerate(overlays):
         inputs += ["-loop", "1", "-i", str(overlay)]
         overlay_input = audio_index + 1 + index
         output = f"o{index}"
-        filters.append(f"[{previous}][{overlay_input}:v]overlay=0:0:enable='between(t,{start},{end})'[{output}]")
+        filters.append(
+            f"[{previous}][{overlay_input}:v]overlay=0:0:enable='between(t,{start},{end})'[{output}]"
+        )
         previous = output
-    filters.append(f"[{previous}]fade=t=in:st=0:d=0.7,fade=t=out:st=59.1:d=0.9[vout]")
+    filters.append(
+        f"[{previous}]fade=t=in:st=0:d=0.6,fade=t=out:st={TOTAL_SECONDS - 0.9}:d=0.9[vout]"
+    )
     final = args.output_dir / args.final_name
     run([
         "ffmpeg", "-y", "-loglevel", "error", *inputs,
         "-filter_complex", ";".join(filters),
-        "-map", "[vout]", "-map", f"{audio_index}:a", "-t", "60",
-        "-c:v", "libx264", "-crf", "16", "-preset", "medium",
+        "-map", "[vout]", "-map", f"{audio_index}:a", "-t", str(TOTAL_SECONDS),
+        "-c:v", "libx264", "-crf", "16", "-preset", "medium", "-r", str(FPS),
         "-c:a", "aac", "-b:a", "256k", "-movflags", "+faststart", str(final),
     ])
     return final
+
+
+def validate_timeline() -> None:
+    total = sum(shot["duration"] for shot in TIMELINE)
+    if abs(total - TOTAL_SECONDS) > 0.001:
+        raise SystemExit(f"Timeline is {total:.2f}s, expected {TOTAL_SECONDS}s.")
+    for shot in TIMELINE:
+        if shot["kind"] == "ui" and not (REFERENCE_DIR / shot["image"]).is_file():
+            raise SystemExit(f"Screenshot missing: {REFERENCE_DIR / shot['image']}")
+
+
+def check_ltx_ranges(args: argparse.Namespace) -> None:
+    """Every ltx shot must fit inside its generated source clip."""
+    for shot in TIMELINE:
+        if shot["kind"] != "ltx":
+            continue
+        end = shot["start"] + shot["duration"]
+        if end > args.source_seconds + 0.001:
+            raise SystemExit(
+                f"Shot from {shot['clip']} needs {end:.1f}s but sources are "
+                f"{args.source_seconds}s. Raise --source-seconds or shorten the shot."
+            )
 
 
 def main() -> int:
@@ -476,71 +516,92 @@ def main() -> int:
     parser.add_argument("--profile", choices=["preview", "final"], default="final")
     parser.add_argument("--base-url", default=BASE_URL)
     parser.add_argument("--output-dir", type=Path)
-    parser.add_argument("--keyframe-cache-dir", type=Path)
     parser.add_argument("--resolution", choices=["540p", "720p", "1080p"], default="540p")
-    parser.add_argument("--fps", type=int, default=24)
     parser.add_argument("--source-seconds", type=int, choices=[5, 6, 8, 10, 12, 14, 16, 18, 20])
-    parser.add_argument("--keyframe-steps", type=int)
     parser.add_argument("--final-name")
     parser.add_argument("--timeout", type=int, default=7200)
     parser.add_argument("--reuse-existing", action="store_true")
     parser.add_argument("--dry-run", action="store_true")
+    parser.add_argument(
+        "--offline-cut",
+        action="store_true",
+        help="Assemble using placeholder atmosphere shots. Proves the whole edit, "
+             "audio mix, and titles without spending any GPU time.",
+    )
     args = parser.parse_args()
-    args.source_seconds = args.source_seconds or (5 if args.profile == "preview" else 10)
-    args.keyframe_steps = args.keyframe_steps or (4 if args.profile == "preview" else 10)
-    args.act_seconds = ACT_SECONDS
+    args.source_seconds = args.source_seconds or (10 if args.profile == "preview" else 12)
     args.output_dir = args.output_dir or (PREVIEW_DIR if args.profile == "preview" else OUTPUT_DIR)
     args.final_name = args.final_name or (PREVIEW_NAME if args.profile == "preview" else FINAL_NAME)
     args.output_dir.mkdir(parents=True, exist_ok=True)
+
+    validate_timeline()
+    check_ltx_ranges(args)
+
+    times = shot_times()
     (args.output_dir / "storyboard.json").write_text(
         json.dumps(
             {
                 "source": "https://gameofoptions.netlify.app",
                 "profile": args.profile,
+                "narration": None,
+                "total_seconds": TOTAL_SECONDS,
                 "source_seconds": args.source_seconds,
-                "act_seconds": args.act_seconds,
-                "keyframe_steps": args.keyframe_steps,
-                "narration": NARRATION,
-                "acts": [{k: str(v) for k, v in act.items()} for act in ACTS],
-                "titles": TITLES,
+                "atmosphere": ATMOSPHERE,
+                "timeline": [
+                    {**{k: v for k, v in shot.items()}, "at": round(start, 2), "until": round(end, 2)}
+                    for shot, (start, end) in zip(TIMELINE, times)
+                ],
                 "end_card_footnotes": END_CARD_FOOTNOTES,
             },
             indent=2,
+            default=str,
         )
         + "\n"
     )
     if args.dry_run:
-        for act in ACTS:
-            keyframe = act.get("reference_image") if act["use_keyframe"] else None
-            print(json.dumps(video_payload(act, args, keyframe), indent=2))
+        for act in ATMOSPHERE:
+            print(json.dumps(video_payload(act, args), indent=2))
+        for shot, (start, end) in zip(TIMELINE, times):
+            label = shot.get("image") or shot.get("clip")
+            print(f"{start:5.1f}-{end:5.1f}  {shot['kind']:3}  {label}")
         return 0
 
-    token = auth_token()
-    ensure_ready(args.base_url, token)
-    clips: list[Path] = []
-    for act in ACTS:
-        result_file = args.output_dir / f"{act['id']}_result.json"
-        payload_file = args.output_dir / f"{act['id']}_payload.json"
-        if args.reuse_existing and result_file.exists() and payload_file.exists():
-            old_payload = json.loads(payload_file.read_text())
-            old_result = json.loads(result_file.read_text())
-            old_clip = Path(old_result.get("video_path", ""))
-            if old_payload.get("duration") == args.source_seconds and old_clip.is_file():
-                clips.append(old_clip)
-                continue
-        keyframe = None
-        if act["use_keyframe"]:
-            if args.keyframe_cache_dir:
-                keyframe = cached_keyframe(act, args.keyframe_cache_dir)
-            if keyframe is None:
-                keyframe_file = args.output_dir / f"{act['id']}_keyframe_result.json"
-                if args.reuse_existing and keyframe_file.exists():
-                    keyframe = Path(json.loads(keyframe_file.read_text())["image_paths"][0])
-                else:
-                    keyframe = make_keyframe(act, args, token)
-        clips.append(make_clip(act, args, token, keyframe))
-    audio = make_audio(clips, args.output_dir, args)
-    final = assemble(clips, audio, args)
+    work = args.output_dir / "shots"
+    work.mkdir(parents=True, exist_ok=True)
+
+    clips: dict[str, Path] = {}
+    if args.offline_cut:
+        placeholder = work / "placeholder.mp4"
+        run([
+            "ffmpeg", "-y", "-loglevel", "error",
+            "-f", "lavfi", "-i",
+            f"color=c=0x0b1020:s=1280x720:r={FPS}:d={args.source_seconds}",
+            "-vf", "format=yuv420p", "-c:v", "libx264", "-crf", "20", str(placeholder),
+        ])
+        clips = {act["id"]: placeholder for act in ATMOSPHERE}
+    else:
+        token = auth_token()
+        ensure_ready(args.base_url, token)
+        for act in ATMOSPHERE:
+            result_file = args.output_dir / f"{act['id']}_result.json"
+            payload_file = args.output_dir / f"{act['id']}_payload.json"
+            if args.reuse_existing and result_file.exists() and payload_file.exists():
+                old_payload = json.loads(payload_file.read_text())
+                old_clip = Path(json.loads(result_file.read_text()).get("video_path", ""))
+                if old_payload.get("duration") == args.source_seconds and old_clip.is_file():
+                    clips[act["id"]] = old_clip
+                    continue
+            clips[act["id"]] = make_clip(act, args, token)
+
+    shot_files = []
+    for index, shot in enumerate(TIMELINE):
+        if shot["kind"] == "ui":
+            shot_files.append(render_ui_shot(shot, index, work))
+        else:
+            shot_files.append(render_ltx_shot(shot, index, clips, work))
+
+    audio = make_audio(args.output_dir)
+    final = assemble(shot_files, audio, args)
     print(f"final={final}")
     return 0
 

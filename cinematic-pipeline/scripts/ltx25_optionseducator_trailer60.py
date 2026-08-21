@@ -127,41 +127,41 @@ TIMELINE = [
      "title": ("TOO MUCH TO LEARN", "AND NO CLEAR PLACE TO START", 0.7, 3.2)},
     {"kind": "ltx", "clip": "atm_overwhelm", "start": 5.0, "duration": 2.6},
     {"kind": "ui", "image": "hi_lessons.png", "duration": 2.2,
-     "zoom": (1.02, 1.10), "centre": (0.5, 0.30), "sfx": "whoosh"},
+     "region": (0.5, 0.17, 0.52), "zoom": (1.0, 1.07), "sfx": "whoosh"},
     # -- The turn ------------------------------------------------------------
     {"kind": "ltx", "clip": "atm_one_path", "start": 0.6, "duration": 4.5,
      "title": ("ONE CLEAR NEXT STEP", "AT A TIME", 1.1, 3.2), "sfx": "whoosh"},
     {"kind": "ui", "image": "hi_home.png", "duration": 3.0,
-     "zoom": (1.05, 1.15), "centre": (0.32, 0.45)},
+     "region": (0.34, 0.33, 0.56), "zoom": (1.0, 1.06)},
     # -- Mechanism -----------------------------------------------------------
     {"kind": "ui", "image": "hi_journey.png", "duration": 3.0,
-     "zoom": (1.10, 1.02), "centre": (0.5, 0.16),
+     "region": (0.5, 0.585, 0.62), "zoom": (1.05, 1.0),
      "title": ("STUDY ONE LESSON", "ONE CANONICAL PATH, IN ORDER", 0.4, 2.4), "sfx": "click"},
     {"kind": "ui", "image": "hi_simulator.png", "duration": 3.0,
-     "zoom": (1.04, 1.14), "centre": (0.42, 0.45),
+     "region": (0.42, 0.40, 0.60), "zoom": (1.0, 1.06),
      "title": ("THEN PRACTISE IT", "A GUIDED DRILL BEFORE YOU ADVANCE", 0.4, 2.4), "sfx": "pop"},
     {"kind": "ltx", "clip": "atm_climb", "start": 0.5, "duration": 4.0, "sfx": "whoosh"},
     {"kind": "ui", "image": "hi_journey.png", "duration": 3.5,
-     "zoom": (1.02, 1.09), "centre": (0.5, 0.30),
+     "region": (0.5, 0.345, 0.60), "zoom": (1.0, 1.06),
      "title": ("SIX SKILL TRACKS", "FOUNDATIONS TO THE GREEKS, STRATEGIES AND RISK", 0.4, 2.9),
      "sfx": "levelup"},
     # -- Proof ---------------------------------------------------------------
     {"kind": "ui", "image": "hi_lessons.png", "duration": 3.5,
-     "zoom": (1.06, 1.00), "centre": (0.5, 0.55),
+     "region": (0.5, 0.30, 0.52), "zoom": (1.05, 1.0),
      "title": ("MODULES UNLOCK IN ORDER", "EVERY LESSON BUILDS ON THE LAST", 0.4, 2.9)},
     {"kind": "ltx", "clip": "atm_climb", "start": 5.2, "duration": 3.0},
     {"kind": "ui", "image": "hi_career.png", "duration": 3.5,
-     "zoom": (1.04, 1.12), "centre": (0.5, 0.14),
+     "region": (0.5, 0.105, 0.60), "zoom": (1.0, 1.06),
      "title": ("PRACTISE BY PLAYING", "OPTIONS CITY | MINI-GAMES | CONTRACTS", 0.4, 2.9), "sfx": "whoosh"},
     {"kind": "ltx", "clip": "atm_city", "start": 0.4, "duration": 4.5},
     {"kind": "ltx", "clip": "atm_city", "start": 5.2, "duration": 4.5,
      "title": ("CONTRACTS TIED TO LESSONS", "READ A CHAIN | EARN THE GREEKS BADGE", 0.5, 3.4)},
     # -- Payoff --------------------------------------------------------------
     {"kind": "ui", "image": "hi_home.png", "duration": 4.5,
-     "zoom": (1.12, 1.04), "centre": (0.32, 0.46),
+     "region": (0.5, 0.785, 0.72), "zoom": (1.04, 1.0),
      "title": ("STOP COLLECTING CONTENT", "START MAKING PROGRESS", 0.5, 3.4), "sfx": "whoosh"},
     {"kind": "ui", "image": "hi_home.png", "duration": 6.5,
-     "zoom": (1.16, 1.24), "centre": (0.20, 0.62), "end_card": True,
+     "region": (0.30, 0.31, 0.50), "zoom": (1.0, 1.08), "end_card": True,
      "title": ("OPTIONS EDUCATOR", "START YOUR LEARNING PATH", 0.6, 5.4)},
 ]
 
@@ -282,26 +282,50 @@ def make_clip(act: dict, args: argparse.Namespace, token: str) -> Path:
     return Path(path)
 
 
+def crop_region(image: Path, region: tuple[float, float, float], out: Path) -> Path:
+    """Cut a true 16:9 region out of a screenshot before any camera move.
+
+    zoompan takes a window with the *source* aspect ratio and stretches it to the
+    output size, which badly squashes full-page captures (hi_lessons is 2552x7142).
+    Cropping to 16:9 first keeps the product undistorted and lets each shot frame
+    one thing large enough to read at video size.
+    """
+    cx, cy, width_fraction = region
+    with Image.open(image) as im:
+        W, H = im.size
+        cw = max(320, min(W, int(W * width_fraction)))
+        ch = int(round(cw * 9 / 16))
+        if ch > H:  # narrow sources: fit to height instead
+            ch = H
+            cw = int(round(ch * 16 / 9))
+        x = int(round(cx * W - cw / 2))
+        y = int(round(cy * H - ch / 2))
+        x = max(0, min(W - cw, x))
+        y = max(0, min(H - ch, y))
+        im.convert("RGB").crop((x, y, x + cw, y + ch)).save(out)
+    return out
+
+
 def render_ui_shot(shot: dict, index: int, work: Path) -> Path:
-    """A camera move across a real screenshot, rendered at full source resolution."""
+    """A gentle camera move across a framed region of a real screenshot."""
     image = REFERENCE_DIR / shot["image"]
     if not image.is_file():
         raise SystemExit(f"Screenshot missing: {image}")
+    framed = crop_region(image, shot["region"], work / f"shot_{index:02d}_frame.png")
     duration = shot["duration"]
     frames = max(2, int(round(duration * FPS)))
     z0, z1 = shot["zoom"]
-    cx, cy = shot["centre"]
     out = work / f"shot_{index:02d}_ui.mp4"
     vf = (
         "scale=2560:-2,"
         f"zoompan=z='{z0}+({z1}-{z0})*on/{frames - 1}':"
-        f"x='iw*{cx}-(iw/zoom)/2':y='ih*{cy}-(ih/zoom)/2':"
+        "x='iw/2-(iw/zoom)/2':y='ih/2-(ih/zoom)/2':"
         f"d=1:s=1280x720,"
         "eq=contrast=1.03:saturation=1.02,format=yuv420p"
     )
     run([
         "ffmpeg", "-y", "-loglevel", "error",
-        "-loop", "1", "-t", f"{duration}", "-r", str(FPS), "-i", str(image),
+        "-loop", "1", "-t", f"{duration}", "-r", str(FPS), "-i", str(framed),
         "-vf", vf, "-r", str(FPS), "-frames:v", str(frames),
         "-c:v", "libx264", "-crf", "16", "-preset", "medium", str(out),
     ])

@@ -52,11 +52,13 @@ TOTAL_SECONDS = 60.0
 FPS = 24
 
 NEGATIVE = (
+    "trees, pine trees, cone trees, forest, park, greenery, bushes, "
+    "empty deserted streets, no traffic, no cars, nobody, motionless, "
     "low quality, low resolution, blurry, static image, still frame, slideshow, no movement, weak motion, "
     "camera shake, jitter, flicker, duplicated people, distorted face, deformed hands, extra limbs, "
     "washed out, pale blue background, bright white background, faded, hazy grey, overexposed, "
-    "warm orange lighting, golden fantasy architecture, greek temple, medieval, cartoon, garish saturated colors, "
-    "text, typography, letters, words, numbers, captions, subtitles, signs, labels, ticker, watermark, logo"
+    "warm orange fantasy lighting, golden fantasy architecture, greek temple, medieval, photoreal city, "
+    "letters, words, captions, subtitles, watermark, logo, gibberish lettering"
 )
 
 PALETTE = (
@@ -68,72 +70,85 @@ PALETTE = (
 # Atmosphere clips. Text-to-video only: a still would constrain the motion these beats need.
 LOOK = (
     "Stylised low-poly 3D game world, flat shaded, clean minimal geometry: tan, sand and deep blue "
-    "geometric buildings, simple green cone trees, wide dark asphalt avenues with bright glowing cyan lane "
-    "lines running down them, dusk sky with soft volumetric light shafts. Looks like a modern indie open-world "
-    "game, not photoreal. Confident and calm."
+    "geometric tower blocks, wide dark avenues with bright glowing cyan lane lines. The tower facades are "
+    "enormous glowing market displays: green and red candlestick charts stepping up and down, rising and "
+    "falling line graphs, bright scrolling data ribbons wrapping the buildings. The city is busy and alive: "
+    "dense streams of small stylised cars flow along every avenue in both directions, trams glide through, "
+    "pedestrians walk the sidewalks, drones drift between towers. Bare urban streets, no vegetation at all. "
+    "Dusk sky with soft volumetric light shafts. Modern indie open-world game look, not photoreal."
 )
 
 ATMOSPHERE = [
     {
         "id": "city_reveal",
-        "seed": 41041,
+        "seed": 51041,
         "camera": "dolly_out",
         "prompt": (
-            "Camera rises from a glowing avenue to reveal an enormous stylised open-world game city stretching to "
-            "the horizon, districts of low-poly towers separated by wide luminous cyan roads, small vehicles moving "
-            "along them, a great domed hall at the centre. " + LOOK
+            "Camera rises from a busy glowing avenue to reveal an enormous stylised open-world game city "
+            "stretching to the horizon. Dense traffic streams along every luminous cyan road, trams cross "
+            "between districts, and the tower facades all around are covered in huge animated green and red "
+            "candlestick charts and climbing line graphs. A great domed hall glows at the centre. Constant "
+            "motion everywhere. " + LOOK
         ),
     },
     {
         "id": "street_walk",
-        "seed": 41042,
+        "seed": 51042,
         "camera": "dolly_in",
         "prompt": (
-            "First-person walk forward down the centre of a wide avenue in a stylised game city, bright cyan light "
-            "strips glowing along the road surface rushing past, flat-shaded tan and blue tower blocks and simple "
-            "green cone trees sliding by on both sides, distant skyline ahead. Fast steady forward traversal. " + LOOK
+            "Fast first-person travel forward down a wide busy avenue in a stylised game city. Cars rush past "
+            "in both directions, a tram overtakes on the left, pedestrians move along the sidewalks, and the "
+            "tower blocks sliding by on both sides are covered in giant glowing candlestick charts and "
+            "scrolling market ribbons. Bright cyan light strips streak along the road surface. Fast steady "
+            "forward traversal. " + LOOK
         ),
     },
     {
         "id": "regime_flip",
-        "seed": 41043,
+        "seed": 51043,
         "camera": "dolly_in",
         "prompt": (
-            "The calm dusk sky over a stylised low-poly game district darkens hard as a volatility storm rolls in "
-            "between the towers: clouds churn, sheet lightning pulses, the glowing cyan road lines flare brighter "
-            "and shift to warning amber, and light ripples outward through the streets. The city itself stays calm "
-            "and geometric while the weather turns violent above it. " + LOOK
+            "A stylised game district flips from calm to violent. The clear gold sky darkens hard into a black "
+            "churning storm with sheet lightning, and at the same moment every green candlestick chart on the "
+            "surrounding towers flips to red and spikes downward in sequence, the line graphs plunging. Road "
+            "lights shift from cyan to warning amber, traffic accelerates, and shockwaves of light ripple "
+            "outward through the streets. Dramatic synchronised change. " + LOOK
         ),
     },
     {
         "id": "trade_execute",
-        "seed": 41044,
+        "seed": 51044,
         "camera": "dolly_in",
         "prompt": (
-            "Above a glowing avenue in a stylised game city, large translucent holographic panels assemble in mid air "
-            "from clean geometric pieces and lock together in a row, glowing cyan and violet, while beams of light "
-            "run outward along the roads below and the district brightens in response. Confident, precise, "
+            "Above a busy glowing avenue in a stylised game city, a huge holographic candlestick chart builds "
+            "itself bar by bar in mid air, green and red candles stepping upward, while translucent strategy "
+            "panels assemble from geometric pieces and lock into a row beside it. Beams of light run outward "
+            "along the roads below, traffic streams beneath, and the district brightens in response. Precise "
             "mechanical assembly motion. " + LOOK
         ),
     },
     {
         "id": "daily_feed",
-        "seed": 41045,
+        "seed": 51045,
         "camera": "dolly_right",
         "prompt": (
-            "Camera tracks sideways along a plaza in a stylised game city lined with tall glowing screens and kiosks, "
-            "each one lit and animating with abstract shapes, waveforms and moving light, people-scale figures walking "
-            "between them. A continuous parade of luminous panels sliding past. " + LOOK
+            "Camera tracks sideways along a busy plaza in a stylised game city lined with enormous glowing "
+            "screens. Each screen plays something different and clearly animated: a colourful illustrated "
+            "cartoon story scene with simple characters moving, an animated explainer diagram drawing itself, "
+            "a candlestick chart building bar by bar, and a scrolling news ribbon. Crowds of pedestrians walk "
+            "between them and traffic passes behind. A continuous parade of bright animated panels sliding "
+            "past. " + LOOK
         ),
     },
     {
         "id": "city_night_vista",
-        "seed": 41046,
+        "seed": 51046,
         "camera": "dolly_out",
         "prompt": (
-            "Final wide vista of a vast stylised low-poly game city at blue hour, every avenue traced in glowing cyan "
-            "light running to the horizon, districts lit across the whole landscape, a domed hall glowing at the "
-            "centre, distant hills behind. Camera sweeps upward and far backward. Inspiring and expansive. " + LOOK
+            "Final wide vista of a vast stylised low-poly game city at blue hour. Every avenue is traced in "
+            "glowing cyan light and packed with moving traffic leaving light trails to the horizon, tower "
+            "facades across the whole landscape glow with green and red candlestick charts, and a domed hall "
+            "blazes at the centre. Camera sweeps upward and far backward. Inspiring and expansive. " + LOOK
         ),
     },
 ]

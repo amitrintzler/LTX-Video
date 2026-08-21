@@ -52,13 +52,15 @@ TOTAL_SECONDS = 60.0
 FPS = 24
 
 NEGATIVE = (
+    "text, letters, words, writing, alphabet, characters, lettering, gibberish text, fake letters, "
+    "garbled writing, misspelled words, captions, subtitles, headlines, signage, billboards with words, "
+    "shop signs, nameplates, numbers, digits, watermark, logo, "
     "trees, pine trees, cone trees, forest, park, greenery, bushes, "
     "empty deserted streets, no traffic, no cars, nobody, motionless, "
     "low quality, low resolution, blurry, static image, still frame, slideshow, no movement, weak motion, "
     "camera shake, jitter, flicker, duplicated people, distorted face, deformed hands, extra limbs, "
-    "washed out, pale blue background, bright white background, faded, hazy grey, overexposed, "
-    "warm orange fantasy lighting, golden fantasy architecture, greek temple, medieval, photoreal city, "
-    "letters, words, captions, subtitles, watermark, logo, gibberish lettering"
+    "washed out, pale blue background, bright white background, faded, overexposed, "
+    "warm orange fantasy lighting, greek temple fantasy, medieval"
 )
 
 PALETTE = (
@@ -72,7 +74,8 @@ LOOK = (
     "Stylised low-poly 3D game world, flat shaded, clean minimal geometry: tan, sand and deep blue "
     "geometric tower blocks, wide dark avenues with bright glowing cyan lane lines. The tower facades are "
     "enormous glowing market displays: green and red candlestick charts stepping up and down, rising and "
-    "falling line graphs, bright scrolling data ribbons wrapping the buildings. The city is busy and alive: "
+    "falling line graphs, and bands of solid glowing colour blocks wrapping the buildings. No writing anywhere. "
+    "The city is busy and alive: "
     "dense streams of small stylised cars flow along every avenue in both directions, trams glide through, "
     "pedestrians walk the sidewalks, drones drift between towers. Bare urban streets, no vegetation at all. "
     "Dusk sky with soft volumetric light shafts. Modern indie open-world game look, not photoreal."
@@ -107,42 +110,45 @@ ATMOSPHERE = [
     },
     {
         "id": "regime_flip",
-        "seed": 61043,
+        "seed": 71043,
         "camera": "dolly_in",
         "prompt": (
             "A district of tall dark glass chart towers flips from calm to violent. The clear gold sky darkens "
             "into a black churning storm with sheet lightning, and at the same moment every green candlestick "
             "chart on the towers flips to red and spikes downward. Enormous facade screens cut to a financial "
-            "television news broadcast: a presenter at a studio desk, a split-screen panel of market maps, and "
-            "wide coloured banner strips running along the bottom of the screen. Traffic accelerates, road "
-            "lights shift to warning amber. " + LOOK
-        ),
+            "television broadcast shown only as imagery: a presenter figure at a studio desk, a split-screen of "
+            "coloured market maps, and a plain solid colour band running along the bottom of each screen. "
+            "Absolutely no writing, letters or numbers anywhere. Traffic accelerates, road lights shift to "
+            "warning amber. " + LOOK
+        )
     },
     {
         "id": "trade_execute",
-        "seed": 61044,
+        "seed": 71044,
         "camera": "dolly_in",
         "prompt": (
-            "In a district of clean modular geometric towers, a huge holographic candlestick chart builds "
-            "itself bar by bar above the avenue while translucent strategy panels assemble beside it, each "
-            "showing a different payoff diagram: a bent hockey-stick line, a capped plateau, a symmetrical "
-            "tent shape, a wide flat-topped range. Building facades around them display rotating strategy "
-            "boards with coloured payoff curves and status bars. Traffic streams beneath, light beams run "
-            "outward along the roads. " + LOOK
-        ),
+            "Above a busy glowing avenue in a stylised game city, four enormous clean diagrams glow on dark "
+            "panels, each one a single bright line in a clearly different shape: the first bends sharply upward "
+            "like a hockey stick, the second rises then flattens into a level plateau, the third rises to a "
+            "sharp peak then falls symmetrically like a tent, the fourth is a wide flat-topped plateau with "
+            "sloping sides at both ends. The lines draw themselves left to right one after another, glowing "
+            "cyan and green against black. Beside them a holographic candlestick chart builds bar by bar. "
+            "Simple bold geometry, no writing, letters or numbers anywhere. Traffic streams beneath. " + LOOK
+        )
     },
     {
         "id": "media_plaza",
-        "seed": 61045,
+        "seed": 71045,
         "camera": "dolly_right",
         "prompt": (
             "Camera tracks sideways along a busy media plaza in a stylised game city, walled with enormous "
-            "screens each playing something different and clearly animated: a financial television news studio "
-            "with a presenter and banner strips along the bottom, a colourful illustrated cartoon story with "
-            "simple characters moving through a scene, an animated explainer diagram drawing itself line by "
-            "line, a candlestick chart building bar by bar, and a rolling ribbon of coloured headlines. Crowds "
-            "walk between them, traffic passes behind. " + LOOK
-        ),
+            "glowing screens each playing something different and clearly animated: a financial television "
+            "studio with a presenter figure and a plain solid colour band beneath, a colourful illustrated "
+            "cartoon story with simple characters moving through a painted scene, an animated explainer diagram "
+            "drawing itself line by line, and a candlestick chart building bar by bar. Every screen shows "
+            "pictures only, with absolutely no writing, letters, numbers or captions anywhere. Crowds walk "
+            "between them, traffic passes behind. " + LOOK
+        )
     },
     {
         "id": "pantheon_night",

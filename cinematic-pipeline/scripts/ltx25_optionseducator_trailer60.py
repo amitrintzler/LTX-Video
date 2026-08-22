@@ -568,23 +568,57 @@ STORY_ART = Path("/Users/amitri/Projects/optionseducator/public/assets/story-ill
 STORY_PAGES = Path("/Users/amitri/Projects/optionseducator/public/story-images")
 
 # Real illustrations from the product's own storybook lessons.
+# Real storybook lessons: folder, the story's own title, and the concept it teaches.
+# Titles come from the product's story-videos manifest; without them the illustrations
+# are just pretty pictures with no reason to be on screen.
 STORY_LESSONS = [
-    "basics-flow", "theta-clock", "vertical-spreads", "intro-greeks",
-    "candlesticks-101", "straddle-strangle", "support-resistance", "short-risk",
-    "strike-price-mastery", "valuation-ratios-101", "macro-vol", "rsi-macd-mastery",
+    ("basics-flow", "ALEX AND THE MAGIC GARDEN TICKETS", "CALLS AND PUTS"),
+    ("theta-clock", "THE MELTING ICE CREAM SHOP", "TIME DECAY"),
+    ("strike-price-mastery", "GOLDILOCKS AND THE THREE STRIKES", "STRIKE SELECTION"),
+    ("support-resistance", "THE KINGDOM OF FLOORS AND CEILINGS", "SUPPORT AND RESISTANCE"),
+    ("short-risk", "THE BEAR'S DANGEROUS GAME", "SHORT RISK"),
+    ("valuation-ratios-101", "THE PRICE TAG DETECTIVE", "VALUATION"),
+    ("macro-vol", "THE WEATHER OF MARKETS", "MACRO VOLATILITY"),
+    ("rsi-macd-mastery", "THE TWIN COMPASS SYSTEM", "RSI AND MACD"),
 ]
 
 
-def story_picks(limit: int = 12) -> list[Path]:
-    """Real storybook art from across the curriculum, one page per lesson."""
+def story_pages() -> list[tuple[Path, str, str]]:
+    """One illustration per lesson, paired with its story title and concept."""
     picks = []
-    for lesson in STORY_LESSONS:
+    for lesson, title, concept in STORY_LESSONS:
         for stem in ("page-0.png", "page-1.png", "page-2.png"):
             candidate = STORY_ART / lesson / stem
             if candidate.is_file():
-                picks.append(candidate)
+                picks.append((candidate, title, concept))
                 break
-    return picks[:limit]
+    return picks
+
+
+def caption_story(art: Path, title: str, concept: str, width: int, height: int,
+                  out: Path) -> Path:
+    """Burn the story's title and concept onto its illustration."""
+    with Image.open(art) as raw:
+        frame = raw.convert("RGB")
+        scale = max(width / frame.width, height / frame.height)
+        frame = frame.resize((max(1, int(frame.width * scale)), max(1, int(frame.height * scale))),
+                             Image.LANCZOS)
+        left = (frame.width - width) // 2
+        top = (frame.height - height) // 2
+        frame = frame.crop((left, top, left + width, top + height)).convert("RGBA")
+    band = Image.new("RGBA", (width, height), (0, 0, 0, 0))
+    draw = ImageDraw.Draw(band)
+    bar_h = 74
+    for y in range(height - bar_h, height):
+        alpha = int(232 * ((y - (height - bar_h)) / bar_h) ** 0.5)
+        draw.line([(0, y), (width, y)], fill=(4, 6, 12, min(232, alpha + 90)))
+    draw.rectangle((0, height - bar_h, 6, height), fill=(56, 189, 248, 255))
+    tracked(draw, (22, height - bar_h + 12), title, font(19, FACE_HEAVY), (255, 255, 255, 255), 1.1)
+    tracked(draw, (22, height - bar_h + 44), concept, font(14, FACE_DEMI), SUB_RGB, 2.4)
+    frame.alpha_composite(band)
+    frame.convert("RGB").save(out)
+    return out
+
 
 # A plausible chain around a $180 underlying: strike, call bid/ask, put bid/ask, IV.
 CHAIN_ROWS = [
@@ -702,21 +736,22 @@ def render_chain_panel(out: Path, box: tuple[int, int, int, int] = (636, 120, 60
     return out
 
 
-def render_story_panel(work: Path, width: int = 620, height: int = 349,
-                       hold: float = 1.15, name: str = "story_panel.mp4") -> Path:
-    """A screen playing the product's own storybook illustrations."""
-    picks = story_picks()
-    if not picks:
+def render_story_panel(work: Path, width: int = 620, height: int = 348,
+                       hold: float = 1.5, name: str = "story_panel.mp4") -> Path:
+    """A screen playing the product's storybook lessons, each one labelled."""
+    pages = story_pages()
+    if not pages:
         raise SystemExit("No story illustrations found for the story panel.")
+    captioned = work / "story_captioned"
+    captioned.mkdir(parents=True, exist_ok=True)
     inputs, filters, labels = [], [], []
-    for index, art in enumerate(picks):
-        inputs += ["-loop", "1", "-t", f"{hold}", "-i", str(art)]
-        filters.append(
-            f"[{index}:v]scale={width}:{height}:force_original_aspect_ratio=increase,"
-            f"crop={width}:{height},setsar=1,fps={FPS},format=yuv420p[p{index}]"
-        )
+    for index, (art, title, concept) in enumerate(pages):
+        framed = caption_story(art, title, concept, width, height,
+                               captioned / f"s_{index:02d}.png")
+        inputs += ["-loop", "1", "-t", f"{hold}", "-i", str(framed)]
+        filters.append(f"[{index}:v]setsar=1,fps={FPS},format=yuv420p[p{index}]")
         labels.append(f"[p{index}]")
-    chain = "".join(labels) + f"concat=n={len(picks)}:v=1:a=0[v]"
+    chain = "".join(labels) + f"concat=n={len(pages)}:v=1:a=0[v]"
     out = work / name
     run(["ffmpeg", "-y", "-loglevel", "error", *inputs,
          "-filter_complex", ";".join(filters) + ";" + chain,

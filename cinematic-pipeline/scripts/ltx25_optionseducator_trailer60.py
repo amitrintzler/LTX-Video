@@ -187,11 +187,12 @@ TIMELINE = [
      "sign": ("GAMMA STREET", "THETA PATH | VEGA BOULEVARD"), "sfx": "click"},
     # -- Act 3: the tape turns ------------------------------------------------
     {"kind": "ltx", "clip": "tape_turn", "start": 0.4, "duration": 4.2,
-     "title": ("THEN THE TAPE TURNS", "VOL CRUSH AND EVENT REPRICING", 0.4, 3.4), "panel": "chart",
+     "title": ("THEN THE TAPE TURNS", "VOL CRUSH AND EVENT REPRICING", 0.4, 3.4),
+     "facade": {"kind": "chart", "quad": ((704, 150), (1012, 206), (704, 566), (1012, 520))},
      "sign": ("VOLATILITY HEIGHTS", "IV CRUSH ALLEY"), "sfx": "whoosh"},
     {"kind": "ltx", "clip": "tape_turn", "start": 5.0, "duration": 4.8,
      "title": ("THE MARKET DECIDES THE PLAY", "CALM: SELL PREMIUM | TRENDING: SPREADS", 0.4, 4.0),
-     "panel": "chain"},
+     "facade": {"kind": "chain", "quad": ((806, 74), (1132, 132), (806, 548), (1132, 500))}},
     # -- Act 4: you take the trade -------------------------------------------
     {"kind": "ltx", "clip": "trade_execute", "start": 0.4, "duration": 4.4,
      "title": ("SO YOU TAKE THE TRADE", "EXECUTE. HOLD. CLOSE FOR P&L.", 0.4, 3.6),
@@ -409,6 +410,48 @@ def render_ltx_shot(shot: dict, index: int, clips: dict[str, Path], work: Path) 
     return out
 
 
+def _perspective_coeffs(dst_quad, src_quad):
+    """Solve the 8 coefficients PIL needs to map src_quad onto dst_quad."""
+    matrix = []
+    for (dx, dy), (sx, sy) in zip(dst_quad, src_quad):
+        matrix.append([sx, sy, 1, 0, 0, 0, -dx * sx, -dx * sy])
+        matrix.append([0, 0, 0, sx, sy, 1, -dy * sx, -dy * sy])
+    # Gaussian elimination; avoids a numpy dependency for an 8x8 solve.
+    target = [c for point in dst_quad for c in point]
+    n = 8
+    for col in range(n):
+        pivot = max(range(col, n), key=lambda r: abs(matrix[r][col]))
+        matrix[col], matrix[pivot] = matrix[pivot], matrix[col]
+        target[col], target[pivot] = target[pivot], target[col]
+        pv = matrix[col][col]
+        for r in range(n):
+            if r == col:
+                continue
+            factor = matrix[r][col] / pv
+            for c in range(col, n):
+                matrix[r][c] -= factor * matrix[col][c]
+            target[r] -= factor * target[col]
+    return [target[i] / matrix[i][i] for i in range(n)]
+
+
+def warp_onto_facade(art: Image.Image, quad, out: Path) -> Path:
+    """Place a drawn display onto a building face, keeping everything else clear.
+
+    ffmpeg's perspective filter smears the panel's opaque background across the whole
+    frame, so the warp happens here where alpha survives.
+    """
+    w, h = art.size
+    src = [(0, 0), (w, 0), (0, h), (w, h)]
+    # PIL maps output coordinates back to input, so the quad is the first argument.
+    coeffs = _perspective_coeffs(src, quad)
+    warped = art.transform((1280, 720), Image.PERSPECTIVE, coeffs,
+                           resample=Image.BICUBIC, fillcolor=(0, 0, 0, 0))
+    canvas = Image.new("RGBA", (1280, 720), (0, 0, 0, 0))
+    canvas.alpha_composite(warped)
+    canvas.save(out)
+    return out
+
+
 def overlay_panel(base: Path, panel: Path, x: int, y: int, index: int, work: Path,
                   tag: str, moving: bool = False) -> Path:
     """Composite a rendered panel onto a shot, still or moving."""
@@ -527,12 +570,11 @@ CANDLES = [
 ]
 
 
-def render_chart_panel(out: Path) -> Path:
+def render_chart_panel(out: Path, box: tuple[int, int, int, int] = (64, 160, 620, 348)) -> Path:
     """A real candlestick chart: wicks, bodies, a moving average and signal markers."""
-    W, H = 620, 348
+    x0, y0, W, H = box
     canvas = Image.new("RGBA", (1280, 720), (0, 0, 0, 0))
     draw = ImageDraw.Draw(canvas)
-    x0, y0 = 64, 160
     draw.rounded_rectangle((x0, y0, x0 + W, y0 + H), radius=6,
                            fill=(6, 10, 20, 232), outline=(56, 189, 248, 215), width=2)
     tracked(draw, (x0 + 20, y0 + 16), "SPY  1D", font(17, FACE_HEAVY), (226, 232, 240, 255), 1.8)
@@ -588,12 +630,11 @@ def render_chart_panel(out: Path) -> Path:
     return out
 
 
-def render_chain_panel(out: Path) -> Path:
+def render_chain_panel(out: Path, box: tuple[int, int, int, int] = (636, 120, 600, 366)) -> Path:
     """An options chain: calls on the left, strikes down the middle, puts on the right."""
-    W, H = 600, 366
+    x0, y0, W, H = box
     canvas = Image.new("RGBA", (1280, 720), (0, 0, 0, 0))
     draw = ImageDraw.Draw(canvas)
-    x0, y0 = 636, 120
     draw.rounded_rectangle((x0, y0, x0 + W, y0 + H), radius=6,
                            fill=(6, 10, 20, 234), outline=(56, 189, 248, 215), width=2)
     tracked(draw, (x0 + 20, y0 + 16), "OPTIONS CHAIN", font(17, FACE_HEAVY), (226, 232, 240, 255), 1.8)
@@ -775,7 +816,7 @@ def make_audio(out_dir: Path) -> Path:
     """Music bed plus the product's own SFX on cuts. No voiceover by design."""
     bed = make_music(out_dir)
     inputs = ["-i", str(bed)]
-    filters = ["[0:a]volume=0.92[bed]"]
+    filters = ["[0:a]volume=1.45[bed]"]  # orchestral bed is wider-dynamic than the old electronic one
     mix_labels = ["[bed]"]
     slot = 1
     for shot, (start, _) in zip(TIMELINE, shot_times()):
@@ -797,7 +838,8 @@ def make_audio(out_dir: Path) -> Path:
     filters.append(
         "".join(mix_labels)
         + f"amix=inputs={len(mix_labels)}:duration=first:normalize=0,"
-        f"loudnorm=I=-16:TP=-1.5:LRA=9[a]"
+        f"loudnorm=I=-16:TP=-1.5:LRA=9,"
+        f"volume=3dB,alimiter=limit=0.82:attack=5:release=60,volume=-1.2dB[a]"  # single-pass loudnorm undershoots on the wide-dynamic orchestral bed
     )
     final_audio = out_dir / "trailer_audio.wav"
     run([
@@ -957,14 +999,20 @@ def main() -> int:
             rendered = render_ltx_shot(shot, index, clips, work)
         if shot.get("inset"):
             rendered = render_inset(shot, index, rendered, work)
+        facade = shot.get("facade")
+        if facade:
+            kind = facade["kind"]
+            flat = work / f"facade_flat_{index:02d}.png"
+            if kind == "chart":
+                render_chart_panel(flat, box=(0, 0, 900, 520))
+            else:
+                render_chain_panel(flat, box=(0, 0, 900, 548))
+            with Image.open(flat) as full:
+                art = full.convert("RGBA").crop((0, 0, 900, 520 if kind == "chart" else 548))
+            warped = warp_onto_facade(art, facade["quad"], work / f"facade_{index:02d}.png")
+            rendered = overlay_panel(rendered, warped, 0, 0, index, work, kind)
         panel = shot.get("panel")
-        if panel == "chart":
-            art = render_chart_panel(work / f"panel_{index:02d}.png")
-            rendered = overlay_panel(rendered, art, 0, 0, index, work, "chart")
-        elif panel == "chain":
-            art = render_chain_panel(work / f"panel_{index:02d}.png")
-            rendered = overlay_panel(rendered, art, 0, 0, index, work, "chain")
-        elif panel == "story":
+        if panel == "story":
             art = story_panel if story_panel else render_story_panel(work)
             rendered = overlay_panel(rendered, art, 64, 168, index, work, "story", moving=True)
         shot_files.append(rendered)

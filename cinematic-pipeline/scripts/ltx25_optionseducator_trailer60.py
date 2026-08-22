@@ -187,11 +187,13 @@ TIMELINE = [
     # -- Act 3: the tape turns ------------------------------------------------
     {"kind": "ltx", "clip": "tape_turn", "start": 0.4, "duration": 4.2,
      "title": ("THEN THE TAPE TURNS", "VOL CRUSH AND EVENT REPRICING", 0.4, 3.4),
-     "facade": {"kind": "chart", "quad": ((704, 150), (1012, 206), (704, 566), (1012, 520))},
+     "facade": {"kind": "chart", "quad": ((712, 168), (1004, 218), (712, 540), (1004, 498)),
+                "growth": 0.22},
      "sign": ("VOLATILITY HEIGHTS", "IV CRUSH ALLEY"), "sfx": "whoosh"},
     {"kind": "ltx", "clip": "tape_turn", "start": 5.0, "duration": 4.8,
      "title": ("THE MARKET DECIDES THE PLAY", "CALM: SELL PREMIUM | TRENDING: SPREADS", 0.4, 4.0),
-     "facade": {"kind": "chain", "quad": ((806, 74), (1132, 132), (806, 548), (1132, 500))}},
+     "facade": {"kind": "chain", "quad": ((792, 128), (1104, 180), (792, 436), (1104, 402)),
+                "growth": 0.20}},
     # -- Act 4: you take the trade -------------------------------------------
     {"kind": "ltx", "clip": "trade_execute", "start": 0.4, "duration": 4.4,
      "title": ("SO YOU TAKE THE TRADE", "EXECUTE. HOLD. CLOSE FOR P&L.", 0.4, 3.6),
@@ -210,7 +212,7 @@ TIMELINE = [
      "extras": ["video"], "sfx": "pop"},
     # -- Act 6: payoff --------------------------------------------------------
     {"kind": "ltx", "clip": "pantheon_night", "start": 0.4, "duration": 4.5,
-     "title": ("THIRTY-FOUR SKILLS", "SIX TRACKS | FOUNDATIONS TO RISK", 0.4, 3.6),
+     "title": ("A CURRICULUM THAT KEEPS GROWING", "FOUNDATIONS | TECHNICALS | GREEKS | STRATEGIES | RISK", 0.4, 3.6),
      "inset": {"image": "hi_journey.png", "region": (0.5, 0.345, 0.60)}},
     {"kind": "ltx", "clip": "pantheon_night", "start": 5.2, "duration": 4.6,
      "title": ("YOU CAME TO LEARN OPTIONS", "YOU LEAVE TRADING THEM", 0.4, 3.8), "sfx": "whoosh"},
@@ -448,6 +450,27 @@ def warp_onto_facade(art: Image.Image, quad, out: Path) -> Path:
     canvas = Image.new("RGBA", (1280, 720), (0, 0, 0, 0))
     canvas.alpha_composite(warped)
     canvas.save(out)
+    return out
+
+
+def facade_sequence(art: Image.Image, quad, frames: int, work: Path, index: int,
+                    growth: float = 0.30) -> Path:
+    """Render the display as a moving plate that grows with the camera push.
+
+    A fixed quad detaches from the building within a second: these shots dolly in, so
+    the towers grow while a screen-anchored panel stays put. Scaling the quad outward
+    from the frame centre each frame keeps the display sitting on its facade.
+    """
+    seq = work / f"facade_seq_{index:02d}"
+    seq.mkdir(parents=True, exist_ok=True)
+    cx, cy = 640.0, 360.0
+    for f in range(frames):
+        scale = 1.0 + growth * (f / max(1, frames - 1))
+        moved = tuple(((cx + (x - cx) * scale), (cy + (y - cy) * scale)) for x, y in quad)
+        warp_onto_facade(art, moved, seq / f"f_{f:04d}.png")
+    out = work / f"facade_seq_{index:02d}.mov"
+    run(["ffmpeg", "-y", "-loglevel", "error", "-framerate", str(FPS),
+         "-i", str(seq / "f_%04d.png"), "-c:v", "qtrle", str(out)])
     return out
 
 
@@ -1083,11 +1106,13 @@ def main() -> int:
             if kind == "chart":
                 render_chart_panel(flat, box=(0, 0, 900, 520))
             else:
-                render_chain_panel(flat, box=(0, 0, 900, 548))
+                render_chain_panel(flat, box=(0, 0, 900, 356))
             with Image.open(flat) as full:
-                art = full.convert("RGBA").crop((0, 0, 900, 520 if kind == "chart" else 548))
-            warped = warp_onto_facade(art, facade["quad"], work / f"facade_{index:02d}.png")
-            rendered = overlay_panel(rendered, warped, 0, 0, index, work, kind)
+                art = full.convert("RGBA").crop((0, 0, 900, 520 if kind == "chart" else 356))
+            frames = max(2, int(round(shot["duration"] * FPS)))
+            plate = facade_sequence(art, facade["quad"], frames, work, index,
+                                    growth=facade.get("growth", 0.30))
+            rendered = overlay_panel(rendered, plate, 0, 0, index, work, kind, moving=True)
         panel = shot.get("panel")
         if panel == "story":
             art = story_panel if story_panel else render_story_panel(work)

@@ -1,0 +1,274 @@
+"""Job definitions and the runner for the video studio.
+
+The single hard constraint: LTX Desktop owns one Metal pipeline, so anything that
+generates footage must run one at a time. Everything else - reassembly, scoring,
+thumbnails, QA - is cheap and runs in parallel. That split is the whole reason this
+project became workable, so it is enforced here rather than left to the caller.
+"""
+from __future__ import annotations
+
+import json
+import os
+import queue
+import shlex
+import subprocess
+import sys
+import threading
+import time
+import uuid
+from dataclasses import dataclass, field
+from datetime import datetime, timezone
+from pathlib import Path
+from typing import Any, Callable
+
+REPO = Path(__file__).resolve().parents[2]
+SCRIPTS = REPO / "cinematic-pipeline" / "scripts"
+TRAILER = SCRIPTS / "ltx25_optionseducator_trailer60.py"
+COMPOSER = SCRIPTS / "compose_trailer_score.py"
+PROJECT = REPO / "cinematic-pipeline" / "examples" / "ltx25-optionseducator"
+RENDER_ROOT = Path.home() / "LTX-Renders"
+STUDIO_HOME = Path.home() / "LTX-Studio"
+LOG_DIR = STUDIO_HOME / "logs"
+CONFIG_DIR = STUDIO_HOME / "configs"
+for d in (STUDIO_HOME, LOG_DIR, CONFIG_DIR):
+    d.mkdir(parents=True, exist_ok=True)
+
+
+def now() -> str:
+    return datetime.now(timezone.utc).isoformat(timespec="seconds")
+
+
+@dataclass
+class Job:
+    id: str
+    type: str
+    params: dict[str, Any]
+    gpu: bool
+    status: str = "queued"          # queued | running | done | failed | cancelled
+    created: str = field(default_factory=now)
+    started: str | None = None
+    finished: str | None = None
+    error: str | None = None
+    outputs: list[str] = field(default_factory=list)
+    command: str | None = None
+
+    @property
+    def log_path(self) -> Path:
+        return LOG_DIR / f"{self.id}.log"
+
+    def as_dict(self) -> dict[str, Any]:
+        d = self.__dict__.copy()
+        d.pop("_proc", None)
+        return d
+
+
+@dataclass
+class JobSpec:
+    name: str
+    gpu: bool
+    summary: str
+    build: Callable[[dict[str, Any], Job], list[str]]
+    est: str = ""
+
+
+def _config_arg(params: dict[str, Any]) -> list[str]:
+    """A saved config name becomes --config; absent means the tuned defaults."""
+    name = params.get("config")
+    if not name:
+        return []
+    path = CONFIG_DIR / f"{name}.json"
+    if not path.is_file():
+        raise ValueError(f"No such config: {name}")
+    return ["--config", str(path)]
+
+
+def _out_dir(params: dict[str, Any], default: str) -> list[str]:
+    target = params.get("output_dir") or str(RENDER_ROOT / default)
+    return ["--output-dir", target]
+
+
+def build_offline_cut(p: dict[str, Any], job: Job) -> list[str]:
+    return [sys.executable, str(TRAILER), "--profile", "preview", "--offline-cut",
+            *_config_arg(p), *_out_dir(p, f"studio-offline-{job.id[:8]}"),
+            "--final-name", "offline_cut.mp4"]
+
+
+def build_reassemble(p: dict[str, Any], job: Job) -> list[str]:
+    profile = p.get("profile", "preview")
+    return [sys.executable, str(TRAILER), "--profile", profile, "--reuse-existing",
+            *_config_arg(p),
+            *(["--resolution", p["resolution"]] if p.get("resolution") else []),
+            *(["--source-seconds", str(p["source_seconds"])] if p.get("source_seconds") else []),
+            *_out_dir(p, f"ltx25-optionseducator-trailer60{'-preview' if profile == 'preview' else ''}")]
+
+
+def build_render(p: dict[str, Any], job: Job) -> list[str]:
+    cmd = build_reassemble(p, job)
+    return cmd
+
+
+def build_regenerate_clip(p: dict[str, Any], job: Job) -> list[str]:
+    """Drop one clip's cached payload and result, then let the render refill it."""
+    clip = p.get("clip")
+    if not clip:
+        raise ValueError("regenerate-clip needs a clip id")
+    profile = p.get("profile", "preview")
+    default = f"ltx25-optionseducator-trailer60{'-preview' if profile == 'preview' else ''}"
+    target = Path(p.get("output_dir") or (RENDER_ROOT / default))
+    removed = []
+    for suffix in ("_result.json", "_payload.json"):
+        f = target / f"{clip}{suffix}"
+        if f.exists():
+            f.unlink()
+            removed.append(f.name)
+    job.params = {**p, "_cleared": removed}
+    return build_reassemble(p, job)
+
+
+def build_compose_score(p: dict[str, Any], job: Job) -> list[str]:
+    out = p.get("output") or str(PROJECT / "music" / "composed_score.wav")
+    return [sys.executable, str(COMPOSER), out]
+
+
+def build_capture(p: dict[str, Any], job: Job) -> list[str]:
+    return [sys.executable, str(SCRIPTS / "studio_capture.py"),
+            p.get("url", "https://gameofoptions.netlify.app"),
+            str(PROJECT / "reference")]
+
+
+def build_qa(p: dict[str, Any], job: Job) -> list[str]:
+    video = p.get("video")
+    if not video:
+        raise ValueError("qa needs a video path")
+    return [sys.executable, str(SCRIPTS / "studio_qa.py"), video]
+
+
+def build_vertical(p: dict[str, Any], job: Job) -> list[str]:
+    video = p.get("video")
+    if not video:
+        raise ValueError("vertical needs a video path")
+    out = p.get("output_dir") or str(RENDER_ROOT / f"studio-vertical-{job.id[:8]}")
+    cmd = [sys.executable, str(SCRIPTS / "make_vertical.py"), video, out]
+    if p.get("square"):
+        cmd.append("square")
+    return cmd
+
+
+SPECS: dict[str, JobSpec] = {
+    s.name: s for s in [
+        JobSpec("offline-cut", False, "Full edit with placeholder footage", build_offline_cut, "~20s"),
+        JobSpec("reassemble", False, "Rebuild titles, audio and edit from cached clips", build_reassemble, "~1 min"),
+        JobSpec("compose-score", False, "Compose the music cue", build_compose_score, "seconds"),
+        JobSpec("capture-screenshots", False, "Re-capture the live site", build_capture, "~1 min"),
+        JobSpec("qa", False, "Measure duration, freeze, dupes, silence, loudness", build_qa, "~30s"),
+        JobSpec("vertical-cut", False, "Derive a 9:16 or 1:1 cut", build_vertical, "~1 min"),
+        JobSpec("regenerate-clip", True, "Regenerate one atmosphere clip", build_regenerate_clip, "~35 min"),
+        JobSpec("render-preview", True, "Generate all clips at preview quality", build_render, "~3 h"),
+        JobSpec("render-final", True, "Generate all clips at final quality", build_render, "~3 h"),
+    ]
+}
+
+
+class Runner:
+    """One serialized lane for GPU work, a small pool for everything else."""
+
+    def __init__(self, workers: int = 3) -> None:
+        self.jobs: dict[str, Job] = {}
+        self.order: list[str] = []
+        self.lock = threading.Lock()
+        self.gpu_q: queue.Queue[str] = queue.Queue()
+        self.cpu_q: queue.Queue[str] = queue.Queue()
+        self._procs: dict[str, subprocess.Popen] = {}
+        threading.Thread(target=self._worker, args=(self.gpu_q,), daemon=True).start()
+        for _ in range(workers):
+            threading.Thread(target=self._worker, args=(self.cpu_q,), daemon=True).start()
+
+    def submit(self, job_type: str, params: dict[str, Any]) -> Job:
+        spec = SPECS.get(job_type)
+        if not spec:
+            raise ValueError(f"Unknown job type: {job_type}")
+        if job_type == "render-final":
+            params = {**params, "profile": "final"}
+        elif job_type == "render-preview":
+            params = {**params, "profile": "preview"}
+        job = Job(id=uuid.uuid4().hex, type=job_type, params=params, gpu=spec.gpu)
+        with self.lock:
+            self.jobs[job.id] = job
+            self.order.append(job.id)
+        job.log_path.write_text(f"[{now()}] queued {job_type}\n")
+        (self.gpu_q if spec.gpu else self.cpu_q).put(job.id)
+        return job
+
+    def cancel(self, job_id: str) -> bool:
+        job = self.jobs.get(job_id)
+        if not job:
+            return False
+        if job.status == "queued":
+            job.status = "cancelled"
+            job.finished = now()
+            return True
+        proc = self._procs.get(job_id)
+        if proc and job.status == "running":
+            proc.terminate()
+            return True
+        return False
+
+    def _worker(self, q: "queue.Queue[str]") -> None:
+        while True:
+            job_id = q.get()
+            job = self.jobs.get(job_id)
+            if not job or job.status == "cancelled":
+                q.task_done()
+                continue
+            self._run(job)
+            q.task_done()
+
+    def _run(self, job: Job) -> None:
+        spec = SPECS[job.type]
+        job.status = "running"
+        job.started = now()
+        try:
+            cmd = spec.build(job.params, job)
+        except Exception as exc:  # noqa: BLE001 - surfaced to the caller
+            job.status, job.error, job.finished = "failed", str(exc), now()
+            with job.log_path.open("a") as fh:
+                fh.write(f"[{now()}] could not build command: {exc}\n")
+            return
+        job.command = " ".join(shlex.quote(c) for c in cmd)
+        with job.log_path.open("a") as fh:
+            fh.write(f"[{now()}] running: {job.command}\n")
+            fh.flush()
+            try:
+                proc = subprocess.Popen(cmd, cwd=str(REPO), stdout=fh, stderr=subprocess.STDOUT)
+                self._procs[job.id] = proc
+                code = proc.wait()
+            except Exception as exc:  # noqa: BLE001
+                job.status, job.error, job.finished = "failed", str(exc), now()
+                fh.write(f"[{now()}] error: {exc}\n")
+                return
+            finally:
+                self._procs.pop(job.id, None)
+        job.finished = now()
+        if job.status == "cancelled" or code < 0:
+            job.status = "cancelled"
+        elif code == 0:
+            job.status = "done"
+            job.outputs = self._collect_outputs(job)
+        else:
+            job.status = "failed"
+            job.error = f"exit code {code}"
+
+    @staticmethod
+    def _collect_outputs(job: Job) -> list[str]:
+        text = job.log_path.read_text(errors="replace")
+        found = []
+        for line in text.splitlines():
+            for key in ("final=", "config=", "wrote ", "thumbnail:"):
+                if line.startswith(key) or line.startswith(key.strip()):
+                    found.append(line.split("=", 1)[-1].strip() if "=" in line else line.strip())
+        return found[-6:]
+
+    def list_jobs(self, limit: int = 60) -> list[dict[str, Any]]:
+        with self.lock:
+            ids = self.order[-limit:][::-1]
+        return [self.jobs[i].as_dict() for i in ids if i in self.jobs]

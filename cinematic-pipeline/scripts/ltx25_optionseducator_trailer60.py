@@ -235,6 +235,51 @@ AVENIR = "/System/Library/Fonts/Avenir Next.ttc"
 FACE_HEAVY, FACE_DEMI, FACE_MEDIUM = 8, 2, 5
 
 
+# --- Config layer -----------------------------------------------------------
+# Everything a studio UI needs to vary lives in module constants. Rather than
+# rewrite the tuned script, these are exported to JSON and re-imported over the
+# defaults, so the delivered master stays reproducible with no config at all.
+
+CONFIG_KEYS = [
+    "TOTAL_SECONDS", "FPS", "NEGATIVE", "LOOK", "ATMOSPHERE", "TIMELINE",
+    "END_CARD_FOOTNOTES", "STORY_LESSONS", "CHAIN_ROWS", "CANDLES", "PAYOFFS",
+]
+LOOK_TOKEN = "{LOOK}"
+
+
+def export_config() -> dict:
+    """Current constants as plain JSON-safe data.
+
+    Atmosphere prompts have LOOK appended at definition time; it is swapped back
+    to a token so editing LOOK in the config still reaches every prompt.
+    """
+    data = {}
+    for key in CONFIG_KEYS:
+        value = globals()[key]
+        if key == "ATMOSPHERE":
+            value = [
+                {**act, "prompt": act["prompt"].replace(LOOK, LOOK_TOKEN)}
+                for act in value
+            ]
+        data[key] = json.loads(json.dumps(value, default=str))
+    return data
+
+
+def apply_config(config: dict) -> None:
+    """Overlay a config onto the defaults. Unknown keys are rejected loudly."""
+    unknown = [k for k in config if k not in CONFIG_KEYS]
+    if unknown:
+        raise SystemExit(f"Unknown config keys: {', '.join(sorted(unknown))}")
+    for key in CONFIG_KEYS:
+        if key in config:
+            globals()[key] = config[key]
+    look = globals()["LOOK"]
+    globals()["ATMOSPHERE"] = [
+        {**act, "prompt": act["prompt"].replace(LOOK_TOKEN, look)}
+        for act in globals()["ATMOSPHERE"]
+    ]
+
+
 def run(cmd: list[str]) -> None:
     subprocess.run(cmd, check=True)
 
@@ -1065,6 +1110,8 @@ def main() -> int:
     parser.add_argument("--timeout", type=int, default=7200)
     parser.add_argument("--reuse-existing", action="store_true")
     parser.add_argument("--dry-run", action="store_true")
+    parser.add_argument("--config", type=Path, help="JSON config layered over the defaults")
+    parser.add_argument("--emit-config", type=Path, help="Write the current defaults as JSON and exit")
     parser.add_argument(
         "--offline-cut",
         action="store_true",
@@ -1072,6 +1119,13 @@ def main() -> int:
              "audio mix, and titles without spending any GPU time.",
     )
     args = parser.parse_args()
+    if args.emit_config:
+        args.emit_config.parent.mkdir(parents=True, exist_ok=True)
+        args.emit_config.write_text(json.dumps(export_config(), indent=2) + "\n")
+        print(f"config={args.emit_config}")
+        return 0
+    if args.config:
+        apply_config(json.loads(Path(args.config).read_text()))
     args.source_seconds = args.source_seconds or (10 if args.profile == "preview" else 12)
     args.output_dir = args.output_dir or (PREVIEW_DIR if args.profile == "preview" else OUTPUT_DIR)
     args.final_name = args.final_name or (PREVIEW_NAME if args.profile == "preview" else FINAL_NAME)

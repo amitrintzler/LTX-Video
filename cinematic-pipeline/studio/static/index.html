@@ -1,0 +1,207 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Options Educator — Video Studio</title>
+<style>
+  :root{
+    --bg:#070a12; --panel:#0c1220; --line:#1c2740; --ink:#e8edf7; --dim:#8a9ab5;
+    --accent:#38bdf8; --violet:#818cf8; --ok:#34d399; --warn:#fbbf24; --bad:#f87171;
+    --font:"Avenir Next","Segoe UI",system-ui,sans-serif;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--font);font-size:14px}
+  header{padding:18px 24px;border-bottom:1px solid var(--line);display:flex;align-items:baseline;gap:16px;flex-wrap:wrap}
+  h1{margin:0;font-size:19px;letter-spacing:.4px}
+  .tag{font-size:11px;color:var(--dim);letter-spacing:1.6px;text-transform:uppercase}
+  #health{margin-left:auto;font-size:12px;color:var(--dim)}
+  main{display:grid;grid-template-columns:340px 1fr;gap:0;min-height:calc(100vh - 61px)}
+  aside{border-right:1px solid var(--line);padding:18px;overflow:auto}
+  section{padding:18px 24px;overflow:auto}
+  h2{font-size:12px;letter-spacing:1.6px;text-transform:uppercase;color:var(--dim);margin:22px 0 10px}
+  h2:first-child{margin-top:0}
+  .job{width:100%;text-align:left;background:var(--panel);border:1px solid var(--line);color:var(--ink);
+       border-radius:7px;padding:10px 12px;margin-bottom:7px;cursor:pointer;display:block}
+  .job:hover{border-color:var(--accent)}
+  .job .n{font-weight:600}
+  .job .s{color:var(--dim);font-size:12px;margin-top:2px}
+  .gpu{color:var(--warn);font-size:10px;letter-spacing:1.2px;text-transform:uppercase;float:right}
+  label{display:block;color:var(--dim);font-size:12px;margin:9px 0 4px}
+  input,select,textarea{width:100%;background:#060910;border:1px solid var(--line);color:var(--ink);
+       border-radius:6px;padding:8px 10px;font-family:var(--font);font-size:13px}
+  textarea{min-height:260px;font-family:ui-monospace,Menlo,monospace;font-size:12px;line-height:1.5}
+  button.go{background:linear-gradient(90deg,var(--accent),var(--violet));border:0;color:#04070e;
+       font-weight:700;border-radius:7px;padding:10px 16px;cursor:pointer;margin-top:14px;font-size:13px}
+  button.ghost{background:transparent;border:1px solid var(--line);color:var(--ink);border-radius:6px;
+       padding:7px 12px;cursor:pointer;font-size:12px;margin-right:6px}
+  table{width:100%;border-collapse:collapse;font-size:13px}
+  th{text-align:left;color:var(--dim);font-weight:600;font-size:11px;letter-spacing:1.2px;
+     text-transform:uppercase;padding:7px 8px;border-bottom:1px solid var(--line)}
+  td{padding:8px;border-bottom:1px solid #131c30;vertical-align:top}
+  .pill{font-size:11px;padding:2px 8px;border-radius:99px;border:1px solid var(--line)}
+  .queued{color:var(--dim)} .running{color:var(--accent);border-color:var(--accent)}
+  .done{color:var(--ok);border-color:var(--ok)} .failed{color:var(--bad);border-color:var(--bad)}
+  .cancelled{color:var(--warn);border-color:var(--warn)}
+  pre#log{background:#04070e;border:1px solid var(--line);border-radius:7px;padding:12px;
+      max-height:340px;overflow:auto;font-size:12px;line-height:1.55;white-space:pre-wrap;margin:0}
+  .row{display:flex;gap:10px;flex-wrap:wrap}
+  .row>div{flex:1;min-width:150px}
+  .hint{color:var(--dim);font-size:12px;margin-top:8px;line-height:1.6}
+  code{background:#04070e;padding:2px 6px;border-radius:4px;border:1px solid var(--line);font-size:12px}
+  video{width:100%;border-radius:8px;border:1px solid var(--line);margin-top:10px;background:#000}
+</style>
+</head>
+<body>
+<header>
+  <h1>Video Studio</h1><span class="tag">Options Educator</span>
+  <span id="health">…</span>
+</header>
+<main>
+  <aside>
+    <h2>Create</h2>
+    <div id="types"></div>
+    <h2>Parameters</h2>
+    <div id="params"></div>
+    <button class="go" id="run">Start job</button>
+    <div class="hint" id="est"></div>
+  </aside>
+  <section>
+    <h2>Jobs</h2>
+    <table><thead><tr><th>Type</th><th>Status</th><th>Started</th><th></th></tr></thead>
+    <tbody id="jobs"><tr><td colspan="4" class="hint">No jobs yet.</td></tr></tbody></table>
+
+    <h2>Log</h2>
+    <pre id="log">Select or start a job to follow its output.</pre>
+    <div id="outputs"></div>
+
+    <h2>Config</h2>
+    <div class="row">
+      <div><label>Saved config</label><select id="cfgName"></select></div>
+      <div><label>Save as</label><input id="cfgSaveAs" placeholder="my-variant"></div>
+    </div>
+    <div style="margin-top:10px">
+      <button class="ghost" id="cfgLoadDefault">Load defaults</button>
+      <button class="ghost" id="cfgLoad">Load selected</button>
+      <button class="ghost" id="cfgSave">Save</button>
+    </div>
+    <textarea id="cfg" spellcheck="false" placeholder="Load the defaults to edit titles, prompts, seeds, timeline, chain rows, payoffs…"></textarea>
+    <div class="hint">Edits here change titles, shot list, prompts, seeds, story lessons, chain and payoff data.
+      Save it, then pick it in Parameters → config. Leaving config empty uses the tuned defaults that produced the delivered master.</div>
+
+    <h2>Recent renders</h2>
+    <table><thead><tr><th>File</th><th>Size</th><th></th></tr></thead><tbody id="files"></tbody></table>
+    <video id="player" controls preload="none"></video>
+  </section>
+</main>
+<script>
+const $ = s => document.querySelector(s);
+let SPECS = [], picked = null, es = null;
+
+const FIELDS = {
+  "offline-cut":        [["config","Config (optional)","select"]],
+  "reassemble":         [["config","Config (optional)","select"],["profile","Profile","choice:preview,final"]],
+  "render-preview":     [["config","Config (optional)","select"],["resolution","Resolution","choice:540p,720p"],["source_seconds","Source seconds","number:10"]],
+  "render-final":       [["config","Config (optional)","select"],["resolution","Resolution","choice:720p,540p"],["source_seconds","Source seconds","number:10"]],
+  "regenerate-clip":    [["clip","Clip id","choice:city_reveal,old_town,tape_turn,trade_execute,media_plaza,pantheon_night"],["profile","Profile","choice:final,preview"],["config","Config (optional)","select"]],
+  "compose-score":      [["output","Output wav (optional)","text"]],
+  "capture-screenshots":[["url","Site URL","text:https://gameofoptions.netlify.app"]],
+  "qa":                 [["video","Video path","text"]],
+  "vertical-cut":       [["video","Video path","text"],["square","Also square 1:1","bool"]],
+};
+
+async function api(path, opts){ const r = await fetch(path, opts); if(!r.ok) throw new Error((await r.text())||r.status); return r.json(); }
+
+async function loadTypes(){
+  SPECS = await api('/api/job-types');
+  $('#types').innerHTML = SPECS.map(s=>`<button class="job" data-t="${s.name}">
+      <span class="gpu">${s.gpu?'GPU · queued':''}</span>
+      <div class="n">${s.name}</div><div class="s">${s.summary} · ${s.est}</div></button>`).join('');
+  document.querySelectorAll('#types .job').forEach(b=>b.onclick=()=>pick(b.dataset.t));
+  pick(SPECS[0].name);
+}
+
+async function pick(name){
+  picked = name;
+  document.querySelectorAll('#types .job').forEach(b=>b.style.borderColor = b.dataset.t===name?'var(--accent)':'var(--line)');
+  const spec = SPECS.find(s=>s.name===name);
+  $('#est').textContent = spec ? `${spec.summary}. Typically ${spec.est}.${spec.gpu?' Runs one at a time — the GPU is shared.':''}` : '';
+  const cfgs = await api('/api/configs');
+  $('#params').innerHTML = (FIELDS[name]||[]).map(([k,label,kind])=>{
+    if(kind==='select') return `<label>${label}</label><select data-k="${k}"><option value="">(tuned defaults)</option>${cfgs.map(c=>`<option>${c}</option>`).join('')}</select>`;
+    if(kind==='bool') return `<label>${label}</label><select data-k="${k}"><option value="">No</option><option value="1">Yes</option></select>`;
+    if(kind.startsWith('choice:')) return `<label>${label}</label><select data-k="${k}">${kind.slice(7).split(',').map(o=>`<option>${o}</option>`).join('')}</select>`;
+    if(kind.startsWith('number:')) return `<label>${label}</label><input data-k="${k}" type="number" value="${kind.slice(7)}">`;
+    if(kind.startsWith('text:')) return `<label>${label}</label><input data-k="${k}" value="${kind.slice(5)}">`;
+    return `<label>${label}</label><input data-k="${k}">`;
+  }).join('') || '<div class="hint">No parameters.</div>';
+}
+
+$('#run').onclick = async () => {
+  const params = {};
+  document.querySelectorAll('#params [data-k]').forEach(el=>{ if(el.value) params[el.dataset.k]=el.value; });
+  try{
+    const job = await api('/api/jobs',{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({type:picked,params})});
+    follow(job.id); refresh();
+  }catch(e){ $('#log').textContent = 'Could not start: '+e.message; }
+};
+
+function follow(id){
+  if(es) es.close();
+  $('#log').textContent = '';
+  $('#outputs').innerHTML = '';
+  es = new EventSource(`/api/jobs/${id}/logs`);
+  es.onmessage = ev => {
+    const d = JSON.parse(ev.data);
+    if(d.line !== undefined){ $('#log').textContent += d.line+'\n'; $('#log').scrollTop = $('#log').scrollHeight; }
+    if(d.status){
+      $('#log').textContent += `\n— ${d.status} —\n`;
+      if(d.outputs && d.outputs.length)
+        $('#outputs').innerHTML = d.outputs.map(o=>`<div class="hint">output: <code>${o}</code></div>`).join('');
+      es.close(); refresh(); loadFiles();
+    }
+  };
+}
+
+async function refresh(){
+  const jobs = await api('/api/jobs?limit=25');
+  $('#jobs').innerHTML = jobs.length ? jobs.map(j=>`<tr>
+     <td>${j.type}${j.gpu?' <span class="gpu">GPU</span>':''}</td>
+     <td><span class="pill ${j.status}">${j.status}</span></td>
+     <td class="s">${(j.started||j.created||'').replace('T',' ').replace('+00:00','')}</td>
+     <td><button class="ghost" data-f="${j.id}">log</button>${['queued','running'].includes(j.status)?`<button class="ghost" data-c="${j.id}">stop</button>`:''}</td>
+   </tr>`).join('') : '<tr><td colspan="4" class="hint">No jobs yet.</td></tr>';
+  document.querySelectorAll('[data-f]').forEach(b=>b.onclick=()=>follow(b.dataset.f));
+  document.querySelectorAll('[data-c]').forEach(b=>b.onclick=async()=>{ await fetch(`/api/jobs/${b.dataset.c}/cancel`,{method:'POST'}); refresh(); });
+}
+
+async function loadFiles(){
+  const files = await api('/api/outputs');
+  $('#files').innerHTML = files.map(f=>`<tr><td>${f.name}</td><td>${f.mib} MiB</td>
+      <td><button class="ghost" data-p="${encodeURIComponent(f.path)}">play</button></td></tr>`).join('');
+  document.querySelectorAll('[data-p]').forEach(b=>b.onclick=()=>{
+    $('#player').src = `/api/file?path=${b.dataset.p}`; $('#player').play();
+  });
+}
+
+async function loadConfigs(){ const c = await api('/api/configs');
+  $('#cfgName').innerHTML = c.map(n=>`<option>${n}</option>`).join('') || '<option value="">(none saved)</option>'; }
+$('#cfgLoadDefault').onclick = async()=>{ $('#cfg').value = JSON.stringify(await api('/api/configs/default'),null,2); };
+$('#cfgLoad').onclick = async()=>{ const n=$('#cfgName').value; if(n) $('#cfg').value = JSON.stringify(await api('/api/configs/'+n),null,2); };
+$('#cfgSave').onclick = async()=>{
+  const n = $('#cfgSaveAs').value.trim(); if(!n) return alert('Give it a name first.');
+  try{ JSON.parse($('#cfg').value); }catch(e){ return alert('That is not valid JSON: '+e.message); }
+  await api('/api/configs/'+n,{method:'PUT',headers:{'Content-Type':'application/json'},body:$('#cfg').value});
+  await loadConfigs(); await pick(picked); alert('Saved '+n);
+};
+
+async function health(){ try{ const h = await api('/health');
+  $('#health').textContent = `running: ${h.running.length?h.running.join(', '):'idle'} · gpu queue ${h.queued_gpu} · other queue ${h.queued_cpu}`;
+}catch(e){ $('#health').textContent='server not reachable'; } }
+
+loadTypes(); refresh(); loadFiles(); loadConfigs(); health();
+setInterval(()=>{refresh();health();}, 5000);
+</script>
+</body>
+</html>

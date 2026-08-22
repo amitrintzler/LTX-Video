@@ -167,7 +167,7 @@ blue blocks, green cone trees, glowing cyan lane lines down the avenues, dusk li
 Known weaknesses in this cut:
 
 - The `hi_journey` skill-map panel is used as the inset twice, at 8.9s and 43.9s.
-- `regime_flip`'s two ranges look similar to each other; the calm-to-storm change is
+- `tape_turn`'s two ranges look similar to each other; the calm-to-storm change is
   less legible than the title claims.
 - Inset panels are too small for their internal text to be read at video size. They
   register as "a real product screen" rather than legible content, which is the cost

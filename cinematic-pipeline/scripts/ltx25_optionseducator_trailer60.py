@@ -109,7 +109,7 @@ ATMOSPHERE = [
         ),
     },
     {
-        "id": "regime_flip",
+        "id": "tape_turn",
         "seed": 71043,
         "camera": "dolly_in",
         "prompt": (
@@ -186,15 +186,15 @@ TIMELINE = [
      "title": ("THE STREETS ARE THE SYLLABUS", "EVERY ROAD IS A CONCEPT YOU LEARN", 0.4, 3.4),
      "sign": ("GAMMA STREET", "THETA PATH | VEGA BOULEVARD"), "sfx": "click"},
     # -- Act 3: the tape turns ------------------------------------------------
-    {"kind": "ltx", "clip": "regime_flip", "start": 0.4, "duration": 4.2,
+    {"kind": "ltx", "clip": "tape_turn", "start": 0.4, "duration": 4.2,
      "title": ("THEN THE TAPE TURNS", "VOL CRUSH AND EVENT REPRICING", 0.4, 3.4),
      "sign": ("VOLATILITY HEIGHTS", "IV CRUSH ALLEY"), "sfx": "whoosh"},
-    {"kind": "ltx", "clip": "regime_flip", "start": 5.0, "duration": 4.8,
-     "title": ("THE REGIME DECIDES THE PLAY", "CALM: SELL PREMIUM | TRENDING: SPREADS", 0.4, 4.0)},
+    {"kind": "ltx", "clip": "tape_turn", "start": 5.0, "duration": 4.8,
+     "title": ("THE MARKET DECIDES THE PLAY", "CALM: SELL PREMIUM | TRENDING: SPREADS", 0.4, 4.0)},
     # -- Act 4: you take the trade -------------------------------------------
     {"kind": "ltx", "clip": "trade_execute", "start": 0.4, "duration": 4.4,
      "title": ("SO YOU TAKE THE TRADE", "EXECUTE. HOLD. CLOSE FOR P&L.", 0.4, 3.6),
-     "sign": ("SPREAD PARKWAY", "PREMIUM WAY"),
+     "sign": ("SPREAD PARKWAY", "PREMIUM WAY"), "payoffs": True,
      "inset": {"image": "hi_career.png", "region": (0.5, 0.105, 0.60)}, "sfx": "levelup"},
     {"kind": "ltx", "clip": "trade_execute", "start": 5.2, "duration": 4.0,
      "title": ("THE GREEKS RUN THIS CITY", "SENSITIVITIES, EXPOSURE, POSITION MANAGEMENT", 0.4, 3.2),
@@ -472,6 +472,45 @@ def render_sign(text: str, sub: str | None, out: Path) -> Path:
     return out
 
 
+# Payoff silhouettes for the strategy chips the game actually surfaces. Points are
+# in a 0..1 box, y measured upward from the profit/loss baseline.
+PAYOFFS = [
+    ("COVERED CALL", [(0.0, 0.10), (0.45, 0.55), (0.70, 0.80), (1.0, 0.80)]),
+    ("VERTICAL SPREAD", [(0.0, 0.18), (0.30, 0.18), (0.65, 0.82), (1.0, 0.82)]),
+    ("VOLATILITY HEDGE", [(0.0, 0.85), (0.30, 0.35), (0.50, 0.18), (0.70, 0.35), (1.0, 0.85)]),
+    ("IRON CONDOR", [(0.0, 0.20), (0.25, 0.78), (0.72, 0.78), (1.0, 0.20)]),
+]
+
+
+def render_payoffs(out: Path) -> Path:
+    """Draw the four payoff shapes as clean cards.
+
+    Generation kept turning these into decorative neon lines, so they are drawn
+    instead - the same reason the street names are composited rather than generated.
+    """
+    canvas = Image.new("RGBA", (1280, 720), (0, 0, 0, 0))
+    draw = ImageDraw.Draw(canvas)
+    card_w, card_h, gap = 250, 100, 14
+    origin_x, origin_y = 64, 196
+    name_font = font(13, FACE_HEAVY)
+    for index, (name, points) in enumerate(PAYOFFS):
+        cx = origin_x + (index % 2) * (card_w + gap)
+        cy = origin_y + (index // 2) * (card_h + gap)
+        draw.rounded_rectangle((cx, cy, cx + card_w, cy + card_h), radius=5,
+                               fill=(6, 10, 20, 224), outline=(56, 189, 248, 200), width=1)
+        tracked(draw, (cx + 14, cy + 10), name, name_font, (226, 232, 240, 255), 1.6)
+        plot_l, plot_r = cx + 14, cx + card_w - 14
+        plot_t, plot_b = cy + 34, cy + card_h - 12
+        draw.line([(plot_l, plot_b - 12), (plot_r, plot_b - 12)], fill=(70, 88, 120, 190), width=1)
+        pixels = [
+            (plot_l + x * (plot_r - plot_l), plot_b - y * (plot_b - plot_t))
+            for x, y in points
+        ]
+        draw.line(pixels, fill=(52, 235, 178, 255), width=3, joint="curve")
+    canvas.save(out)
+    return out
+
+
 def make_overlays(out_dir: Path) -> list[tuple[Path, float, float]]:
     """Full-canvas PNG title overlays: a soft bottom scrim plus left-aligned type."""
     target = out_dir / "overlays"
@@ -519,6 +558,13 @@ def make_overlays(out_dir: Path) -> list[tuple[Path, float, float]]:
         path = target / f"{index:02d}.png"
         canvas.save(path)
         outputs.append((path, shot_start + delay, shot_start + delay + hold))
+
+    # Payoff cards ride with their shot.
+    for index, (shot, (shot_start, shot_end)) in enumerate(zip(TIMELINE, shot_times())):
+        if not shot.get("payoffs"):
+            continue
+        path = render_payoffs(target / f"payoffs_{index:02d}.png")
+        outputs.append((path, shot_start + 0.5, shot_end - 0.25))
 
     # Street plates ride for most of their shot, independent of the title timing.
     for index, (shot, (shot_start, shot_end)) in enumerate(zip(TIMELINE, shot_times())):

@@ -936,9 +936,9 @@ def make_music(out_dir: Path) -> Path:
         "ffmpeg", "-y", "-loglevel", "error",
         "-i", str(movements[0]), "-i", str(movements[1]), "-i", str(movements[2]),
         "-filter_complex",
-        "[0:a]aresample=48000,atrim=0:24,afade=t=in:d=1.5[m0];"
-        "[1:a]aresample=48000,atrim=0:24[m1];"
-        "[2:a]aresample=48000,atrim=0:22[m2];"
+        "[0:a]aresample=48000,atrim=0:24,loudnorm=I=-17:TP=-2:LRA=4,afade=t=in:d=1.5[m0];"
+        "[1:a]aresample=48000,atrim=0:24,loudnorm=I=-17:TP=-2:LRA=4[m1];"
+        "[2:a]aresample=48000,atrim=0:22,loudnorm=I=-17:TP=-2:LRA=4[m2];"
         "[m0][m1]acrossfade=d=3:c1=tri:c2=tri[a01];"
         f"[a01][m2]acrossfade=d=3:c1=tri:c2=tri,atrim=0:{TOTAL_SECONDS},"
         f"afade=t=out:st={TOTAL_SECONDS - 3.5}:d=3.5[a]",
@@ -951,7 +951,8 @@ def make_audio(out_dir: Path) -> Path:
     """Music bed plus the product's own SFX on cuts. No voiceover by design."""
     bed = make_music(out_dir)
     inputs = ["-i", str(bed)]
-    filters = ["[0:a]volume=1.45[bed]"]  # orchestral bed is wider-dynamic than the old electronic one
+    filters = ["[0:a]acompressor=threshold=-26dB:ratio=4:attack=15:release=220,volume=1.45[bed]"]
+    # movements are level-matched in make_music; this evens out swings inside each one
     mix_labels = ["[bed]"]
     slot = 1
     for shot, (start, _) in zip(TIMELINE, shot_times()):
@@ -974,7 +975,7 @@ def make_audio(out_dir: Path) -> Path:
         "".join(mix_labels)
         + f"amix=inputs={len(mix_labels)}:duration=first:normalize=0,"
         f"loudnorm=I=-16:TP=-1.5:LRA=9,"
-        f"volume=3dB,alimiter=limit=0.82:attack=5:release=60,volume=-3.0dB[a]"  # single-pass loudnorm undershoots on the wide-dynamic orchestral bed
+        f"volume=3dB,alimiter=limit=0.82:attack=5:release=60,volume=-3.9dB[a]"  # single-pass loudnorm undershoots on the wide-dynamic orchestral bed
     )
     final_audio = out_dir / "trailer_audio.wav"
     run([

@@ -187,10 +187,11 @@ TIMELINE = [
      "sign": ("GAMMA STREET", "THETA PATH | VEGA BOULEVARD"), "sfx": "click"},
     # -- Act 3: the tape turns ------------------------------------------------
     {"kind": "ltx", "clip": "tape_turn", "start": 0.4, "duration": 4.2,
-     "title": ("THEN THE TAPE TURNS", "VOL CRUSH AND EVENT REPRICING", 0.4, 3.4),
+     "title": ("THEN THE TAPE TURNS", "VOL CRUSH AND EVENT REPRICING", 0.4, 3.4), "panel": "chart",
      "sign": ("VOLATILITY HEIGHTS", "IV CRUSH ALLEY"), "sfx": "whoosh"},
     {"kind": "ltx", "clip": "tape_turn", "start": 5.0, "duration": 4.8,
-     "title": ("THE MARKET DECIDES THE PLAY", "CALM: SELL PREMIUM | TRENDING: SPREADS", 0.4, 4.0)},
+     "title": ("THE MARKET DECIDES THE PLAY", "CALM: SELL PREMIUM | TRENDING: SPREADS", 0.4, 4.0),
+     "panel": "chain"},
     # -- Act 4: you take the trade -------------------------------------------
     {"kind": "ltx", "clip": "trade_execute", "start": 0.4, "duration": 4.4,
      "title": ("SO YOU TAKE THE TRADE", "EXECUTE. HOLD. CLOSE FOR P&L.", 0.4, 3.6),
@@ -202,6 +203,7 @@ TIMELINE = [
     # -- Act 5: the daily habit ----------------------------------------------
     {"kind": "ltx", "clip": "media_plaza", "start": 0.4, "duration": 4.4,
      "title": ("EVERY DAY THE CITY BRIEFS YOU", "STORIES | ANIMATIONS | VIDEO | PODCASTS | NEWS", 0.4, 3.6),
+     "panel": "story",
      "sign": ("EXPIRY ROAD", "MARKET NEWS DISTRICT"), "sfx": "whoosh"},
     {"kind": "ltx", "clip": "media_plaza", "start": 5.2, "duration": 4.2,
      "title": ("FIVE MINI-GAMES", "MARKET MAKER DEFENSE | RISK LADDER", 0.4, 3.4),
@@ -407,6 +409,21 @@ def render_ltx_shot(shot: dict, index: int, clips: dict[str, Path], work: Path) 
     return out
 
 
+def overlay_panel(base: Path, panel: Path, x: int, y: int, index: int, work: Path,
+                  tag: str, moving: bool = False) -> Path:
+    """Composite a rendered panel onto a shot, still or moving."""
+    out = work / f"shot_{index:02d}_{tag}.mp4"
+    second = ["-stream_loop", "-1", "-i", str(panel)] if moving else ["-loop", "1", "-i", str(panel)]
+    run([
+        "ffmpeg", "-y", "-loglevel", "error", "-i", str(base), *second,
+        "-filter_complex",
+        f"[1:v]format=rgba,colorchannelmixer=aa=0.97[panel];"
+        f"[0:v][panel]overlay=x={x}:y={y}:shortest=1,format=yuv420p[v]",
+        "-map", "[v]", "-an", "-c:v", "libx264", "-crf", "16", "-preset", "medium", str(out),
+    ])
+    return out
+
+
 def render_inset(shot: dict, index: int, base: Path, work: Path) -> Path:
     """Composite a real product panel into the world shot.
 
@@ -480,6 +497,157 @@ PAYOFFS = [
     ("VOLATILITY HEDGE", [(0.0, 0.85), (0.30, 0.35), (0.50, 0.18), (0.70, 0.35), (1.0, 0.85)]),
     ("IRON CONDOR", [(0.0, 0.20), (0.25, 0.78), (0.72, 0.78), (1.0, 0.20)]),
 ]
+
+
+STORY_ART = Path("/Users/amitri/Projects/optionseducator/public/assets/story-illustrations")
+STORY_PAGES = Path("/Users/amitri/Projects/optionseducator/public/story-images")
+
+# Real illustrations from the product's own storybook lessons.
+STORY_PICKS = [
+    STORY_ART / "basics-flow" / "page-0.png",
+    STORY_PAGES / "vertical-spreads" / "page-2.png",
+    STORY_ART / "candlesticks-101" / "page-0.png",
+    STORY_PAGES / "theta-clock" / "page--1.png",
+]
+
+# A plausible chain around a $180 underlying: strike, call bid/ask, put bid/ask, IV.
+CHAIN_ROWS = [
+    ("170", "10.85", "11.10", "0.92", "1.05", "31"),
+    ("175", "7.20", "7.45", "2.18", "2.35", "29"),
+    ("180", "4.35", "4.55", "4.30", "4.50", "28"),
+    ("185", "2.30", "2.45", "7.15", "7.40", "29"),
+    ("190", "1.05", "1.20", "10.90", "11.15", "32"),
+]
+
+# Closing prices for the drawn candles, with a signal marked on the turn.
+CANDLES = [
+    (100, 104), (104, 102), (102, 107), (107, 111), (111, 109), (109, 115),
+    (115, 121), (121, 118), (118, 112), (112, 105), (105, 99), (99, 103),
+    (103, 110), (110, 117), (117, 124),
+]
+
+
+def render_chart_panel(out: Path) -> Path:
+    """A real candlestick chart: wicks, bodies, a moving average and signal markers."""
+    W, H = 620, 348
+    canvas = Image.new("RGBA", (1280, 720), (0, 0, 0, 0))
+    draw = ImageDraw.Draw(canvas)
+    x0, y0 = 64, 160
+    draw.rounded_rectangle((x0, y0, x0 + W, y0 + H), radius=6,
+                           fill=(6, 10, 20, 232), outline=(56, 189, 248, 215), width=2)
+    tracked(draw, (x0 + 20, y0 + 16), "SPY  1D", font(17, FACE_HEAVY), (226, 232, 240, 255), 1.8)
+    tracked(draw, (x0 + 140, y0 + 19), "CANDLES + SIGNALS", font(12, FACE_DEMI), SUB_RGB, 1.6)
+
+    plot_l, plot_r = x0 + 20, x0 + W - 20
+    plot_t, plot_b = y0 + 52, y0 + H - 74
+    lo = min(min(a, b) for a, b in CANDLES) - 6
+    hi = max(max(a, b) for a, b in CANDLES) + 6
+    def py(v):
+        return plot_b - (v - lo) / (hi - lo) * (plot_b - plot_t)
+    for g in range(4):
+        gy = plot_t + g * (plot_b - plot_t) / 3
+        draw.line([(plot_l, gy), (plot_r, gy)], fill=(38, 50, 74, 150), width=1)
+
+    step = (plot_r - plot_l) / len(CANDLES)
+    body = step * 0.52
+    closes = []
+    for idx, (o, c) in enumerate(CANDLES):
+        cx = plot_l + step * (idx + 0.5)
+        up = c >= o
+        colour = (52, 211, 153, 255) if up else (248, 113, 113, 255)
+        wick_hi, wick_lo = max(o, c) + 3, min(o, c) - 3
+        draw.line([(cx, py(wick_hi)), (cx, py(wick_lo))], fill=colour, width=2)
+        top, bot = py(max(o, c)), py(min(o, c))
+        draw.rectangle((cx - body / 2, top, cx + body / 2, max(bot, top + 2)), fill=colour)
+        closes.append((cx, py(c)))
+    # moving average
+    ma = []
+    for idx in range(len(CANDLES)):
+        window = [c for _, c in CANDLES[max(0, idx - 2): idx + 1]]
+        ma.append((closes[idx][0], py(sum(window) / len(window))))
+    draw.line(ma, fill=(250, 204, 21, 235), width=2, joint="curve")
+
+    # signal markers on the reversal
+    for idx, label, colour in ((10, "BUY", (52, 211, 153, 255)), (7, "SELL", (248, 113, 113, 255))):
+        cx, cy = closes[idx]
+        oy = 18 if label == "BUY" else -18
+        draw.polygon([(cx, cy + oy - 6), (cx - 6, cy + oy + 6), (cx + 6, cy + oy + 6)]
+                     if label == "BUY" else
+                     [(cx, cy + oy + 6), (cx - 6, cy + oy - 6), (cx + 6, cy + oy - 6)], fill=colour)
+        tracked(draw, (cx - 12, cy + oy + (12 if label == "BUY" else -26)), label,
+                font(11, FACE_HEAVY), colour, 1.2)
+
+    # volume
+    vb, vt = y0 + H - 20, y0 + H - 62
+    for idx, (o, c) in enumerate(CANDLES):
+        cx = plot_l + step * (idx + 0.5)
+        h = 8 + (abs(c - o) * 3.2)
+        colour = (52, 211, 153, 165) if c >= o else (248, 113, 113, 165)
+        draw.rectangle((cx - body / 2, max(vt, vb - h), cx + body / 2, vb), fill=colour)
+    canvas.save(out)
+    return out
+
+
+def render_chain_panel(out: Path) -> Path:
+    """An options chain: calls on the left, strikes down the middle, puts on the right."""
+    W, H = 600, 366
+    canvas = Image.new("RGBA", (1280, 720), (0, 0, 0, 0))
+    draw = ImageDraw.Draw(canvas)
+    x0, y0 = 636, 120
+    draw.rounded_rectangle((x0, y0, x0 + W, y0 + H), radius=6,
+                           fill=(6, 10, 20, 234), outline=(56, 189, 248, 215), width=2)
+    tracked(draw, (x0 + 20, y0 + 16), "OPTIONS CHAIN", font(17, FACE_HEAVY), (226, 232, 240, 255), 1.8)
+    tracked(draw, (x0 + 205, y0 + 19), "EXP 21 DAYS", font(12, FACE_DEMI), SUB_RGB, 1.6)
+
+    head_font = font(12, FACE_HEAVY)
+    cell_font = font(14, FACE_DEMI)
+    cols = [x0 + 24, x0 + 108, x0 + 192, x0 + 288, x0 + 388, x0 + 480]
+    headers = ["CALL BID", "CALL ASK", "STRIKE", "PUT BID", "PUT ASK", "IV %"]
+    hy = y0 + 52
+    for cx, label in zip(cols, headers):
+        tracked(draw, (cx, hy), label, head_font, (125, 145, 180, 255), 1.4)
+    draw.line([(x0 + 20, hy + 22), (x0 + W - 20, hy + 22)], fill=(48, 64, 96, 210), width=1)
+
+    for row_index, row in enumerate(CHAIN_ROWS):
+        ry = hy + 40 + row_index * 44
+        at_money = row[0] == "180"
+        if at_money:
+            draw.rounded_rectangle((x0 + 16, ry - 9, x0 + W - 16, ry + 27), radius=4,
+                                   fill=(30, 58, 92, 200))
+        for col_index, (cx, value) in enumerate(zip(cols, row)):
+            if col_index == 2:
+                colour = (250, 204, 21, 255) if at_money else (226, 232, 240, 255)
+            elif col_index < 2:
+                colour = (52, 211, 153, 255)
+            elif col_index < 4:
+                colour = (248, 113, 113, 255)
+            else:
+                colour = (165, 180, 252, 255)
+            tracked(draw, (cx, ry), value, cell_font, colour, 1.2)
+    canvas.save(out)
+    return out
+
+
+def render_story_panel(work: Path) -> Path:
+    """A screen playing the product's own storybook illustrations, crossfading."""
+    picks = [p for p in STORY_PICKS if p.is_file()][:4]
+    if not picks:
+        raise SystemExit("No story illustrations found for the story panel.")
+    hold, fade = 2.2, 0.6
+    inputs, filters, labels = [], [], []
+    for index, art in enumerate(picks):
+        inputs += ["-loop", "1", "-t", f"{hold}", "-i", str(art)]
+        filters.append(
+            f"[{index}:v]scale=620:349:force_original_aspect_ratio=increase,crop=620:349,"
+            f"setsar=1,fps={FPS},format=yuv420p[p{index}]"
+        )
+        labels.append(f"[p{index}]")
+    chain = "".join(labels) + f"concat=n={len(picks)}:v=1:a=0[v]"
+    out = work / "story_panel.mp4"
+    run(["ffmpeg", "-y", "-loglevel", "error", *inputs,
+         "-filter_complex", ";".join(filters) + ";" + chain,
+         "-map", "[v]", "-r", str(FPS), "-c:v", "libx264", "-crf", "18", str(out)])
+    return out
 
 
 def render_payoffs(out: Path) -> Path:
@@ -781,6 +949,7 @@ def main() -> int:
             clips[act["id"]] = make_clip(act, args, token)
 
     shot_files = []
+    story_panel = render_story_panel(work) if any(s.get("panel") == "story" for s in TIMELINE) else None
     for index, shot in enumerate(TIMELINE):
         if shot["kind"] == "ui":
             rendered = render_ui_shot(shot, index, work)
@@ -788,6 +957,16 @@ def main() -> int:
             rendered = render_ltx_shot(shot, index, clips, work)
         if shot.get("inset"):
             rendered = render_inset(shot, index, rendered, work)
+        panel = shot.get("panel")
+        if panel == "chart":
+            art = render_chart_panel(work / f"panel_{index:02d}.png")
+            rendered = overlay_panel(rendered, art, 0, 0, index, work, "chart")
+        elif panel == "chain":
+            art = render_chain_panel(work / f"panel_{index:02d}.png")
+            rendered = overlay_panel(rendered, art, 0, 0, index, work, "chain")
+        elif panel == "story":
+            art = story_panel if story_panel else render_story_panel(work)
+            rendered = overlay_panel(rendered, art, 64, 168, index, work, "story", moving=True)
         shot_files.append(rendered)
 
     audio = make_audio(args.output_dir)

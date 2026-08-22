@@ -18,6 +18,7 @@ from fastapi.responses import FileResponse, HTMLResponse, StreamingResponse
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from jobs import (CONFIG_DIR, PROJECT, RENDER_ROOT, SPECS, TRAILER, Runner)  # noqa: E402
 import status as status_mod  # noqa: E402
+import catalogue as catalogue_mod  # noqa: E402
 
 app = FastAPI(title="Options Educator Video Studio")
 runner = Runner()
@@ -149,8 +150,15 @@ POSTER_DIR.mkdir(parents=True, exist_ok=True)
 
 
 def _allowed(target: Path) -> bool:
-    roots = [RENDER_ROOT.resolve(), PROJECT.resolve()]
+    roots = [RENDER_ROOT.resolve(), PROJECT.resolve(),
+             (Path.home() / "LTX-Studio").resolve()]
     return any(str(target).startswith(str(r)) for r in roots)
+
+
+@app.get("/api/catalogue")
+def catalogue() -> list:
+    """What can be made, what each is for, and a small sample of each."""
+    return catalogue_mod.build()
 
 
 @app.get("/api/gallery")
@@ -204,8 +212,7 @@ def poster(path: str, t: float = 2.0) -> FileResponse:
 def get_file(path: str) -> FileResponse:
     """Serve a rendered file. Confined to the render root and project folder."""
     target = Path(path).resolve()
-    allowed = [RENDER_ROOT.resolve(), PROJECT.resolve()]
-    if not any(str(target).startswith(str(a)) for a in allowed):
+    if not _allowed(target):
         raise HTTPException(403, "outside the allowed folders")
     if not target.is_file():
         raise HTTPException(404, "no such file")

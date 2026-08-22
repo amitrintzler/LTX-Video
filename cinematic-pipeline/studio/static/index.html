@@ -76,6 +76,22 @@
   code{background:#04070e;padding:2px 6px;border-radius:4px;border:1px solid var(--line);font-size:12px}
   .row{display:flex;gap:10px;flex-wrap:wrap}.row>div{flex:1;min-width:150px}
   .hidden{display:none}
+  .kgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(268px,1fr));gap:14px}
+  .kcard{background:var(--panel);border:1px solid var(--line);border-radius:10px;overflow:hidden;
+         display:flex;flex-direction:column}
+  .kcard.off{opacity:.62}
+  .kcard .prev{width:100%;aspect-ratio:16/9;object-fit:cover;background:#04070e;display:block;cursor:pointer}
+  .kcard .noprev{width:100%;aspect-ratio:16/9;display:flex;align-items:center;justify-content:center;
+         color:var(--dim);font-size:12px;background:linear-gradient(135deg,#0b1424,#131f36);text-align:center;padding:12px}
+  .kcard .kb{padding:11px 12px;display:flex;flex-direction:column;gap:6px;flex:1}
+  .kcard .kt{font-size:13.5px;font-weight:700}
+  .kcard .kp{color:var(--dim);font-size:12px;line-height:1.5;flex:1}
+  .kmeta{display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-top:2px}
+  .kmeta span{font-size:10.5px;letter-spacing:.8px;text-transform:uppercase;color:var(--dim);
+        border:1px solid var(--line);border-radius:99px;padding:2px 8px}
+  .kmake{background:transparent;border:1px solid var(--accent);color:var(--accent);border-radius:6px;
+        padding:6px 10px;font-size:12px;cursor:pointer;font-family:var(--font)}
+  .kmake:disabled{border-color:var(--line);color:var(--dim);cursor:not-allowed}
 </style>
 </head>
 <body>
@@ -101,6 +117,11 @@
   </div>
 
   <div id="tab-dash">
+    <h2>What this studio can make</h2>
+    <p class="grouphint">Every kind of output, each with a small low-quality sample so the page stays light.
+      Click a sample to watch it full size above. “Make one” starts the job that produces it.</p>
+    <div class="kgrid" id="kinds"></div>
+
     <h2>Finished videos</h2>
     <p class="grouphint">Newest first. Click to play above.</p>
     <div class="grid" id="gMasters"></div>
@@ -198,6 +219,39 @@ function cards(list, kind, target){
     show(c.dataset.k, decodeURIComponent(c.dataset.p), c.dataset.n, c.dataset.s));
 }
 
+async function loadCatalogue(){
+  const kinds = await api('/api/catalogue');
+  $('#kinds').innerHTML = kinds.map(k=>{
+    let prev;
+    if(!k.proxy) prev = `<div class="noprev">${k.why||'no sample yet'}</div>`;
+    else if(k.kind==='image')
+      prev = `<img class="prev" loading="lazy" src="${fileUrl(k.proxy)}" data-k="image" data-p="${encodeURIComponent(k.source)}" data-n="${k.title}">`;
+    else if(k.kind==='audio')
+      prev = `<div class="noprev prev" style="cursor:pointer;letter-spacing:2px" data-k="audio" data-p="${encodeURIComponent(k.source)}" data-n="${k.title}">▶ PLAY SCORE</div>`;
+    else
+      prev = `<video class="prev" muted loop playsinline preload="none" src="${fileUrl(k.proxy)}"
+                    data-k="video" data-p="${encodeURIComponent(k.source)}" data-n="${k.title}"></video>`;
+    return `<div class="kcard ${k.available?'':'off'}">
+      ${prev}
+      <div class="kb">
+        <div class="kt">${k.title}</div>
+        <div class="kp">${k.purpose}</div>
+        <div class="kmeta"><span>${k.kind}</span><span>${k.length}</span>
+          ${k.job?`<button class="kmake" data-job="${k.job}">Make one</button>`:''}</div>
+      </div></div>`;
+  }).join('');
+  // hover to preview, click to open full size in the stage
+  document.querySelectorAll('#kinds video.prev').forEach(v=>{
+    v.onmouseenter=()=>v.play().catch(()=>{}); v.onmouseleave=()=>{v.pause();v.currentTime=0;};
+  });
+  document.querySelectorAll('#kinds .prev').forEach(el=>el.onclick=()=>
+    show(el.dataset.k, decodeURIComponent(el.dataset.p), el.dataset.n, 'full quality'));
+  document.querySelectorAll('#kinds .kmake').forEach(b=>b.onclick=()=>{
+    document.querySelector('nav button[data-tab="create"]').click();
+    pick(b.dataset.job);
+  });
+}
+
 async function loadGallery(){
   const g = await api('/api/gallery');
   cards(g.masters,'video','#gMasters');
@@ -285,7 +339,7 @@ function follow(id){
     if(d.status){
       $('#log').textContent+=`\n— ${d.status} —\n`;
       if(d.outputs?.length) $('#outputs').innerHTML=d.outputs.map(o=>`<div class="hint">output: <code>${o}</code></div>`).join('');
-      es.close(); refresh(); loadGallery(); loadStatus();
+      es.close(); refresh(); loadGallery(); loadCatalogue(); loadStatus();
     }
   };
 }
@@ -315,7 +369,7 @@ $('#cfgSave').onclick=async()=>{
 (async()=>{
   SPECS=await api('/api/job-types');
   await loadStatus(); await pick('offline-cut');
-  await loadGallery(); refresh(); loadConfigs();
+  await loadCatalogue(); await loadGallery(); refresh(); loadConfigs();
   setInterval(()=>{refresh();loadStatus();},6000);
 })();
 </script>

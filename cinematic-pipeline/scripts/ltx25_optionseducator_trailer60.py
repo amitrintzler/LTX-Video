@@ -922,14 +922,24 @@ def make_overlays(out_dir: Path) -> list[tuple[Path, float, float]]:
 
 
 def make_music(out_dir: Path) -> Path:
-    """Assemble the generated movements into one 60s bed with crossfades."""
+    """Prefer the composed cue; fall back to the generated movements."""
+    composed = MUSIC_DIR / "composed_score.wav"
+    if composed.is_file():
+        bed = out_dir / "music_bed.wav"
+        run([
+            "ffmpeg", "-y", "-loglevel", "error", "-i", str(composed),
+            "-af", f"aresample=48000,atrim=0:{TOTAL_SECONDS},"
+                   f"afade=t=out:st={TOTAL_SECONDS - 3.0}:d=3.0",
+            "-t", str(TOTAL_SECONDS), str(bed),
+        ])
+        return bed
+
     movements = [MUSIC_DIR / f"{name}.wav" for name in
                  ("bed_1_unsettled", "bed_2_resolve", "bed_3_lift")]
     missing = [m for m in movements if not m.is_file()]
     if missing:
         raise SystemExit(
-            "Music movements are missing: " + ", ".join(str(m) for m in missing)
-            + "\nGenerate them first with the project's gen_music_bed.py."
+            "No composed score and missing movements: " + ", ".join(str(m) for m in missing)
         )
     bed = out_dir / "music_bed.wav"
     run([

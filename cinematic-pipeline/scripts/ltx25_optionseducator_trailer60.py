@@ -180,8 +180,7 @@ TIMELINE = [
     # -- Act 2: the city is the syllabus -------------------------------------
     {"kind": "ltx", "clip": "old_town", "start": 4.8, "duration": 4.6,
      "title": ("WHERE EVERY TRADER STARTS", "CHAIN LITERACY | YOUR FIRST COVERED CALL", 0.4, 3.6),
-     "sign": ("OLD TOWN", "STORYBOOK BASICS"),
-     "inset": {"image": "hi_journey.png", "region": (0.5, 0.345, 0.60)}},
+     "sign": ("OLD TOWN", "STORYBOOK BASICS"), "panel": "story"},
     {"kind": "ltx", "clip": "city_reveal", "start": 5.2, "duration": 4.4,
      "title": ("THE STREETS ARE THE SYLLABUS", "EVERY ROAD IS A CONCEPT YOU LEARN", 0.4, 3.4),
      "sign": ("GAMMA STREET", "THETA PATH | VEGA BOULEVARD"), "sfx": "click"},
@@ -204,11 +203,11 @@ TIMELINE = [
     # -- Act 5: the daily habit ----------------------------------------------
     {"kind": "ltx", "clip": "media_plaza", "start": 0.4, "duration": 4.4,
      "title": ("EVERY DAY THE CITY BRIEFS YOU", "STORIES | ANIMATIONS | VIDEO | PODCASTS | NEWS", 0.4, 3.6),
-     "panel": "story",
+     "panel": "story", "extras": ["podcast"],
      "sign": ("EXPIRY ROAD", "MARKET NEWS DISTRICT"), "sfx": "whoosh"},
     {"kind": "ltx", "clip": "media_plaza", "start": 5.2, "duration": 4.2,
-     "title": ("FIVE MINI-GAMES", "MARKET MAKER DEFENSE | RISK LADDER", 0.4, 3.4),
-     "inset": {"image": "hi_lessons.png", "region": (0.5, 0.30, 0.52)}, "sfx": "pop"},
+     "title": ("AN ARCADE THAT KEEPS GROWING", "MARKET MAKER DEFENSE | RISK LADDER | STRATEGY BUILDER", 0.4, 3.4),
+     "extras": ["video"], "sfx": "pop"},
     # -- Act 6: payoff --------------------------------------------------------
     {"kind": "ltx", "clip": "pantheon_night", "start": 0.4, "duration": 4.5,
      "title": ("THIRTY-FOUR SKILLS", "SIX TRACKS | FOUNDATIONS TO RISK", 0.4, 3.6),
@@ -546,12 +545,23 @@ STORY_ART = Path("/Users/amitri/Projects/optionseducator/public/assets/story-ill
 STORY_PAGES = Path("/Users/amitri/Projects/optionseducator/public/story-images")
 
 # Real illustrations from the product's own storybook lessons.
-STORY_PICKS = [
-    STORY_ART / "basics-flow" / "page-0.png",
-    STORY_PAGES / "vertical-spreads" / "page-2.png",
-    STORY_ART / "candlesticks-101" / "page-0.png",
-    STORY_PAGES / "theta-clock" / "page--1.png",
+STORY_LESSONS = [
+    "basics-flow", "theta-clock", "vertical-spreads", "intro-greeks",
+    "candlesticks-101", "straddle-strangle", "support-resistance", "short-risk",
+    "strike-price-mastery", "valuation-ratios-101", "macro-vol", "rsi-macd-mastery",
 ]
+
+
+def story_picks(limit: int = 12) -> list[Path]:
+    """Real storybook art from across the curriculum, one page per lesson."""
+    picks = []
+    for lesson in STORY_LESSONS:
+        for stem in ("page-0.png", "page-1.png", "page-2.png"):
+            candidate = STORY_ART / lesson / stem
+            if candidate.is_file():
+                picks.append(candidate)
+                break
+    return picks[:limit]
 
 # A plausible chain around a $180 underlying: strike, call bid/ask, put bid/ask, IV.
 CHAIN_ROWS = [
@@ -669,25 +679,92 @@ def render_chain_panel(out: Path, box: tuple[int, int, int, int] = (636, 120, 60
     return out
 
 
-def render_story_panel(work: Path) -> Path:
-    """A screen playing the product's own storybook illustrations, crossfading."""
-    picks = [p for p in STORY_PICKS if p.is_file()][:4]
+def render_story_panel(work: Path, width: int = 620, height: int = 349,
+                       hold: float = 1.15, name: str = "story_panel.mp4") -> Path:
+    """A screen playing the product's own storybook illustrations."""
+    picks = story_picks()
     if not picks:
         raise SystemExit("No story illustrations found for the story panel.")
-    hold, fade = 2.2, 0.6
     inputs, filters, labels = [], [], []
     for index, art in enumerate(picks):
         inputs += ["-loop", "1", "-t", f"{hold}", "-i", str(art)]
         filters.append(
-            f"[{index}:v]scale=620:349:force_original_aspect_ratio=increase,crop=620:349,"
-            f"setsar=1,fps={FPS},format=yuv420p[p{index}]"
+            f"[{index}:v]scale={width}:{height}:force_original_aspect_ratio=increase,"
+            f"crop={width}:{height},setsar=1,fps={FPS},format=yuv420p[p{index}]"
         )
         labels.append(f"[p{index}]")
     chain = "".join(labels) + f"concat=n={len(picks)}:v=1:a=0[v]"
-    out = work / "story_panel.mp4"
+    out = work / name
     run(["ffmpeg", "-y", "-loglevel", "error", *inputs,
          "-filter_complex", ";".join(filters) + ";" + chain,
          "-map", "[v]", "-r", str(FPS), "-c:v", "libx264", "-crf", "18", str(out)])
+    return out
+
+
+def render_podcast_panel(out: Path) -> Path:
+    """A podcast player: microphone, waveform, transport and episode rows."""
+    W, H = 560, 300
+    canvas = Image.new("RGBA", (1280, 720), (0, 0, 0, 0))
+    draw = ImageDraw.Draw(canvas)
+    x0, y0 = 0, 0
+    draw.rounded_rectangle((x0, y0, x0 + W, y0 + H), radius=6,
+                           fill=(6, 10, 20, 236), outline=(56, 189, 248, 220), width=2)
+    tracked(draw, (x0 + 20, y0 + 16), "DAILY PODCAST", font(17, FACE_HEAVY), (226, 232, 240, 255), 1.8)
+    tracked(draw, (x0 + 190, y0 + 19), "TODAY  12 MIN", font(12, FACE_DEMI), SUB_RGB, 1.6)
+    # microphone
+    mx, my = x0 + 46, y0 + 92
+    draw.rounded_rectangle((mx - 13, my - 26, mx + 13, my + 10), radius=13, fill=(99, 102, 241, 255))
+    draw.arc((mx - 24, my - 8, mx + 24, my + 34), start=0, end=180, fill=(165, 180, 252, 255), width=4)
+    draw.line([(mx, my + 30), (mx, my + 44)], fill=(165, 180, 252, 255), width=4)
+    # waveform
+    import math
+    bx, by = x0 + 96, y0 + 100
+    for i in range(46):
+        amp = 6 + abs(math.sin(i * 0.55)) * 30 + (i % 5) * 2
+        colour = (52, 211, 153, 255) if i < 26 else (70, 92, 128, 255)
+        draw.rounded_rectangle((bx + i * 9, by - amp / 2, bx + i * 9 + 4, by + amp / 2), radius=2, fill=colour)
+    # transport
+    draw.ellipse((x0 + 24, y0 + 158, x0 + 60, y0 + 194), fill=(56, 189, 248, 255))
+    draw.polygon([(x0 + 37, y0 + 167), (x0 + 37, y0 + 185), (x0 + 52, y0 + 176)], fill=(6, 10, 20, 255))
+    draw.rounded_rectangle((x0 + 74, y0 + 172, x0 + W - 24, y0 + 180), radius=4, fill=(38, 50, 74, 255))
+    draw.rounded_rectangle((x0 + 74, y0 + 172, x0 + 250, y0 + 180), radius=4, fill=(52, 211, 153, 255))
+    for row in range(2):
+        ry = y0 + 214 + row * 38
+        draw.rounded_rectangle((x0 + 24, ry, x0 + W - 24, ry + 30), radius=4, fill=(14, 22, 38, 235))
+        draw.ellipse((x0 + 34, ry + 9, x0 + 46, ry + 21), fill=(99, 102, 241, 255))
+        draw.rounded_rectangle((x0 + 58, ry + 11, x0 + 300 - row * 40, ry + 17), radius=3, fill=(70, 88, 120, 255))
+        draw.rounded_rectangle((x0 + W - 78, ry + 11, x0 + W - 34, ry + 17), radius=3, fill=(48, 64, 96, 255))
+    canvas.save(out)
+    return out
+
+
+def render_video_panel(out: Path) -> Path:
+    """A daily-video player: frame, play control, scrubber and thumbnail strip."""
+    W, H = 560, 316
+    canvas = Image.new("RGBA", (1280, 720), (0, 0, 0, 0))
+    draw = ImageDraw.Draw(canvas)
+    draw.rounded_rectangle((0, 0, W, H), radius=6, fill=(6, 10, 20, 236),
+                           outline=(56, 189, 248, 220), width=2)
+    tracked(draw, (20, 16), "DAILY VIDEO", font(17, FACE_HEAVY), (226, 232, 240, 255), 1.8)
+    tracked(draw, (170, 19), "NEW TODAY", font(12, FACE_DEMI), SUB_RGB, 1.6)
+    draw.rounded_rectangle((20, 48, W - 20, 214), radius=5, fill=(12, 20, 34, 255),
+                           outline=(38, 50, 74, 255), width=1)
+    for i in range(9):  # a chart playing inside the video frame
+        x = 44 + i * 54
+        up = i % 3 != 1
+        colour = (52, 211, 153, 220) if up else (248, 113, 113, 220)
+        h = 26 + (i % 4) * 17
+        draw.rectangle((x, 170 - h, x + 16, 170), fill=colour)
+    draw.ellipse((W / 2 - 26, 108, W / 2 + 26, 160), fill=(255, 255, 255, 232))
+    draw.polygon([(W / 2 - 8, 120), (W / 2 - 8, 148), (W / 2 + 14, 134)], fill=(6, 10, 20, 255))
+    draw.rounded_rectangle((20, 226, W - 20, 233), radius=3, fill=(38, 50, 74, 255))
+    draw.rounded_rectangle((20, 226, 214, 233), radius=3, fill=(56, 189, 248, 255))
+    for i in range(4):
+        tx = 20 + i * ((W - 40) / 4)
+        draw.rounded_rectangle((tx, 248, tx + (W - 40) / 4 - 10, 300), radius=4,
+                               fill=(14, 22, 38, 240), outline=(38, 50, 74, 255), width=1)
+        draw.polygon([(tx + 24, 266), (tx + 24, 284), (tx + 40, 275)], fill=(99, 102, 241, 255))
+    canvas.save(out)
     return out
 
 
@@ -1015,6 +1092,13 @@ def main() -> int:
         if panel == "story":
             art = story_panel if story_panel else render_story_panel(work)
             rendered = overlay_panel(rendered, art, 64, 168, index, work, "story", moving=True)
+        for extra in shot.get("extras", []):
+            if extra == "podcast":
+                art = render_podcast_panel(work / f"podcast_{index:02d}.png")
+                rendered = overlay_panel(rendered, art, 700, 168, index, work, "podcast")
+            elif extra == "video":
+                art = render_video_panel(work / f"video_{index:02d}.png")
+                rendered = overlay_panel(rendered, art, 700, 168, index, work, "video")
         shot_files.append(rendered)
 
     audio = make_audio(args.output_dir)

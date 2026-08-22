@@ -301,12 +301,34 @@ def tracked_width(draw: ImageDraw.ImageDraw, text: str, f, spacing: float = 0.0)
     return int(sum(draw.textlength(c, font=f) for c in text) + spacing * max(0, len(text) - 1))
 
 
-def auth_token() -> str:
+def auth_token(base_url: str = BASE_URL) -> str:
+    """Find LTX Desktop's transient local token.
+
+    `ps` output can contain more than one match - any process whose command line
+    mentions the variable, including tools that grep for it - so taking the first
+    match yields a bogus token and a 401 mid-render. Candidates are filtered to
+    plausible tokens and then verified against the backend.
+    """
     proc = subprocess.run(["ps", "eww", "-ax"], check=True, text=True, capture_output=True)
-    match = re.search(r"LTX_AUTH_TOKEN=([^ ]+)", proc.stdout)
-    if not match:
+    candidates = [
+        t for t in dict.fromkeys(re.findall(r"LTX_AUTH_TOKEN=([^\s]+)", proc.stdout))
+        if len(t) >= 16 and re.fullmatch(r"[A-Za-z0-9._\-]+", t)
+    ]
+    if not candidates:
         raise SystemExit("LTX Desktop backend is not running or its local token is unavailable.")
-    return match.group(1)
+    for token in candidates:
+        try:
+            req = urllib.request.Request(
+                f"{base_url}/api/models/ltx-versions",
+                headers={"Authorization": f"Bearer {token}"},
+            )
+            with urllib.request.urlopen(req, timeout=10):
+                return token
+        except Exception:  # noqa: BLE001 - try the next candidate
+            continue
+    raise SystemExit(
+        "Found LTX token candidates but none were accepted. Is LTX Desktop still running?"
+    )
 
 
 def request(method: str, url: str, token: str, payload: dict | None = None, timeout: int = 30) -> dict:

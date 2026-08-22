@@ -17,6 +17,7 @@ from fastapi.responses import FileResponse, HTMLResponse, StreamingResponse
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from jobs import (CONFIG_DIR, PROJECT, RENDER_ROOT, SPECS, TRAILER, Runner)  # noqa: E402
+import status as status_mod  # noqa: E402
 
 app = FastAPI(title="Options Educator Video Studio")
 runner = Runner()
@@ -26,6 +27,12 @@ STATIC = Path(__file__).resolve().parent / "static"
 @app.get("/", response_class=HTMLResponse)
 def index() -> str:
     return (STATIC / "index.html").read_text()
+
+
+@app.get("/api/status")
+def system_status() -> dict:
+    """What is usable right now, and the reason when something is not."""
+    return status_mod.snapshot()
 
 
 @app.get("/api/job-types")
@@ -39,6 +46,9 @@ def create_job(payload: Dict[str, Any] = Body(...)) -> dict[str, Any]:
     job_type = payload.get("type")
     if not job_type:
         raise HTTPException(400, "type is required")
+    check = status_mod.snapshot()["checks"].get(job_type)
+    if check and not check["ready"]:
+        raise HTTPException(409, f"{job_type} cannot run right now: {check['why']}")
     try:
         job = runner.submit(job_type, payload.get("params") or {})
     except ValueError as exc:

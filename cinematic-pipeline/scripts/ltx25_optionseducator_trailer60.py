@@ -52,6 +52,7 @@ TOTAL_SECONDS = 60.0
 FPS = 24
 
 NEGATIVE = (
+    "wax candles, birthday candles, candle flames, lit candles, dripping wax, candelabra, lanterns, torches, glowing rods, neon tubes, "
     "text, letters, words, writing, alphabet, characters, lettering, gibberish text, fake letters, "
     "garbled writing, misspelled words, captions, subtitles, headlines, signage, billboards with words, "
     "shop signs, nameplates, numbers, digits, watermark, logo, "
@@ -73,7 +74,7 @@ PALETTE = (
 LOOK = (
     "Stylised low-poly 3D game world, flat shaded, clean minimal geometry: tan, sand and deep blue "
     "geometric tower blocks, wide dark avenues with bright glowing cyan lane lines. The tower facades are "
-    "enormous glowing market displays: green and red candlestick charts stepping up and down, rising and "
+    "enormous glowing market displays: flat red and green rectangular price bars in a row stepping up and down, rising and "
     "falling line graphs, and bands of solid glowing colour blocks wrapping the buildings. No writing anywhere. "
     "The city is busy and alive: "
     "dense streams of small stylised cars flow along every avenue in both directions, trams glide through, "
@@ -93,7 +94,7 @@ ATMOSPHERE = [
             "reveal an enormous stylised open-world game city. Distinct neighbourhoods are visible at once: "
             "low warm storybook streets near the front, a district of tall chart towers, a bank quarter of "
             "heavy stone ledgers, and white marble columns on the far ridge. Dense traffic streams along every "
-            "glowing cyan avenue and the tower facades animate with green and red candlestick charts. " + LOOK
+            "glowing cyan avenue and the tower facades animate with flat red and green rectangular price bars in a row. " + LOOK
         ),
     },
     {
@@ -104,7 +105,7 @@ ATMOSPHERE = [
             "The traveller walks forward through Old Town, the oldest neighbourhood of a stylised game city: "
             "low warm sandstone buildings, arched storefronts and hanging lanterns, illustrated painted panels "
             "on the walls like pages from a picture book. Above the shopfronts, modest glowing screens show "
-            "simple green and red candlestick charts. Pedestrians and small cars move through the narrow "
+            "simple flat red and green rectangular price bars in a row. Pedestrians and small cars move through the narrow "
             "street, market stalls busy on both sides. " + LOOK
         ),
     },
@@ -114,7 +115,7 @@ ATMOSPHERE = [
         "camera": "dolly_in",
         "prompt": (
             "A district of tall dark glass chart towers flips from calm to violent. The clear gold sky darkens "
-            "into a black churning storm with sheet lightning, and at the same moment every green candlestick "
+            "into a black churning storm with sheet lightning, and at the same moment every green price bar "
             "chart on the towers flips to red and spikes downward. Enormous facade screens cut to a financial "
             "television broadcast shown only as imagery: a presenter figure at a studio desk, a split-screen of "
             "coloured market maps, and a plain solid colour band running along the bottom of each screen. "
@@ -132,7 +133,7 @@ ATMOSPHERE = [
             "like a hockey stick, the second rises then flattens into a level plateau, the third rises to a "
             "sharp peak then falls symmetrically like a tent, the fourth is a wide flat-topped plateau with "
             "sloping sides at both ends. The lines draw themselves left to right one after another, glowing "
-            "cyan and green against black. Beside them a holographic candlestick chart builds bar by bar. "
+            "cyan and green against black. Beside them a holographic price-bar chart builds bar by bar. "
             "Simple bold geometry, no writing, letters or numbers anywhere. Traffic streams beneath. " + LOOK
         )
     },
@@ -145,7 +146,7 @@ ATMOSPHERE = [
             "glowing screens each playing something different and clearly animated: a financial television "
             "studio with a presenter figure and a plain solid colour band beneath, a colourful illustrated "
             "cartoon story with simple characters moving through a painted scene, an animated explainer diagram "
-            "drawing itself line by line, and a candlestick chart building bar by bar. Every screen shows "
+            "drawing itself line by line, and a flat price-bar chart building bar by bar. Every screen shows "
             "pictures only, with absolutely no writing, letters, numbers or captions anywhere. Crowds walk "
             "between them, traffic passes behind. " + LOOK
         )
@@ -158,7 +159,7 @@ ATMOSPHERE = [
             "Final wide vista at blue hour over a stylised game city crowned by a ridge of monumental white "
             "marble colonnades and domes lit from below, five great columned halls glowing along it. Below, "
             "every avenue is traced in cyan light and packed with moving traffic leaving light trails to the "
-            "horizon, facades glowing with green and red candlestick charts. The lone traveller stands small on "
+            "horizon, facades glowing with flat red and green rectangular price bars in a row. The lone traveller stands small on "
             "a high walkway looking out. Camera sweeps upward and far backward. " + LOOK
         ),
     },
@@ -705,7 +706,7 @@ CANDLES = [
 
 
 def render_chart_panel(out: Path, box: tuple[int, int, int, int] = (64, 160, 620, 348)) -> Path:
-    """A real candlestick chart: wicks, bodies, a moving average and signal markers."""
+    """A real flat price-bar chart: wicks, bodies, a moving average and signal markers."""
     x0, y0, W, H = box
     canvas = Image.new("RGBA", (1280, 720), (0, 0, 0, 0))
     draw = ImageDraw.Draw(canvas)

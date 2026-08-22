@@ -144,6 +144,62 @@ def outputs() -> list[dict[str, Any]]:
     return sorted(files, key=lambda x: x["modified"], reverse=True)[:40]
 
 
+POSTER_DIR = Path.home() / "LTX-Studio" / "posters"
+POSTER_DIR.mkdir(parents=True, exist_ok=True)
+
+
+def _allowed(target: Path) -> bool:
+    roots = [RENDER_ROOT.resolve(), PROJECT.resolve()]
+    return any(str(target).startswith(str(r)) for r in roots)
+
+
+@app.get("/api/gallery")
+def gallery() -> dict:
+    """Everything worth reviewing, grouped so a decision can be made at a glance."""
+    def stat(f: Path) -> dict:
+        st = f.stat()
+        return {"path": str(f), "name": f.name, "mib": round(st.st_size / 1048576, 2),
+                "modified": int(st.st_mtime)}
+
+    masters, shots, audio, images = [], [], [], []
+    for d in sorted(RENDER_ROOT.glob("*")) if RENDER_ROOT.exists() else []:
+        if not d.is_dir():
+            continue
+        for f in sorted(d.glob("*.mp4")):
+            entry = {**stat(f), "group": d.name}
+            masters.append(entry)
+        for f in sorted((d / "shots").glob("*.mp4")) if (d / "shots").exists() else []:
+            shots.append({**stat(f), "group": d.name})
+    music_dir = PROJECT / "music"
+    for f in sorted(music_dir.glob("*.wav")) if music_dir.exists() else []:
+        audio.append(stat(f))
+    for pattern in ("youtube/*.jpg", "youtube/*.png", "reference/*.png"):
+        for f in sorted(PROJECT.glob(pattern)):
+            images.append(stat(f))
+
+    masters.sort(key=lambda x: x["modified"], reverse=True)
+    shots.sort(key=lambda x: x["modified"], reverse=True)
+    return {"masters": masters[:12], "shots": shots[:24],
+            "audio": audio[:12], "images": images[:12]}
+
+
+@app.get("/api/poster")
+def poster(path: str, t: float = 2.0) -> FileResponse:
+    """A cached still from a video, so the gallery shows pictures not filenames."""
+    target = Path(path).resolve()
+    if not _allowed(target) or not target.is_file():
+        raise HTTPException(404, "no such file")
+    key = f"{abs(hash((str(target), round(t, 2), int(target.stat().st_mtime))))}.jpg"
+    out = POSTER_DIR / key
+    if not out.is_file():
+        subprocess.run(["ffmpeg", "-v", "error", "-ss", str(t), "-i", str(target),
+                        "-frames:v", "1", "-vf", "scale=480:-2", "-y", str(out)],
+                       check=False, capture_output=True)
+    if not out.is_file():
+        raise HTTPException(500, "could not build a poster for that file")
+    return FileResponse(out)
+
+
 @app.get("/api/file")
 def get_file(path: str) -> FileResponse:
     """Serve a rendered file. Confined to the render root and project folder."""

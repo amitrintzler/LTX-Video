@@ -916,7 +916,7 @@ def make_audio(out_dir: Path) -> Path:
         "".join(mix_labels)
         + f"amix=inputs={len(mix_labels)}:duration=first:normalize=0,"
         f"loudnorm=I=-16:TP=-1.5:LRA=9,"
-        f"volume=3dB,alimiter=limit=0.82:attack=5:release=60,volume=-1.2dB[a]"  # single-pass loudnorm undershoots on the wide-dynamic orchestral bed
+        f"volume=3dB,alimiter=limit=0.82:attack=5:release=60,volume=-3.0dB[a]"  # single-pass loudnorm undershoots on the wide-dynamic orchestral bed
     )
     final_audio = out_dir / "trailer_audio.wav"
     run([

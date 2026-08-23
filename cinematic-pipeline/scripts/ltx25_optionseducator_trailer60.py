@@ -52,16 +52,12 @@ TOTAL_SECONDS = 60.0
 FPS = 24
 
 NEGATIVE = (
-    "wax candles, birthday candles, candle flames, lit candles, dripping wax, candelabra, lanterns, torches, glowing rods, neon tubes, "
-    "text, letters, words, writing, alphabet, characters, lettering, gibberish text, fake letters, "
-    "garbled writing, misspelled words, captions, subtitles, headlines, signage, billboards with words, "
-    "shop signs, nameplates, numbers, digits, watermark, logo, "
-    "trees, pine trees, cone trees, forest, park, greenery, bushes, "
-    "empty deserted streets, no traffic, no cars, nobody, motionless, "
-    "low quality, low resolution, blurry, static image, still frame, slideshow, no movement, weak motion, "
-    "camera shake, jitter, flicker, duplicated people, distorted face, deformed hands, extra limbs, "
-    "washed out, pale blue background, bright white background, faded, overexposed, "
-    "warm orange fantasy lighting, greek temple fantasy, medieval"
+    "wax candles, birthday candles, candle flames, lit candles, dripping wax, candelabra, "
+    "text, letters, words, writing, alphabet, gibberish text, captions, signage, "
+    "flat blocks of solid colour, giant colour panels, poster art, plain untextured walls, "
+    "trees, forest, park, greenery, empty deserted streets, no traffic, motionless, "
+    "low quality, low resolution, blurry, static image, slideshow, weak motion, camera shake, flicker, "
+    "washed out, faded, overexposed, photoreal city"
 )
 
 PALETTE = (
@@ -72,14 +68,14 @@ PALETTE = (
 
 # Atmosphere clips. Text-to-video only: a still would constrain the motion these beats need.
 LOOK = (
-    "Stylised low-poly 3D game world, flat shaded, clean minimal geometry: tan, sand and deep blue "
-    "geometric tower blocks, wide dark avenues with bright glowing cyan lane lines. The tower facades are "
-    "enormous glowing market displays: flat red and green rectangular price bars in a row stepping up and down, rising and "
-    "falling line graphs, and bands of solid glowing colour blocks wrapping the buildings. No writing anywhere. "
-    "The city is busy and alive: "
-    "dense streams of small stylised cars flow along every avenue in both directions, trams glide through, "
-    "pedestrians walk the sidewalks, drones drift between towers. Bare urban streets, no vegetation at all. "
-    "Dusk sky with soft volumetric light shafts. Modern indie open-world game look, not photoreal."
+    "Stylised low-poly 3D game world, richly detailed, flat shaded with crisp edges: tan, sand and deep "
+    "blue geometric tower blocks with visible windows, ledges, rooftop structures and antennae, wide dark "
+    "avenues with bright glowing cyan lane lines. The towers carry large plain dark glass display panels "
+    "that glow softly in teal and violet, blank and uncluttered. The city is busy and alive: dense streams "
+    "of small stylised cars flow along every avenue in both directions, trams glide through, pedestrians "
+    "walk the sidewalks, drones drift between towers. Bare urban streets, no vegetation at all. Dusk sky "
+    "with soft volumetric light shafts. Detailed, crisp and cinematic, like a high-end indie open-world "
+    "game, not photoreal."
 )
 
 # Each clip is a district styled after the lesson track it teaches, so the city
@@ -87,80 +83,70 @@ LOOK = (
 ATMOSPHERE = [
     {
         "id": "city_reveal",
-        "seed": 61041,
+        "seed": 81041,
         "camera": "dolly_out",
         "prompt": (
-            "A lone traveller with a backpack stands on a high walkway and looks out as the camera rises to "
-            "reveal an enormous stylised open-world game city. Distinct neighbourhoods are visible at once: "
-            "low warm storybook streets near the front, a district of tall chart towers, a bank quarter of "
-            "heavy stone ledgers, and white marble columns on the far ridge. Dense traffic streams along every "
-            "glowing cyan avenue and the tower facades animate with flat red and green rectangular price bars in a row. " + LOOK
+            "Camera rises from a busy glowing avenue to reveal an enormous stylised open-world game city "
+            "stretching to the horizon. Dense traffic streams along every luminous cyan road, trams cross "
+            "between districts, and the detailed towers all around glow with large plain teal display panels. "
+            "A great domed hall glows at the centre. Constant motion everywhere. " + LOOK
         ),
     },
     {
         "id": "old_town",
-        "seed": 61042,
+        "seed": 81042,
         "camera": "dolly_in",
         "prompt": (
             "The traveller walks forward through Old Town, the oldest neighbourhood of a stylised game city: "
-            "low warm sandstone buildings, arched storefronts and hanging lanterns, illustrated painted panels "
-            "on the walls like pages from a picture book. Above the shopfronts, modest glowing screens show "
-            "simple flat red and green rectangular price bars in a row. Pedestrians and small cars move through the narrow "
-            "street, market stalls busy on both sides. " + LOOK
+            "low warm sandstone buildings with carved detail, arched storefronts and hanging lanterns, "
+            "illustrated painted panels on the walls like pages from a picture book. Pedestrians and small "
+            "cars move through the narrow street, market stalls busy on both sides. " + LOOK
         ),
     },
     {
         "id": "tape_turn",
-        "seed": 71043,
+        "seed": 81043,
         "camera": "dolly_in",
         "prompt": (
-            "A district of tall dark glass chart towers flips from calm to violent. The clear gold sky darkens "
-            "into a black churning storm with sheet lightning, and at the same moment every green price bar "
-            "chart on the towers flips to red and spikes downward. Enormous facade screens cut to a financial "
-            "television broadcast shown only as imagery: a presenter figure at a studio desk, a split-screen of "
-            "coloured market maps, and a plain solid colour band running along the bottom of each screen. "
-            "Absolutely no writing, letters or numbers anywhere. Traffic accelerates, road lights shift to "
-            "warning amber. " + LOOK
-        )
+            "A district of tall dark glass towers flips from calm to violent. The clear gold sky darkens into "
+            "a black churning storm with sheet lightning, and every glowing panel on the surrounding towers "
+            "flares from teal to deep red in sequence. Traffic accelerates, road lights shift to warning "
+            "amber, and shockwaves of light ripple outward through the streets. " + LOOK
+        ),
     },
     {
         "id": "trade_execute",
-        "seed": 71044,
+        "seed": 81044,
         "camera": "dolly_in",
         "prompt": (
-            "Above a busy glowing avenue in a stylised game city, four enormous clean diagrams glow on dark "
-            "panels, each one a single bright line in a clearly different shape: the first bends sharply upward "
-            "like a hockey stick, the second rises then flattens into a level plateau, the third rises to a "
-            "sharp peak then falls symmetrically like a tent, the fourth is a wide flat-topped plateau with "
-            "sloping sides at both ends. The lines draw themselves left to right one after another, glowing "
-            "cyan and green against black. Beside them a holographic price-bar chart builds bar by bar. "
-            "Simple bold geometry, no writing, letters or numbers anywhere. Traffic streams beneath. " + LOOK
-        )
+            "Above a busy glowing avenue in a stylised game city, a huge blank holographic display panel "
+            "assembles itself in mid air from clean geometric pieces and locks into place, glowing teal. "
+            "Beams of light run outward along the roads below, traffic streams beneath, and the district "
+            "brightens in response. Precise mechanical assembly motion. " + LOOK
+        ),
     },
     {
         "id": "media_plaza",
-        "seed": 71045,
+        "seed": 81045,
         "camera": "dolly_right",
         "prompt": (
             "Camera tracks sideways along a busy media plaza in a stylised game city, walled with enormous "
-            "glowing screens each playing something different and clearly animated: a financial television "
-            "studio with a presenter figure and a plain solid colour band beneath, a colourful illustrated "
-            "cartoon story with simple characters moving through a painted scene, an animated explainer diagram "
-            "drawing itself line by line, and a flat price-bar chart building bar by bar. Every screen shows "
-            "pictures only, with absolutely no writing, letters, numbers or captions anywhere. Crowds walk "
-            "between them, traffic passes behind. " + LOOK
-        )
+            "glowing screens showing soft abstract light patterns and colour washes. Crowds of pedestrians "
+            "walk between them and traffic passes behind. A continuous parade of bright panels sliding past. "
+            + LOOK
+        ),
     },
     {
         "id": "pantheon_night",
-        "seed": 61046,
+        "seed": 81046,
         "camera": "dolly_out",
         "prompt": (
             "Final wide vista at blue hour over a stylised game city crowned by a ridge of monumental white "
             "marble colonnades and domes lit from below, five great columned halls glowing along it. Below, "
             "every avenue is traced in cyan light and packed with moving traffic leaving light trails to the "
-            "horizon, facades glowing with flat red and green rectangular price bars in a row. The lone traveller stands small on "
-            "a high walkway looking out. Camera sweeps upward and far backward. " + LOOK
+            "horizon, tower facades across the whole landscape glowing with plain teal and violet panels. "
+            "The lone traveller stands small on a high walkway looking out. Camera sweeps upward and far "
+            "backward. " + LOOK
         ),
     },
 ]
@@ -698,70 +684,86 @@ CHAIN_ROWS = [
 ]
 
 # Closing prices for the drawn candles, with a signal marked on the turn.
+# open, high, low, close - a real session: rally, blow-off, reversal, recovery.
 CANDLES = [
-    (100, 104), (104, 102), (102, 107), (107, 111), (111, 109), (109, 115),
-    (115, 121), (121, 118), (118, 112), (112, 105), (105, 99), (99, 103),
-    (103, 110), (110, 117), (117, 124),
+    (100, 103, 99, 102), (102, 105, 101, 104), (104, 104, 100, 101), (101, 106, 101, 105),
+    (105, 109, 104, 108), (108, 112, 107, 111), (111, 111, 106, 107), (107, 113, 106, 112),
+    (112, 118, 111, 117), (117, 122, 116, 121), (121, 124, 118, 119), (119, 120, 113, 114),
+    (114, 116, 109, 110), (110, 112, 104, 105), (105, 107, 99, 100), (100, 104, 98, 103),
+    (103, 108, 102, 107), (107, 112, 106, 111), (111, 116, 110, 115), (115, 121, 114, 120),
+    (120, 125, 119, 124), (124, 128, 122, 127), (127, 129, 124, 125), (125, 131, 124, 130),
 ]
 
 
-def render_chart_panel(out: Path, box: tuple[int, int, int, int] = (64, 160, 620, 348)) -> Path:
-    """A real flat price-bar chart: wicks, bodies, a moving average and signal markers."""
-    x0, y0, W, H = box
-    canvas = Image.new("RGBA", (1280, 720), (0, 0, 0, 0))
-    draw = ImageDraw.Draw(canvas)
-    draw.rounded_rectangle((x0, y0, x0 + W, y0 + H), radius=6,
-                           fill=(6, 10, 20, 232), outline=(56, 189, 248, 215), width=2)
-    tracked(draw, (x0 + 20, y0 + 16), "SPY  1D", font(17, FACE_HEAVY), (226, 232, 240, 255), 1.8)
-    tracked(draw, (x0 + 140, y0 + 19), "CANDLES + SIGNALS", font(12, FACE_DEMI), SUB_RGB, 1.6)
+def render_chart_panel(out: Path, box: tuple = (64, 160, 620, 348)) -> Path:
+    """A trading chart: OHLC candles with wicks, a moving average, signals and volume.
 
-    plot_l, plot_r = x0 + 20, x0 + W - 20
-    plot_t, plot_b = y0 + 52, y0 + H - 74
-    lo = min(min(a, b) for a, b in CANDLES) - 6
-    hi = max(max(a, b) for a, b in CANDLES) + 6
+    Drawn rather than generated, because four attempts at prompting a legible chart
+    produced garbled text, decorative neon, wax candles and colour blocks in turn.
+    """
+    x0, y0, W, H = box
+    canvas = Image.new("RGBA", (max(1280, x0 + W), max(720, y0 + H)), (0, 0, 0, 0))
+    draw = ImageDraw.Draw(canvas)
+    scale = H / 348.0
+
+    draw.rounded_rectangle((x0, y0, x0 + W, y0 + H), radius=int(7 * scale),
+                           fill=(6, 10, 20, 240), outline=(56, 189, 248, 225), width=max(2, int(2 * scale)))
+    tracked(draw, (x0 + 20 * scale, y0 + 15 * scale), "SPY  1D",
+            font(max(12, int(19 * scale)), FACE_HEAVY), (226, 232, 240, 255), 1.8)
+    tracked(draw, (x0 + 150 * scale, y0 + 19 * scale), "CANDLES  MA  SIGNALS",
+            font(max(9, int(12 * scale)), FACE_DEMI), SUB_RGB, 1.6)
+
+    plot_l, plot_r = x0 + 20 * scale, x0 + W - 20 * scale
+    plot_t, plot_b = y0 + 52 * scale, y0 + H - 78 * scale
+    lows = [c[2] for c in CANDLES]; highs = [c[1] for c in CANDLES]
+    lo, hi = min(lows) - 4, max(highs) + 4
     def py(v):
         return plot_b - (v - lo) / (hi - lo) * (plot_b - plot_t)
-    for g in range(4):
-        gy = plot_t + g * (plot_b - plot_t) / 3
-        draw.line([(plot_l, gy), (plot_r, gy)], fill=(38, 50, 74, 150), width=1)
+
+    for g in range(5):
+        gy = plot_t + g * (plot_b - plot_t) / 4
+        draw.line([(plot_l, gy), (plot_r, gy)], fill=(34, 46, 70, 165), width=1)
 
     step = (plot_r - plot_l) / len(CANDLES)
-    body = step * 0.52
+    body_w = max(3.0, step * 0.62)
+    wick_w = max(1, int(round(step * 0.11)))
     closes = []
-    for idx, (o, c) in enumerate(CANDLES):
-        cx = plot_l + step * (idx + 0.5)
+    for i, (o, h, l, c) in enumerate(CANDLES):
+        cx = plot_l + step * (i + 0.5)
         up = c >= o
-        colour = (52, 211, 153, 255) if up else (248, 113, 113, 255)
-        wick_hi, wick_lo = max(o, c) + 3, min(o, c) - 3
-        draw.line([(cx, py(wick_hi)), (cx, py(wick_lo))], fill=colour, width=2)
+        colour = (46, 204, 148, 255) if up else (239, 90, 90, 255)
+        draw.line([(cx, py(h)), (cx, py(l))], fill=colour, width=wick_w)
         top, bot = py(max(o, c)), py(min(o, c))
-        draw.rectangle((cx - body / 2, top, cx + body / 2, max(bot, top + 2)), fill=colour)
+        if bot - top < 1.5:
+            bot = top + 1.5
+        draw.rectangle((cx - body_w / 2, top, cx + body_w / 2, bot), fill=colour)
         closes.append((cx, py(c)))
-    # moving average
+
     ma = []
-    for idx in range(len(CANDLES)):
-        window = [c for _, c in CANDLES[max(0, idx - 2): idx + 1]]
-        ma.append((closes[idx][0], py(sum(window) / len(window))))
-    draw.line(ma, fill=(250, 204, 21, 235), width=2, joint="curve")
+    for i in range(len(CANDLES)):
+        window = [c[3] for c in CANDLES[max(0, i - 4): i + 1]]
+        ma.append((closes[i][0], py(sum(window) / len(window))))
+    draw.line(ma, fill=(250, 204, 21, 240), width=max(2, int(2.5 * scale)), joint="curve")
 
-    # signal markers on the reversal
-    for idx, label, colour in ((10, "BUY", (52, 211, 153, 255)), (7, "SELL", (248, 113, 113, 255))):
+    for idx, label, colour in ((15, "BUY", (46, 204, 148, 255)), (10, "SELL", (239, 90, 90, 255))):
         cx, cy = closes[idx]
-        oy = 18 if label == "BUY" else -18
-        draw.polygon([(cx, cy + oy - 6), (cx - 6, cy + oy + 6), (cx + 6, cy + oy + 6)]
-                     if label == "BUY" else
-                     [(cx, cy + oy + 6), (cx - 6, cy + oy - 6), (cx + 6, cy + oy - 6)], fill=colour)
-        tracked(draw, (cx - 12, cy + oy + (12 if label == "BUY" else -26)), label,
-                font(11, FACE_HEAVY), colour, 1.2)
+        off = 26 * scale if label == "BUY" else -26 * scale
+        r = 6 * scale
+        tri = ([(cx, cy + off - r), (cx - r, cy + off + r), (cx + r, cy + off + r)] if label == "BUY"
+               else [(cx, cy + off + r), (cx - r, cy + off - r), (cx + r, cy + off - r)])
+        draw.polygon(tri, fill=colour)
+        tracked(draw, (cx - 14 * scale, cy + off + (13 * scale if label == "BUY" else -30 * scale)),
+                label, font(max(9, int(12 * scale)), FACE_HEAVY), colour, 1.2)
 
-    # volume
-    vb, vt = y0 + H - 20, y0 + H - 62
-    for idx, (o, c) in enumerate(CANDLES):
-        cx = plot_l + step * (idx + 0.5)
-        h = 8 + (abs(c - o) * 3.2)
-        colour = (52, 211, 153, 165) if c >= o else (248, 113, 113, 165)
-        draw.rectangle((cx - body / 2, max(vt, vb - h), cx + body / 2, vb), fill=colour)
-    canvas.save(out)
+    vb, vt = y0 + H - 20 * scale, y0 + H - 66 * scale
+    peak = max(abs(c[3] - c[0]) for c in CANDLES) or 1
+    for i, (o, h, l, c) in enumerate(CANDLES):
+        cx = plot_l + step * (i + 0.5)
+        height = (0.25 + 0.75 * abs(c - o) / peak) * (vb - vt)
+        colour = (46, 204, 148, 175) if c >= o else (239, 90, 90, 175)
+        draw.rectangle((cx - body_w / 2, vb - height, cx + body_w / 2, vb), fill=colour)
+
+    canvas.crop((0, 0, 1280, 720)).save(out) if (x0, y0) == (64, 160) else canvas.save(out)
     return out
 
 

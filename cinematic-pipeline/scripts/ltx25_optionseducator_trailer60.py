@@ -163,14 +163,18 @@ TIMELINE = [
     {"kind": "ltx", "clip": "old_town", "start": 0.2, "duration": 4.4,
      "title": ("YOU ARRIVE WITH ONE QUESTION", "HOW DOES ANYONE READ THIS MARKET?", 0.6, 3.4)},
     {"kind": "ltx", "clip": "city_reveal", "start": 0.3, "duration": 4.5,
-     "title": ("WELCOME TO OPTIONS CITY", "A LIVE TRADING SANDBOX", 0.6, 3.4), "sfx": "whoosh"},
+     "title": ("WELCOME TO OPTIONS CITY", "A LIVE TRADING SANDBOX", 0.6, 3.4), "sfx": "whoosh",
+     "facades": [{"kind": "chart", "quad": ((944, 128), (1246, 66), (944, 452), (1246, 418)),
+                  "growth": 0.24}]},
     # -- Act 2: the city is the syllabus -------------------------------------
     {"kind": "ltx", "clip": "old_town", "start": 4.8, "duration": 4.6,
      "title": ("WHERE EVERY TRADER STARTS", "CHAIN LITERACY | YOUR FIRST COVERED CALL", 0.4, 3.6),
      "sign": ("OLD TOWN", "STORYBOOK BASICS"), "panel": "story"},
     {"kind": "ltx", "clip": "city_reveal", "start": 5.2, "duration": 4.4,
      "title": ("THE STREETS ARE THE SYLLABUS", "EVERY ROAD IS A CONCEPT YOU LEARN", 0.4, 3.4),
-     "sign": ("GAMMA STREET", "THETA PATH | VEGA BOULEVARD"), "sfx": "click"},
+     "sign": ("GAMMA STREET", "THETA PATH | VEGA BOULEVARD"), "sfx": "click",
+     "facades": [{"kind": "chain", "quad": ((36, 96), (330, 150), (36, 430), (330, 404)),
+                  "growth": 0.24}]},
     # -- Act 3: the tape turns ------------------------------------------------
     {"kind": "ltx", "clip": "tape_turn", "start": 0.4, "duration": 4.2,
      "title": ("THEN THE TAPE TURNS", "VOL CRUSH AND EVENT REPRICING", 0.4, 3.4),
@@ -185,10 +189,16 @@ TIMELINE = [
     {"kind": "ltx", "clip": "trade_execute", "start": 0.4, "duration": 4.4,
      "title": ("SO YOU TAKE THE TRADE", "EXECUTE. HOLD. CLOSE FOR P&L.", 0.4, 3.6),
      "sign": ("SPREAD PARKWAY", "PREMIUM WAY"), "payoffs": True,
+     "facades": [{"kind": "chart", "quad": ((438, 170), (616, 202), (438, 468), (616, 438)),
+                  "growth": 0.26}],
      "inset": {"image": "hi_career.png", "region": (0.5, 0.105, 0.60)}, "sfx": "levelup"},
     {"kind": "ltx", "clip": "trade_execute", "start": 5.2, "duration": 4.0,
      "title": ("THE GREEKS RUN THIS CITY", "SENSITIVITIES, EXPOSURE, POSITION MANAGEMENT", 0.4, 3.2),
-     "sign": ("PANTHEON ROW", "STRIKE LANE | RHO LANE")},
+     "sign": ("PANTHEON ROW", "STRIKE LANE | RHO LANE"),
+     "facades": [{"kind": "chart", "quad": ((440, 172), (614, 204), (440, 466), (614, 436)),
+                  "growth": 0.26},
+                 {"kind": "chain", "quad": ((664, 204), (868, 172), (664, 436), (868, 466)),
+                  "growth": 0.26}]},
     # -- Act 5: the daily habit ----------------------------------------------
     {"kind": "ltx", "clip": "media_plaza", "start": 0.4, "duration": 4.4,
      "title": ("EVERY DAY THE CITY BRIEFS YOU", "STORIES | ANIMATIONS | VIDEO | PODCASTS | NEWS", 0.4, 3.6),
@@ -1224,20 +1234,23 @@ def main() -> int:
             rendered = render_ltx_shot(shot, index, clips, work)
         if shot.get("inset"):
             rendered = render_inset(shot, index, rendered, work)
-        facade = shot.get("facade")
-        if facade:
+        facades = shot.get("facades") or ([shot["facade"]] if shot.get("facade") else [])
+        for fi, facade in enumerate(facades):
             kind = facade["kind"]
-            flat = work / f"facade_flat_{index:02d}.png"
+            # drawn large so a warped facade stays sharp instead of being upscaled
+            w, h = (1600, 900) if kind == "chart" else (1500, 594)
+            flat = work / f"facade_flat_{index:02d}_{fi}.png"
             if kind == "chart":
-                render_chart_panel(flat, box=(0, 0, 900, 520))
+                render_chart_panel(flat, box=(0, 0, w, h))
             else:
-                render_chain_panel(flat, box=(0, 0, 900, 356))
+                render_chain_panel(flat, box=(0, 0, w, h))
             with Image.open(flat) as full:
-                art = full.convert("RGBA").crop((0, 0, 900, 520 if kind == "chart" else 356))
+                art = full.convert("RGBA").crop((0, 0, w, h))
             frames = max(2, int(round(shot["duration"] * FPS)))
-            plate = facade_sequence(art, facade["quad"], frames, work, index,
+            slot = index * 10 + fi
+            plate = facade_sequence(art, facade["quad"], frames, work, slot,
                                     growth=facade.get("growth", 0.30))
-            rendered = overlay_panel(rendered, plate, 0, 0, index, work, kind, moving=True)
+            rendered = overlay_panel(rendered, plate, 0, 0, slot, work, f"{kind}{fi}", moving=True)
         panel = shot.get("panel")
         if panel == "story":
             art = story_panel if story_panel else render_story_panel(work)

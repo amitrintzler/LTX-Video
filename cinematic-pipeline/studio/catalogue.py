@@ -23,6 +23,8 @@ PREVIEW = RENDER_ROOT / "ltx25-optionseducator-trailer60-preview"
 KINDS: list[dict[str, Any]] = [
     {
         "id": "trailer",
+        "engine": "LTX + post",
+        "usage": "Landing page hero, YouTube, investor or press send-out",
         "title": "Cinematic trailer",
         "purpose": "Landing-page hero and YouTube. 60s, story arc, titles, score.",
         "job": "render-final",
@@ -34,6 +36,8 @@ KINDS: list[dict[str, Any]] = [
     },
     {
         "id": "world",
+        "engine": "LTX",
+        "usage": "Atmosphere, establishing shots, mood between product beats",
         "title": "Generated world clip",
         "purpose": "Atmosphere a screenshot cannot show: streets, weather, scale. Generated in the game's style.",
         "job": "regenerate-clip",
@@ -44,6 +48,8 @@ KINDS: list[dict[str, Any]] = [
     },
     {
         "id": "product",
+        "engine": "Post only",
+        "usage": "Feature explainers, onboarding, app-store and site loops",
         "title": "Product demo shot",
         "purpose": "Your real UI, pixel-perfect, with a camera move. No GPU, any length.",
         "job": "offline-cut",
@@ -54,6 +60,8 @@ KINDS: list[dict[str, Any]] = [
     },
     {
         "id": "story",
+        "engine": "Post only",
+        "usage": "Lesson promos, social posts about a concept, in-app teasers",
         "title": "Story lesson reel",
         "purpose": "Your own storybook art, each page captioned with its title and the concept it teaches.",
         "job": "reassemble",
@@ -64,6 +72,8 @@ KINDS: list[dict[str, Any]] = [
     },
     {
         "id": "chart",
+        "engine": "Post only",
+        "usage": "Anywhere a real price chart must be readable on screen",
         "title": "Stock chart on a building",
         "purpose": "A real price chart with signals and volume, warped onto a facade so it belongs to the city.",
         "job": "reassemble",
@@ -74,6 +84,8 @@ KINDS: list[dict[str, Any]] = [
     },
     {
         "id": "chain",
+        "engine": "Post only",
+        "usage": "Explaining strikes, bid/ask and implied vol",
         "title": "Options chain display",
         "purpose": "Calls, strikes, puts and implied vol as a readable table, placed in the world.",
         "job": "reassemble",
@@ -84,6 +96,8 @@ KINDS: list[dict[str, Any]] = [
     },
     {
         "id": "podcast",
+        "engine": "Post only",
+        "usage": "Promoting the daily habit: podcast, video, news",
         "title": "Podcast and daily-video panels",
         "purpose": "Drawn players for the daily habit: microphone, waveform, transport, thumbnails.",
         "job": "reassemble",
@@ -94,6 +108,8 @@ KINDS: list[dict[str, Any]] = [
     },
     {
         "id": "inworld_ui",
+        "engine": "LTX + post",
+        "usage": "Showing the product without cutting away from the world",
         "title": "Product panel inside the world",
         "purpose": "Real app screens composited into a generated shot, so app and world share a frame.",
         "job": "reassemble",
@@ -104,6 +120,8 @@ KINDS: list[dict[str, Any]] = [
     },
     {
         "id": "titles",
+        "engine": "Post only",
+        "usage": "Any caption, district plate, disclaimer or lower third",
         "title": "Title cards and street plates",
         "purpose": "Anything that must be read is drawn, never generated: headings, district plates, small print.",
         "job": "offline-cut",
@@ -113,6 +131,8 @@ KINDS: list[dict[str, Any]] = [
     },
     {
         "id": "payoffs",
+        "engine": "Post only",
+        "usage": "Teaching strategy shapes: calls, spreads, condors",
         "title": "Payoff diagrams",
         "purpose": "Covered call, vertical spread, volatility hedge, iron condor - correct silhouettes.",
         "job": "offline-cut",
@@ -122,6 +142,8 @@ KINDS: list[dict[str, Any]] = [
     },
     {
         "id": "thumbnail",
+        "engine": "Post only",
+        "usage": "YouTube thumbnails, site posters, social cards",
         "title": "Thumbnail and stills",
         "purpose": "Poster frames for YouTube or the site, with headline type over a clean frame.",
         "job": None,
@@ -131,6 +153,8 @@ KINDS: list[dict[str, Any]] = [
     },
     {
         "id": "score",
+        "engine": "Audio",
+        "usage": "Any cut needing an original, rights-clear cue",
         "title": "Original score",
         "purpose": "Composed in code: key, tempo, hook and length are parameters, so any cut gets a fitting cue.",
         "job": "compose-score",
@@ -140,6 +164,8 @@ KINDS: list[dict[str, Any]] = [
     },
     {
         "id": "vertical",
+        "engine": "Post only",
+        "usage": "Reels, TikTok, Shorts",
         "title": "Vertical 9:16 cut",
         "purpose": "Reels, TikTok and Shorts, with brand header and CTA footer rather than a letterbox.",
         "job": "vertical-cut",

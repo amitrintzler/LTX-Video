@@ -225,11 +225,13 @@ async function loadCatalogue(){
     let prev;
     if(!k.proxy) prev = `<div class="noprev">${k.why||'no sample yet'}</div>`;
     else if(k.kind==='image')
-      prev = `<img class="prev" loading="lazy" src="${fileUrl(k.proxy)}" data-k="image" data-p="${encodeURIComponent(k.source)}" data-n="${k.title}">`;
+      prev = `<img class="prev" loading="lazy" src="${posterUrl(k.proxy, 0)}" data-k="image" data-p="${encodeURIComponent(k.source)}" data-n="${k.title}">`;
     else if(k.kind==='audio')
       prev = `<div class="noprev prev" style="cursor:pointer;letter-spacing:2px" data-k="audio" data-p="${encodeURIComponent(k.source)}" data-n="${k.title}">▶ PLAY SCORE</div>`;
     else
-      prev = `<video class="prev" muted loop playsinline preload="none" src="${fileUrl(k.proxy)}"
+      // poster so the card shows a picture immediately; the clip only loads on hover
+      prev = `<video class="prev" muted loop playsinline preload="none"
+                    poster="${posterUrl(k.proxy, 0.4)}" src="${fileUrl(k.proxy)}"
                     data-k="video" data-p="${encodeURIComponent(k.source)}" data-n="${k.title}"></video>`;
     return `<div class="kcard ${k.available?'':'off'}">
       ${prev}

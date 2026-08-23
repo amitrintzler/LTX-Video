@@ -200,9 +200,13 @@ def poster(path: str, t: float = 2.0) -> FileResponse:
     key = f"{abs(hash((str(target), round(t, 2), int(target.stat().st_mtime))))}.jpg"
     out = POSTER_DIR / key
     if not out.is_file():
-        subprocess.run(["ffmpeg", "-v", "error", "-ss", str(t), "-i", str(target),
-                        "-frames:v", "1", "-vf", "scale=480:-2", "-y", str(out)],
-                       check=False, capture_output=True)
+        # stills scale directly; videos need a frame pulled first
+        is_image = target.suffix.lower() in {".png", ".jpg", ".jpeg", ".webp"}
+        cmd = ["ffmpeg", "-v", "error"]
+        if not is_image:
+            cmd += ["-ss", str(t)]
+        cmd += ["-i", str(target), "-frames:v", "1", "-vf", "scale=480:-2", "-y", str(out)]
+        subprocess.run(cmd, check=False, capture_output=True)
     if not out.is_file():
         raise HTTPException(500, "could not build a poster for that file")
     return FileResponse(out)

@@ -31,7 +31,9 @@ import urllib.error
 import urllib.request
 from pathlib import Path
 
-from PIL import Image, ImageDraw, ImageFont
+from PIL import Image, ImageDraw, ImageFilter, ImageFont
+
+import facade_track
 
 
 BASE_URL = "http://127.0.0.1:41954"
@@ -162,12 +164,10 @@ TIMELINE = [
     # -- Act 1: arrival -------------------------------------------------------
     {"kind": "ltx", "clip": "old_town", "start": 0.2, "duration": 4.4,
      "title": ("YOU ARRIVE WITH ONE QUESTION", "HOW DOES ANYONE READ THIS MARKET?", 0.6, 3.4),
-     "facades": [{"kind": "chart", "quad": ((892, 248), (1268, 196), (892, 543), (1268, 520)),
-                  "growth": 0.20}]},
+     "facades": [{"kind": "chart", "quad": ((810, 300), (1275, 262), (810, 505), (1275, 520))}]},
     {"kind": "ltx", "clip": "city_reveal", "start": 0.3, "duration": 4.5,
      "title": ("WELCOME TO OPTIONS CITY", "A LIVE TRADING SANDBOX", 0.6, 3.4), "sfx": "whoosh",
-     "facades": [{"kind": "chart", "quad": ((944, 128), (1246, 66), (944, 452), (1246, 418)),
-                  "growth": 0.24}]},
+     "facades": [{"kind": "chart", "quad": ((1050, 80), (1278, 40), (1050, 430), (1278, 420))}]},
     # -- Act 2: the city is the syllabus -------------------------------------
     {"kind": "ltx", "clip": "old_town", "start": 4.8, "duration": 4.6,
      "title": ("WHERE EVERY TRADER STARTS", "CHAIN LITERACY | YOUR FIRST COVERED CALL", 0.4, 3.6),
@@ -175,32 +175,26 @@ TIMELINE = [
     {"kind": "ltx", "clip": "city_reveal", "start": 5.2, "duration": 4.4,
      "title": ("THE STREETS ARE THE SYLLABUS", "EVERY ROAD IS A CONCEPT YOU LEARN", 0.4, 3.4),
      "sign": ("GAMMA STREET", "THETA PATH | VEGA BOULEVARD"), "sfx": "click",
-     "facades": [{"kind": "chain", "quad": ((36, 96), (330, 150), (36, 430), (330, 404)),
-                  "growth": 0.24}]},
+     "facades": [{"kind": "chain", "quad": ((228, 300), (420, 344), (228, 620), (420, 596))}]},
     # -- Act 3: the tape turns ------------------------------------------------
     {"kind": "ltx", "clip": "tape_turn", "start": 0.4, "duration": 4.2,
      "title": ("THEN THE TAPE TURNS", "VOL CRUSH AND EVENT REPRICING", 0.4, 3.4),
-     "facade": {"kind": "chart", "quad": ((712, 168), (1004, 218), (712, 540), (1004, 498)),
-                "growth": 0.22},
+     "facade": {"kind": "chart", "quad": ((610, 392), (930, 436), (610, 566), (930, 540))},
      "sign": ("VOLATILITY HEIGHTS", "IV CRUSH ALLEY"), "sfx": "whoosh"},
     {"kind": "ltx", "clip": "tape_turn", "start": 5.0, "duration": 4.8,
      "title": ("THE MARKET DECIDES THE PLAY", "CALM: SELL PREMIUM | TRENDING: SPREADS", 0.4, 4.0),
-     "facade": {"kind": "chain", "quad": ((792, 128), (1104, 180), (792, 436), (1104, 402)),
-                "growth": 0.20}},
+     "facade": {"kind": "chain", "quad": ((770, 232), (1030, 272), (770, 400), (1030, 372))}},
     # -- Act 4: you take the trade -------------------------------------------
     {"kind": "ltx", "clip": "trade_execute", "start": 0.4, "duration": 4.4,
      "title": ("SO YOU TAKE THE TRADE", "EXECUTE. HOLD. CLOSE FOR P&L.", 0.4, 3.6),
      "sign": ("SPREAD PARKWAY", "PREMIUM WAY"), "payoffs": True,
-     "facades": [{"kind": "chart", "quad": ((438, 170), (616, 202), (438, 468), (616, 438)),
-                  "growth": 0.26}],
+     "facades": [{"kind": "chart", "quad": ((438, 170), (616, 202), (438, 468), (616, 438))}],
      "inset": {"image": "hi_career.png", "region": (0.5, 0.105, 0.60)}, "sfx": "levelup"},
     {"kind": "ltx", "clip": "trade_execute", "start": 5.2, "duration": 4.0,
      "title": ("THE GREEKS RUN THIS CITY", "SENSITIVITIES, EXPOSURE, POSITION MANAGEMENT", 0.4, 3.2),
      "sign": ("PANTHEON ROW", "STRIKE LANE | RHO LANE"),
-     "facades": [{"kind": "chart", "quad": ((440, 172), (614, 204), (440, 466), (614, 436)),
-                  "growth": 0.26},
-                 {"kind": "chain", "quad": ((664, 204), (868, 172), (664, 436), (868, 466)),
-                  "growth": 0.26}]},
+     "facades": [{"kind": "chart", "quad": ((440, 172), (614, 204), (440, 466), (614, 436))},
+                 {"kind": "chain", "quad": ((664, 204), (868, 172), (664, 436), (868, 466))}]},
     # -- Act 5: the daily habit ----------------------------------------------
     {"kind": "ltx", "clip": "media_plaza", "start": 0.4, "duration": 4.4,
      "title": ("EVERY DAY THE CITY BRIEFS YOU", "STORIES | ANIMATIONS | VIDEO | PODCASTS | NEWS", 0.4, 3.6),
@@ -215,8 +209,7 @@ TIMELINE = [
      "inset": {"image": "hi_journey.png", "region": (0.5, 0.345, 0.60)}},
     {"kind": "ltx", "clip": "pantheon_night", "start": 5.2, "duration": 4.6,
      "title": ("YOU CAME TO LEARN OPTIONS", "YOU LEAVE TRADING THEM", 0.4, 3.8), "sfx": "whoosh",
-     "facades": [{"kind": "chart", "quad": ((10, 42), (330, 74), (10, 394), (330, 352)),
-                  "growth": 0.22}]},
+     "facades": [{"kind": "chart", "quad": ((112, 150), (300, 182), (112, 398), (300, 372))}]},
     {"kind": "ui", "image": "hi_home.png", "duration": 7.0,
      "region": (0.30, 0.31, 0.50), "zoom": (1.0, 1.07), "end_card": True,
      "title": ("OPTIONS EDUCATOR", "START YOUR LEARNING PATH", 0.5, 5.8)},
@@ -394,11 +387,14 @@ def video_payload(act: dict, args: argparse.Namespace) -> dict:
 
 def make_clip(act: dict, args: argparse.Namespace, token: str) -> Path:
     payload = video_payload(act, args)
-    (args.output_dir / f"{act['id']}_payload.json").write_text(json.dumps(payload, indent=2) + "\n")
     print(f"Generating {act['id']}...", flush=True)
     started = time.time()
     result = request("POST", f"{args.base_url}/api/generate", token, payload, args.timeout)
     print(f"Completed {act['id']} in {time.time() - started:.1f}s", file=sys.stderr, flush=True)
+    # Written only now that the clip exists. Recording the payload up front meant an
+    # interrupted or failed run left a payload describing footage never rendered, and
+    # the reuse guard then trusted it.
+    (args.output_dir / f"{act['id']}_payload.json").write_text(json.dumps(payload, indent=2) + "\n")
     (args.output_dir / f"{act['id']}_result.json").write_text(json.dumps(result, indent=2) + "\n")
     path = result.get("video_path")
     if result.get("status") != "complete" or not path:
@@ -521,24 +517,68 @@ def warp_onto_facade(art: Image.Image, quad, out: Path) -> Path:
     return out
 
 
-def facade_sequence(art: Image.Image, quad, frames: int, work: Path, index: int,
-                    growth: float = 0.30) -> Path:
-    """Render the display as a moving plate that grows with the camera push.
+def emissive(art: Image.Image, spread: int = 26, strength: float = 0.85) -> Image.Image:
+    """Give a panel the light it would throw if it were really a screen.
 
-    A fixed quad detaches from the building within a second: these shots dolly in, so
-    the towers grow while a screen-anchored panel stays put. Scaling the quad outward
-    from the frame centre each frame keeps the display sitting on its facade.
+    Warped flat onto a dark tower, the plate reads as a rectangle of slightly
+    different black. Real screens spill light onto the wall around them, and that
+    spill is what separates a display from a painted patch.
+    """
+    glow = art.filter(ImageFilter.GaussianBlur(spread))
+    halo = glow.getchannel("A").point(lambda v: int(min(255, v * strength)))
+    lit = Image.new("RGBA", art.size, (0, 0, 0, 0))
+    tint = Image.merge("RGBA", (*glow.split()[:3], halo))
+    lit.alpha_composite(tint)
+    lit.alpha_composite(art)
+    return lit
+
+
+def facade_sequence(art: Image.Image, quad, frames: int, work: Path, index: int,
+                    clip: Path | None = None) -> Path:
+    """Render the display as a plate that follows its wall through the shot.
+
+    Scaling the quad outward from the frame centre by a fixed amount only holds
+    for a shot that dollies straight in. These shots also pull back and pan, so
+    the wall itself is tracked and the plate is placed where the tracker says the
+    wall went. Where the wall leaves shot the plate fades rather than sliding off
+    as a rectangle in the sky.
     """
     seq = work / f"facade_seq_{index:02d}"
     seq.mkdir(parents=True, exist_ok=True)
-    cx, cy = 640.0, 360.0
+
+    quads, scores = facade_track.track_cached(
+        clip, quad, work / f"facade_track_{index:02d}.json")
+    if len(quads) < frames:                       # tracked footage can be a frame short
+        quads = quads + [quads[-1]] * (frames - len(quads))
+
+    def visible(q):
+        """How much of the plate is still on screen, 0 to 1."""
+        xs = [p[0] for p in q]
+        ys = [p[1] for p in q]
+        w = max(1.0, max(xs) - min(xs))
+        h = max(1.0, max(ys) - min(ys))
+        ox = max(0.0, min(max(xs), 1280) - max(min(xs), 0))
+        oy = max(0.0, min(max(ys), 720) - max(min(ys), 0))
+        return (ox / w) * (oy / h)
+
     for f in range(frames):
-        scale = 1.0 + growth * (f / max(1, frames - 1))
-        moved = tuple(((cx + (x - cx) * scale), (cy + (y - cy) * scale)) for x, y in quad)
-        warp_onto_facade(art, moved, seq / f"f_{f:04d}.png")
+        q = [tuple(pt) for pt in quads[f]]
+        seen = visible(q)
+        plate = art
+        if seen < 0.72:
+            # ease the plate out as its wall leaves frame, so it never reads as a
+            # panel floating free of the city
+            alpha = max(0.0, min(1.0, (seen - 0.34) / 0.38))
+            plate = art.copy()
+            band = plate.getchannel("A").point(lambda v: int(v * alpha))
+            plate.putalpha(band)
+        warp_onto_facade(plate, q, seq / f"f_{f:04d}.png")
+
     out = work / f"facade_seq_{index:02d}.mov"
     run(["ffmpeg", "-y", "-loglevel", "error", "-framerate", str(FPS),
          "-i", str(seq / "f_%04d.png"), "-c:v", "qtrle", str(out)])
+    weak = sum(1 for v in scores[:frames] if v < facade_track.MIN_SCORE)
+    print(f"  facade {index}: tracked {frames} frames, {weak} on camera motion alone")
     return out
 
 
@@ -721,7 +761,7 @@ def render_chart_panel(out: Path, box: tuple = (64, 160, 620, 348)) -> Path:
     scale = H / 348.0
 
     draw.rounded_rectangle((x0, y0, x0 + W, y0 + H), radius=int(7 * scale),
-                           fill=(6, 10, 20, 240), outline=(56, 189, 248, 225), width=max(2, int(2 * scale)))
+                           fill=(11, 19, 36, 244), outline=(96, 216, 255, 240), width=max(2, int(2 * scale)))
     tracked(draw, (x0 + 20 * scale, y0 + 15 * scale), "SPY  1D",
             font(max(12, int(19 * scale)), FACE_HEAVY), (226, 232, 240, 255), 1.8)
     tracked(draw, (x0 + 150 * scale, y0 + 19 * scale), "CANDLES  MA  SIGNALS",
@@ -782,31 +822,42 @@ def render_chart_panel(out: Path, box: tuple = (64, 160, 620, 348)) -> Path:
 
 
 def render_chain_panel(out: Path, box: tuple[int, int, int, int] = (636, 120, 600, 366)) -> Path:
-    """An options chain: calls on the left, strikes down the middle, puts on the right."""
-    x0, y0, W, H = box
-    canvas = Image.new("RGBA", (1280, 720), (0, 0, 0, 0))
-    draw = ImageDraw.Draw(canvas)
-    draw.rounded_rectangle((x0, y0, x0 + W, y0 + H), radius=6,
-                           fill=(6, 10, 20, 234), outline=(56, 189, 248, 215), width=2)
-    tracked(draw, (x0 + 20, y0 + 16), "OPTIONS CHAIN", font(17, FACE_HEAVY), (226, 232, 240, 255), 1.8)
-    tracked(draw, (x0 + 205, y0 + 19), "EXP 21 DAYS", font(12, FACE_DEMI), SUB_RGB, 1.6)
+    """An options chain: calls on the left, strikes down the middle, puts on the right.
 
-    head_font = font(12, FACE_HEAVY)
-    cell_font = font(14, FACE_DEMI)
-    cols = [x0 + 24, x0 + 108, x0 + 192, x0 + 288, x0 + 388, x0 + 480]
+    Every offset is proportional to the box: the panel is warped onto a wall at
+    whatever size that wall happens to be, and a fixed layout drew the table into
+    one corner of a large plate and left the rest of it empty.
+    """
+    x0, y0, W, H = box
+    canvas = Image.new("RGBA", (max(1280, x0 + W), max(720, y0 + H)), (0, 0, 0, 0))
+    draw = ImageDraw.Draw(canvas)
+    sx, sy = W / 600.0, H / 366.0
+    draw.rounded_rectangle((x0, y0, x0 + W, y0 + H), radius=int(6 * sy),
+                           fill=(11, 19, 36, 242), outline=(96, 216, 255, 236),
+                           width=max(2, int(2 * sy)))
+    tracked(draw, (x0 + 20 * sx, y0 + 16 * sy), "OPTIONS CHAIN",
+            font(max(11, int(17 * sy)), FACE_HEAVY), (226, 232, 240, 255), 1.8)
+    tracked(draw, (x0 + 205 * sx, y0 + 19 * sy), "EXP 21 DAYS",
+            font(max(9, int(12 * sy)), FACE_DEMI), SUB_RGB, 1.6)
+
+    head_font = font(max(9, int(12 * sy)), FACE_HEAVY)
+    cell_font = font(max(10, int(14 * sy)), FACE_DEMI)
+    cols = [x0 + c * sx for c in (24, 108, 192, 288, 388, 480)]
     headers = ["CALL BID", "CALL ASK", "STRIKE", "PUT BID", "PUT ASK", "IV %"]
-    hy = y0 + 52
+    hy = y0 + 52 * sy
     for cx, label in zip(cols, headers):
         tracked(draw, (cx, hy), label, head_font, (125, 145, 180, 255), 1.4)
-    draw.line([(x0 + 20, hy + 22), (x0 + W - 20, hy + 22)], fill=(48, 64, 96, 210), width=1)
+    draw.line([(x0 + 20 * sx, hy + 22 * sy), (x0 + W - 20 * sx, hy + 22 * sy)],
+              fill=(48, 64, 96, 210), width=max(1, int(sy)))
 
     for row_index, row in enumerate(CHAIN_ROWS):
-        ry = hy + 40 + row_index * 44
+        ry = hy + (40 + row_index * 44) * sy
         at_money = row[0] == "180"
         if at_money:
-            draw.rounded_rectangle((x0 + 16, ry - 9, x0 + W - 16, ry + 27), radius=4,
-                                   fill=(30, 58, 92, 200))
-        for col_index, (cx, value) in enumerate(zip(cols, row)):
+            draw.rounded_rectangle((x0 + 16 * sx, ry - 9 * sy, x0 + W - 16 * sx, ry + 27 * sy),
+                                   radius=int(4 * sy), fill=(30, 58, 92, 200))
+        ordered = (row[1], row[2], row[0], row[3], row[4], row[5])
+        for col_index, (cx, value) in enumerate(zip(cols, ordered)):
             if col_index == 2:
                 colour = (250, 204, 21, 255) if at_money else (226, 232, 240, 255)
             elif col_index < 2:
@@ -816,6 +867,104 @@ def render_chain_panel(out: Path, box: tuple[int, int, int, int] = (636, 120, 60
             else:
                 colour = (165, 180, 252, 255)
             tracked(draw, (cx, ry), value, cell_font, colour, 1.2)
+    canvas.save(out)
+    return out
+
+
+def render_tower_board(out: Path, box: tuple[int, int, int, int], lead: str = "chart") -> Path:
+    """A portrait board for a tower face: candles, volume and a short chain.
+
+    Most walls in these shots are tower faces, which are taller than they are
+    wide. A landscape chart warped onto one is squeezed until the candles merge,
+    so a tall wall gets a tall board instead: the same data, stacked.
+    """
+    x0, y0, W, H = box
+    canvas = Image.new("RGBA", (max(1280, x0 + W), max(720, y0 + H)), (0, 0, 0, 0))
+    draw = ImageDraw.Draw(canvas)
+    u = W / 240.0                      # one layout unit, tied to the board's width
+    pad = 14 * u
+
+    draw.rounded_rectangle((x0, y0, x0 + W, y0 + H), radius=int(6 * u),
+                           fill=(11, 19, 36, 244), outline=(96, 216, 255, 240),
+                           width=max(2, int(1.8 * u)))
+    tracked(draw, (x0 + pad, y0 + 10 * u), "SPY  1D",
+            font(max(11, int(15 * u)), FACE_HEAVY), (226, 232, 240, 255), 1.8)
+    head_y = y0 + 32 * u
+
+    chart_share = 0.52 if lead == "chart" else 0.34
+    chart_h = (H - (head_y - y0) - pad) * chart_share
+    plot_l, plot_r = x0 + pad, x0 + W - pad
+    plot_t, plot_b = head_y, head_y + chart_h * 0.72
+    vol_t, vol_b = plot_b + 6 * u, head_y + chart_h
+
+    lows = [c[2] for c in CANDLES]
+    highs = [c[1] for c in CANDLES]
+    lo, hi = min(lows) - 4, max(highs) + 4
+    shown = CANDLES if lead == "chart" else CANDLES[-14:]
+
+    def py(v):
+        return plot_b - (v - lo) / (hi - lo) * (plot_b - plot_t)
+
+    for g in range(4):
+        gy = plot_t + g * (plot_b - plot_t) / 3
+        draw.line([(plot_l, gy), (plot_r, gy)], fill=(34, 46, 70, 165), width=1)
+
+    step = (plot_r - plot_l) / len(shown)
+    body = max(2.5, step * 0.6)
+    wick = max(1, int(round(step * 0.13)))
+    closes = []
+    for i, (o, h, l, c) in enumerate(shown):
+        cx = plot_l + step * (i + 0.5)
+        colour = (46, 204, 148, 255) if c >= o else (239, 90, 90, 255)
+        draw.line([(cx, py(h)), (cx, py(l))], fill=colour, width=wick)
+        top, bot = py(max(o, c)), py(min(o, c))
+        if bot - top < 1.5:
+            bot = top + 1.5
+        draw.rectangle((cx - body / 2, top, cx + body / 2, bot), fill=colour)
+        closes.append((cx, py(c)))
+
+    ma = []
+    for i in range(len(shown)):
+        window = [c[3] for c in shown[max(0, i - 4): i + 1]]
+        ma.append((closes[i][0], py(sum(window) / len(window))))
+    draw.line(ma, fill=(250, 204, 21, 240), width=max(2, int(1.8 * u)), joint="curve")
+
+    peak = max(abs(c[3] - c[0]) for c in shown) or 1
+    for i, (o, h, l, c) in enumerate(shown):
+        cx = plot_l + step * (i + 0.5)
+        height = (0.25 + 0.75 * abs(c - o) / peak) * (vol_b - vol_t)
+        colour = (46, 204, 148, 175) if c >= o else (239, 90, 90, 175)
+        draw.rectangle((cx - body / 2, vol_b - height, cx + body / 2, vol_b), fill=colour)
+
+    # the chain fills the rest of the board, as many strikes as the wall allows
+    table_t = head_y + chart_h + 10 * u
+    tracked(draw, (x0 + pad, table_t), "OPTIONS CHAIN",
+            font(max(9, int(11 * u)), FACE_HEAVY), (226, 232, 240, 255), 1.6)
+    row_h = 15 * u
+    rows_t = table_t + 34 * u
+    room = int(max(0, (y0 + H - pad - rows_t) // row_h))
+    cols = [x0 + pad + c * (W - 2 * pad) for c in (0.0, 0.30, 0.56, 0.80)]
+    cell = font(max(9, int(11 * u)), FACE_DEMI)
+    tracked(draw, (cols[0], rows_t - 15 * u), "CALL",
+            font(max(8, int(9 * u)), FACE_HEAVY), (125, 145, 180, 255), 1.3)
+    tracked(draw, (cols[1], rows_t - 15 * u), "STRIKE",
+            font(max(8, int(9 * u)), FACE_HEAVY), (125, 145, 180, 255), 1.3)
+    tracked(draw, (cols[2], rows_t - 15 * u), "PUT",
+            font(max(8, int(9 * u)), FACE_HEAVY), (125, 145, 180, 255), 1.3)
+    tracked(draw, (cols[3], rows_t - 15 * u), "IV",
+            font(max(8, int(9 * u)), FACE_HEAVY), (125, 145, 180, 255), 1.3)
+    for i, row in enumerate(CHAIN_ROWS[:room]):
+        ry = rows_t + i * row_h
+        at_money = row[0] == "180"
+        if at_money:
+            draw.rounded_rectangle((x0 + pad * 0.7, ry - 2 * u, x0 + W - pad * 0.7, ry + 12 * u),
+                                   radius=int(3 * u), fill=(30, 58, 92, 200))
+        strike = (250, 204, 21, 255) if at_money else (226, 232, 240, 255)
+        for cx, value, colour in ((cols[0], row[1], (52, 211, 153, 255)),
+                                  (cols[1], row[0], strike),
+                                  (cols[2], row[3], (248, 113, 113, 255)),
+                                  (cols[3], row[5], (165, 180, 252, 255))):
+            tracked(draw, (cx, ry), value, cell, colour, 1.2)
     canvas.save(out)
     return out
 
@@ -1259,19 +1408,32 @@ def main() -> int:
         facades = shot.get("facades") or ([shot["facade"]] if shot.get("facade") else [])
         for fi, facade in enumerate(facades):
             kind = facade["kind"]
+            quad = facade["quad"]
+            # Draw the plate at the wall's own proportions. Warping a landscape
+            # chart onto a tower face squeezes the candles into a solid block, so
+            # a wall taller than it is wide gets the stacked board instead.
+            span_x = (abs(quad[1][0] - quad[0][0]) + abs(quad[3][0] - quad[2][0])) / 2.0
+            span_y = (abs(quad[2][1] - quad[0][1]) + abs(quad[3][1] - quad[1][1])) / 2.0
+            aspect = span_x / max(1.0, span_y)
             # drawn large so a warped facade stays sharp instead of being upscaled
-            w, h = (1600, 900) if kind == "chart" else (1500, 594)
+            scale = max(3.0, 900.0 / max(span_x, span_y))
+            w, h = int(span_x * scale), int(span_y * scale)
+            # the plate is drawn inset so its glow has somewhere to fall
+            pad = max(12, int(0.07 * max(w, h)))
             flat = work / f"facade_flat_{index:02d}_{fi}.png"
-            if kind == "chart":
-                render_chart_panel(flat, box=(0, 0, w, h))
+            if aspect < 1.25:
+                render_tower_board(flat, box=(pad, pad, w, h),
+                                   lead="chart" if kind == "chart" else "chain")
+            elif kind == "chart":
+                render_chart_panel(flat, box=(pad, pad, w, h))
             else:
-                render_chain_panel(flat, box=(0, 0, w, h))
+                render_chain_panel(flat, box=(pad, pad, w, h))
             with Image.open(flat) as full:
-                art = full.convert("RGBA").crop((0, 0, w, h))
+                art = emissive(full.convert("RGBA").crop((0, 0, w + 2 * pad, h + 2 * pad)),
+                               spread=max(8, pad // 2))
             frames = max(2, int(round(shot["duration"] * FPS)))
             slot = index * 10 + fi
-            plate = facade_sequence(art, facade["quad"], frames, work, slot,
-                                    growth=facade.get("growth", 0.30))
+            plate = facade_sequence(art, quad, frames, work, slot, clip=rendered)
             rendered = overlay_panel(rendered, plate, 0, 0, slot, work, f"{kind}{fi}", moving=True)
         panel = shot.get("panel")
         if panel == "story":

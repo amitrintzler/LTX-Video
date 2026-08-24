@@ -164,11 +164,38 @@ Six atmosphere clips at 1694-1726s each, ~2.8h total. Measured on the assembled 
 The generated city reads convincingly like the real Options City: flat-shaded tan and
 blue blocks, green cone trees, glowing cyan lane lines down the avenues, dusk light.
 
+### Building displays
+
+Nine charts and chains sit on walls in eight of the thirteen shots. They are drawn in
+post, never generated: four attempts at prompting a legible chart produced garbled
+text, decorative neon, wax candles and blocks of flat colour in turn.
+
+Placing them takes a tracked quad, not a fixed one. A quad set on the first frame and
+scaled outward from the frame centre describes a shot that dollies straight in, and
+only three of these six shots do that — one pulls back, one pans, one sweeps past its
+wall inside two seconds. `facade_track.py` matches the wall's own patch through the
+shot, searching horizontal and vertical scale separately because a receding wall
+stretches unevenly. A whole-frame camera estimate runs first and feeds the prediction,
+so a wall that goes dark or passes behind a foreground building keeps moving with the
+camera instead of freezing. Where the wall leaves frame the plate fades out.
+
+Walls dictate the panel's shape. Most of them are tower faces, taller than they are
+wide, and a landscape chart warped onto one squeezes its candles into a solid block.
+Those walls get a stacked board — candles, volume, then a short chain — drawn at the
+wall's own proportions. Only walls wider than they are tall take the landscape chart
+or chain.
+
+After a re-seed, **every quad has to be re-traced**. The buildings move, and a quad
+traced against the previous footage lands on rooftops and open sky.
+
 Known weaknesses in this cut:
 
 - The `hi_journey` skill-map panel is used as the inset twice, at 8.9s and 43.9s.
 - `tape_turn`'s two ranges look similar to each other; the calm-to-storm change is
   less legible than the title claims.
+- Building displays read as screens mounted on the walls rather than as part of the
+  masonry. They are lit plates with a glow, which suits a city of trading floors but
+  is not a texture bake.
 - Inset panels are too small for their internal text to be read at video size. They
   register as "a real product screen" rather than legible content, which is the cost
   of keeping the product inside the world instead of cutting to full-screen pages.

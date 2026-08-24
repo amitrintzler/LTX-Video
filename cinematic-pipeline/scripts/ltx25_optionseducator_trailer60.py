@@ -33,6 +33,11 @@ from pathlib import Path
 
 from PIL import Image, ImageDraw, ImageFilter, ImageFont
 
+# The studio loads this file by path rather than running it, and then the script's
+# own directory is not on sys.path. Without this the sibling import fails and the
+# studio reports the whole render as unavailable.
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+
 import facade_track
 
 

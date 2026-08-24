@@ -85,6 +85,11 @@ def has_playwright() -> bool:
     return importlib.util.find_spec("playwright") is not None
 
 
+def has_numpy() -> bool:
+    """Facade tracking needs it, and it fails partway through a render without it."""
+    return importlib.util.find_spec("numpy") is not None
+
+
 def snapshot() -> dict[str, Any]:
     ltx = ltx_state()
     ffmpeg = shutil.which("ffmpeg") is not None and shutil.which("ffprobe") is not None
@@ -95,8 +100,12 @@ def snapshot() -> dict[str, Any]:
     def ready(ok: bool, why: str = "") -> dict[str, Any]:
         return {"ready": ok, "why": why}
 
+    numpy_ok = has_numpy()
+    cut_why = ("ffmpeg is not on PATH" if not ffmpeg else
+               "" if numpy_ok else "numpy is not installed for this Python")
+
     checks = {
-        "offline-cut": ready(ffmpeg, "" if ffmpeg else "ffmpeg is not on PATH"),
+        "offline-cut": ready(ffmpeg and numpy_ok, cut_why),
         "compose-score": ready(True),
         "qa": ready(ffmpeg and bool(found_masters),
                     "" if ffmpeg and found_masters else
@@ -106,17 +115,20 @@ def snapshot() -> dict[str, Any]:
         "capture-screenshots": ready(has_playwright(),
                                      "" if has_playwright() else
                                      "Playwright is not installed for this Python"),
-        "reassemble": ready(ffmpeg and bool(shots["final"] or shots["preview"]),
-                            "" if (shots["final"] or shots["preview"]) else
-                            "no generated clips cached yet - run a render first"),
+        "reassemble": ready(ffmpeg and numpy_ok and bool(shots["final"] or shots["preview"]),
+                            cut_why or ("" if (shots["final"] or shots["preview"]) else
+                                        "no generated clips cached yet - run a render first")),
         "regenerate-clip": ready(ltx["ok"], "" if ltx["ok"] else ltx["detail"]),
-        "render-preview": ready(ltx["ok"], "" if ltx["ok"] else ltx["detail"]),
-        "render-final": ready(ltx["ok"], "" if ltx["ok"] else ltx["detail"]),
+        "render-preview": ready(ltx["ok"] and numpy_ok,
+                                ltx["detail"] if not ltx["ok"] else cut_why),
+        "render-final": ready(ltx["ok"] and numpy_ok,
+                              ltx["detail"] if not ltx["ok"] else cut_why),
     }
     return {
         "ltx": ltx,
         "ffmpeg": ffmpeg,
         "playwright": has_playwright(),
+        "numpy": numpy_ok,
         "composed_score": music,
         "clips": shots,
         "clip_ids": CLIP_IDS,

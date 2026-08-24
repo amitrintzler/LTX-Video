@@ -1292,7 +1292,7 @@ def main() -> int:
     parser.add_argument("--profile", choices=["preview", "final"], default="final")
     parser.add_argument("--base-url", default=BASE_URL)
     parser.add_argument("--output-dir", type=Path)
-    parser.add_argument("--resolution", choices=["540p", "720p", "1080p"], default="540p")
+    parser.add_argument("--resolution", choices=["540p", "720p", "1080p"])
     parser.add_argument("--source-seconds", type=int, choices=[5, 6, 8, 10, 12, 14, 16, 18, 20])
     parser.add_argument("--final-name")
     parser.add_argument("--timeout", type=int, default=7200)
@@ -1316,7 +1316,12 @@ def main() -> int:
         return 0
     if args.config:
         apply_config(json.loads(Path(args.config).read_text()))
-    args.source_seconds = args.source_seconds or (10 if args.profile == "preview" else 12)
+    # The final profile has to describe the footage that is actually on disk, or a
+    # plain --reuse-existing run finds every payload mismatched and spends four hours
+    # of GPU regenerating clips nobody asked it to touch. The backend refuses 12s at
+    # 720p, so the final cut is 720p at 10s.
+    args.resolution = args.resolution or ("540p" if args.profile == "preview" else "720p")
+    args.source_seconds = args.source_seconds or 10
     args.output_dir = args.output_dir or (PREVIEW_DIR if args.profile == "preview" else OUTPUT_DIR)
     args.final_name = args.final_name or (PREVIEW_NAME if args.profile == "preview" else FINAL_NAME)
     args.output_dir.mkdir(parents=True, exist_ok=True)

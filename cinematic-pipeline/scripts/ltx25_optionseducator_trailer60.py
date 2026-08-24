@@ -161,7 +161,9 @@ ATMOSPHERE = [
 TIMELINE = [
     # -- Act 1: arrival -------------------------------------------------------
     {"kind": "ltx", "clip": "old_town", "start": 0.2, "duration": 4.4,
-     "title": ("YOU ARRIVE WITH ONE QUESTION", "HOW DOES ANYONE READ THIS MARKET?", 0.6, 3.4)},
+     "title": ("YOU ARRIVE WITH ONE QUESTION", "HOW DOES ANYONE READ THIS MARKET?", 0.6, 3.4),
+     "facades": [{"kind": "chart", "quad": ((892, 248), (1268, 196), (892, 543), (1268, 520)),
+                  "growth": 0.20}]},
     {"kind": "ltx", "clip": "city_reveal", "start": 0.3, "duration": 4.5,
      "title": ("WELCOME TO OPTIONS CITY", "A LIVE TRADING SANDBOX", 0.6, 3.4), "sfx": "whoosh",
      "facades": [{"kind": "chart", "quad": ((944, 128), (1246, 66), (944, 452), (1246, 418)),
@@ -212,7 +214,9 @@ TIMELINE = [
      "title": ("A CURRICULUM THAT KEEPS GROWING", "FOUNDATIONS | TECHNICALS | GREEKS | STRATEGIES | RISK", 0.4, 3.6),
      "inset": {"image": "hi_journey.png", "region": (0.5, 0.345, 0.60)}},
     {"kind": "ltx", "clip": "pantheon_night", "start": 5.2, "duration": 4.6,
-     "title": ("YOU CAME TO LEARN OPTIONS", "YOU LEAVE TRADING THEM", 0.4, 3.8), "sfx": "whoosh"},
+     "title": ("YOU CAME TO LEARN OPTIONS", "YOU LEAVE TRADING THEM", 0.4, 3.8), "sfx": "whoosh",
+     "facades": [{"kind": "chart", "quad": ((10, 42), (330, 74), (10, 394), (330, 352)),
+                  "growth": 0.22}]},
     {"kind": "ui", "image": "hi_home.png", "duration": 7.0,
      "region": (0.30, 0.31, 0.50), "zoom": (1.0, 1.07), "end_card": True,
      "title": ("OPTIONS EDUCATOR", "START YOUR LEARNING PATH", 0.5, 5.8)},
@@ -1144,6 +1148,8 @@ def main() -> int:
     parser.add_argument("--final-name")
     parser.add_argument("--timeout", type=int, default=7200)
     parser.add_argument("--reuse-existing", action="store_true")
+    parser.add_argument("--only", help="Comma-separated clip ids to regenerate; others are reused "
+                                       "even if their prompt changed (reported, not hidden).")
     parser.add_argument("--dry-run", action="store_true")
     parser.add_argument("--config", type=Path, help="JSON config layered over the defaults")
     parser.add_argument("--emit-config", type=Path, help="Write the current defaults as JSON and exit")
@@ -1220,9 +1226,25 @@ def main() -> int:
             if args.reuse_existing and result_file.exists() and payload_file.exists():
                 old_payload = json.loads(payload_file.read_text())
                 old_clip = Path(json.loads(result_file.read_text()).get("video_path", ""))
-                if old_payload.get("duration") == args.source_seconds and old_clip.is_file():
+                wanted = video_payload(act, args)
+                # Compare what actually determines the footage, not just duration.
+                # Checking duration alone let an edited prompt reuse stale clips while
+                # silently regenerating others, leaving a film built from two prompt sets.
+                keys = ("prompt", "negativePrompt", "seed", "duration",
+                        "resolution", "cameraMotion", "fps")
+                changed = [k for k in keys if old_payload.get(k) != wanted.get(k)]
+                only = {c.strip() for c in args.only.split(",")} if args.only else None
+                if only is not None and act["id"] not in only and old_clip.is_file():
+                    if changed:
+                        print(f"{act['id']}: KEPT STALE (not in --only); differs by "
+                              f"{', '.join(changed)}", flush=True)
                     clips[act["id"]] = old_clip
                     continue
+                if not changed and old_clip.is_file():
+                    clips[act["id"]] = old_clip
+                    continue
+                if old_clip.is_file():
+                    print(f"{act['id']}: regenerating, changed: {', '.join(changed)}", flush=True)
             clips[act["id"]] = make_clip(act, args, token)
 
     shot_files = []

@@ -1881,8 +1881,13 @@ def make_audio(out_dir: Path) -> Path:
     filters.append(
         "".join(mix_labels)
         + f"amix=inputs={len(mix_labels)}:duration=first:normalize=0,"
-        f"loudnorm=I=-16:TP=-1.5:LRA=9,"
-        f"volume=3dB,alimiter=limit=0.82:attack=5:release=60,volume=-3.9dB[a]"  # single-pass loudnorm undershoots on the wide-dynamic orchestral bed
+        # Two hard-won rules. alimiter auto-level is on by default and quietly
+        # normalises the capped signal back up - level=false makes it a real
+        # ceiling. And the bright synth score carries near-Nyquist energy that
+        # made the AAC encoder overshoot 2dB past its input peak, so the
+        # ultrasonics are filtered off and the ceiling sits at -4dB.
+        f"loudnorm=I=-15.5:TP=-2:LRA=9,lowpass=f=15000,lowpass=f=15000,"
+        f"alimiter=level=false:limit=0.63:attack=5:release=80[a]"
     )
     final_audio = out_dir / "trailer_audio.wav"
     run(

@@ -428,15 +428,69 @@ def run(cmd: list[str]) -> None:
     subprocess.run(cmd, check=True)
 
 
+# The active locale. Set once from --locale; every drawn string reads it.
+LOCALE = {"locale": "en", "dir": "ltr"}
+
+# Avenir Next has no Hebrew or Arabic glyphs at all - those strings would render
+# as empty boxes with no error - so each script gets a face that covers it.
+# Arial Hebrew rather than SF Hebrew: SF Hebrew ships no Latin punctuation, so
+# the pipes, commas and question marks in these titles came out as tofu boxes.
+# The tuple is (path, bold index, regular index).
+SCRIPT_FONTS = {
+    "he": ("/System/Library/Fonts/ArialHB.ttc", 1, 0),
+    "ar": ("/System/Library/Fonts/SFArabic.ttf", 0, 0),
+    "zh": ("/System/Library/Fonts/STHeiti Light.ttc", 0, 0),
+}
+
+
+def is_rtl() -> bool:
+    return LOCALE.get("dir") == "rtl"
+
+
 def font(size: int, face: int = FACE_DEMI) -> ImageFont.FreeTypeFont:
     """Avenir Next matches the site's geometric sans far better than Arial."""
+    entry = SCRIPT_FONTS.get(LOCALE.get("locale"))
+    if entry:
+        path, bold_idx, plain_idx = entry
+        return ImageFont.truetype(
+            path, size, index=bold_idx if face == FACE_HEAVY else plain_idx
+        )
     return ImageFont.truetype(AVENIR, size, index=face)
+
+
+def shaped(text: str) -> str:
+    """Put a right-to-left string into the visual order Pillow will draw.
+
+    Pillow here is built without libraqm, so it lays every string out
+    left-to-right and never joins Arabic letters: Hebrew came out reversed and
+    Arabic came out as unconnected letterforms. Reordering the string ourselves
+    and reshaping Arabic before drawing produces the right result without
+    needing a differently-compiled Pillow.
+    """
+    if not is_rtl():
+        return text
+    try:
+        from bidi.algorithm import get_display
+
+        if LOCALE.get("locale") == "ar":
+            import arabic_reshaper
+
+            text = arabic_reshaper.reshape(text)
+        return get_display(text)
+    except ImportError:  # pragma: no cover - flagged loudly by check_locale()
+        return text
 
 
 def tracked(
     draw: ImageDraw.ImageDraw, xy, text: str, f, fill, spacing: float = 0.0
 ) -> None:
     """Draw letterspaced text. Pillow has no tracking option."""
+    text = shaped(text)
+    if is_rtl():
+        # Letterspacing a reshaped right-to-left run would pull joined Arabic
+        # letters apart, and Hebrew is not letterspaced typographically anyway.
+        draw.text(xy, text, font=f, fill=fill)
+        return
     x, y = xy
     for ch in text:
         draw.text((x, y), ch, font=f, fill=fill)
@@ -444,6 +498,9 @@ def tracked(
 
 
 def tracked_width(draw: ImageDraw.ImageDraw, text: str, f, spacing: float = 0.0) -> int:
+    text = shaped(text)
+    if is_rtl():
+        return int(draw.textlength(text, font=f))
     return int(
         sum(draw.textlength(c, font=f) for c in text) + spacing * max(0, len(text) - 1)
     )
@@ -1044,15 +1101,21 @@ def caption_story(
         alpha = int(232 * ((y - (height - bar_h)) / bar_h) ** 0.5)
         draw.line([(0, y), (width, y)], fill=(4, 6, 12, min(232, alpha + 90)))
     draw.rectangle((0, height - bar_h, 6, height), fill=(56, 189, 248, 255))
+    title_font, concept_font = font(19, FACE_HEAVY), font(14, FACE_DEMI)
+    if is_rtl():
+        title_x = width - 22 - tracked_width(draw, title, title_font, 1.1)
+        concept_x = width - 22 - tracked_width(draw, concept, concept_font, 2.4)
+    else:
+        title_x = concept_x = 22
     tracked(
         draw,
-        (22, height - bar_h + 12),
+        (title_x, height - bar_h + 12),
         title,
-        font(19, FACE_HEAVY),
+        title_font,
         (255, 255, 255, 255),
         1.1,
     )
-    tracked(draw, (22, height - bar_h + 44), concept, font(14, FACE_DEMI), SUB_RGB, 2.4)
+    tracked(draw, (concept_x, height - bar_h + 44), concept, concept_font, SUB_RGB, 2.4)
     frame.alpha_composite(band)
     frame.convert("RGB").save(out)
     return out
@@ -1732,13 +1795,20 @@ def make_overlays(out_dir: Path) -> list[tuple[Path, float, float]]:
         heading_size = 62 if len(heading) <= 19 else 50
         head_font = font(heading_size, FACE_HEAVY)
         sub_font = font(22, FACE_DEMI)
-        left = 92
+        margin = 92
         base = 512 if is_end_card else 548
 
-        bar_w = max(
-            tracked_width(draw, heading, head_font, 1.0),
-            tracked_width(draw, subheading, sub_font, 2.6),
-        )
+        head_w = tracked_width(draw, heading, head_font, 1.0)
+        sub_w = tracked_width(draw, subheading, sub_font, 2.6)
+        bar_w = max(head_w, sub_w)
+        # A right-to-left title hangs off the right margin, and its rule with it,
+        # otherwise the text reads to the frame's edge and the block looks unset.
+        if is_rtl():
+            left = 1280 - margin - bar_w
+            head_x = 1280 - margin - head_w
+            sub_x = 1280 - margin - sub_w
+        else:
+            left = head_x = sub_x = margin
         for x in range(bar_w):
             t = x / max(1, bar_w - 1)
             draw.line(
@@ -1746,17 +1816,22 @@ def make_overlays(out_dir: Path) -> list[tuple[Path, float, float]]:
                 fill=(int(56 + 73 * t), int(189 - 81 * t), int(248 - 3 * t), 255),
             )
 
-        tracked(draw, (left, base), heading, head_font, HEADING_RGB, 1.0)
+        tracked(draw, (head_x, base), heading, head_font, HEADING_RGB, 1.0)
         tracked(
-            draw, (left, base + heading_size + 18), subheading, sub_font, SUB_RGB, 2.6
+            draw, (sub_x, base + heading_size + 18), subheading, sub_font, SUB_RGB, 2.6
         )
 
         if is_end_card:
             foot_font = font(15, FACE_MEDIUM)
             for offset, line in enumerate(END_CARD_FOOTNOTES):
+                foot_x = (
+                    1280 - margin - tracked_width(draw, line, foot_font, 1.4)
+                    if is_rtl()
+                    else margin
+                )
                 tracked(
                     draw,
-                    (left, base + heading_size + 62 + offset * 21),
+                    (foot_x, base + heading_size + 62 + offset * 21),
                     line,
                     foot_font,
                     FOOT_RGB,
@@ -1971,6 +2046,55 @@ def assemble(shot_files: list[Path], audio: Path, args: argparse.Namespace) -> P
     return final
 
 
+LOCALE_DIR = PROJECT_DIR / "locales"
+
+
+def apply_locale(code: str) -> None:
+    """Swap every on-screen string to the chosen language.
+
+    Only the drawn text changes: the generated footage, the panels and the
+    score are language-neutral, so a locale render reuses all of them and
+    costs no GPU time at all.
+    """
+    if code == "en":
+        LOCALE.update({"locale": "en", "dir": "ltr"})
+        return
+    path = LOCALE_DIR / f"{code}.json"
+    if not path.is_file():
+        raise SystemExit(f"No locale file: {path}")
+    blob = json.loads(path.read_text(encoding="utf-8"))
+    LOCALE.update({"locale": blob["locale"], "dir": blob.get("dir", "ltr")})
+
+    if LOCALE["dir"] == "rtl":
+        missing = []
+        for mod in ("bidi", "arabic_reshaper"):
+            try:
+                __import__(mod)
+            except ImportError:
+                missing.append(mod)
+        if missing:
+            raise SystemExit(
+                f"{code} is right-to-left and needs: {', '.join(missing)}. "
+                f"Install with: python3 -m pip install --user python-bidi arabic-reshaper"
+            )
+
+    for index, shot in enumerate(TIMELINE):
+        entry = blob["titles"].get(str(index))
+        if entry and shot.get("title"):
+            head, sub, delay, hold = shot["title"]
+            shot["title"] = (entry[0], entry[1], delay, hold)
+        sign = blob["signs"].get(str(index))
+        if sign and shot.get("sign"):
+            shot["sign"] = tuple(sign)
+
+    for i, (lesson, title, concept) in enumerate(STORY_LESSONS):
+        pair = blob["stories"].get(lesson)
+        if pair:
+            STORY_LESSONS[i] = (lesson, pair[0], pair[1])
+
+    END_CARD_FOOTNOTES[:] = blob["footnotes"]
+
+
 def validate_timeline() -> None:
     total = sum(shot["duration"] for shot in TIMELINE)
     if abs(total - TOTAL_SECONDS) > 0.001:
@@ -2005,6 +2129,12 @@ def main() -> int:
     parser.add_argument("--final-name")
     parser.add_argument("--timeout", type=int, default=7200)
     parser.add_argument("--reuse-existing", action="store_true")
+    parser.add_argument(
+        "--locale",
+        default="en",
+        help="Language for every on-screen string (en, he, es). Footage and "
+             "score are reused as-is, so a locale render needs no GPU.",
+    )
     parser.add_argument(
         "--only",
         help="Comma-separated clip ids to regenerate; others are reused "
@@ -2046,6 +2176,11 @@ def main() -> int:
         PREVIEW_NAME if args.profile == "preview" else FINAL_NAME
     )
     args.output_dir.mkdir(parents=True, exist_ok=True)
+
+    apply_locale(args.locale)
+    if args.locale != "en" and not args.final_name:
+        stem = Path(args.final_name or FINAL_NAME).stem
+        args.final_name = f"{stem}_{args.locale}.mp4"
 
     validate_timeline()
     check_ltx_ranges(args)

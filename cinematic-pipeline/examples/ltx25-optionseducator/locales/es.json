@@ -1,0 +1,123 @@
+{
+  "locale": "es",
+  "name": "Spanish",
+  "dir": "ltr",
+  "titles": {
+    "0": [
+      "LLEGAS CON UNA PREGUNTA",
+      "¿CÓMO SE LEE ESTE MERCADO?"
+    ],
+    "1": [
+      "BIENVENIDO A OPTIONS CITY",
+      "UN LABORATORIO DE TRADING EN VIVO"
+    ],
+    "2": [
+      "DONDE EMPIEZA CADA TRADER",
+      "LEER LA CADENA | TU PRIMERA CALL CUBIERTA"
+    ],
+    "3": [
+      "LAS CALLES SON EL TEMARIO",
+      "CADA CAMINO ES UN CONCEPTO QUE APRENDES"
+    ],
+    "4": [
+      "Y EL MERCADO SE DA VUELTA",
+      "CAÍDA DE VOLATILIDAD Y REVALORACIÓN"
+    ],
+    "5": [
+      "EL MERCADO DECIDE LA JUGADA",
+      "CALMA: VENDER PRIMA | TENDENCIA: SPREADS"
+    ],
+    "6": [
+      "ENTONCES ENTRAS AL TRADE",
+      "EJECUTA. MANTÉN. CIERRA CON RESULTADO."
+    ],
+    "7": [
+      "LAS GRIEGAS MANDAN AQUÍ",
+      "SENSIBILIDADES, EXPOSICIÓN, GESTIÓN DE POSICIÓN"
+    ],
+    "8": [
+      "CADA DÍA LA CIUDAD TE INFORMA",
+      "HISTORIAS, PÓDCASTS Y VÍDEO DIARIO - ESCRITOS DEL MERCADO"
+    ],
+    "9": [
+      "UN ARCADE QUE SIGUE CRECIENDO",
+      "MINIJUEGOS: DEFENSA DE CREADOR | ESCALERA DE RIESGO | CONSTRUCTOR"
+    ],
+    "10": [
+      "LECCIONES DE OPERACIONES REALES",
+      "FUNDAMENTOS | TÉCNICO | GRIEGAS | ESTRATEGIAS | RIESGO"
+    ],
+    "11": [
+      "VINISTE A APRENDER OPCIONES",
+      "TE VAS OPERÁNDOLAS"
+    ],
+    "12": [
+      "OPTIONS EDUCATOR",
+      "EMPIEZA TU RUTA DE APRENDIZAJE"
+    ]
+  },
+  "signs": {
+    "2": [
+      "CIUDAD VIEJA",
+      "FUNDAMENTOS ILUSTRADOS"
+    ],
+    "3": [
+      "CALLE GAMMA",
+      "SENDA THETA | BULEVAR VEGA"
+    ],
+    "4": [
+      "ALTURAS DE VOLATILIDAD",
+      "CALLEJÓN DE CAÍDA IV"
+    ],
+    "6": [
+      "PASEO DE SPREADS",
+      "VÍA DE LA PRIMA"
+    ],
+    "7": [
+      "PASEO DEL PANTEÓN",
+      "CALLE STRIKE | CALLE RHO"
+    ],
+    "8": [
+      "VÍA DEL VENCIMIENTO",
+      "DISTRITO DE NOTICIAS"
+    ]
+  },
+  "stories": {
+    "basics-flow": [
+      "ALEX Y LAS ENTRADAS DEL JARDÍN MÁGICO",
+      "CALLS Y PUTS"
+    ],
+    "theta-clock": [
+      "LA HELADERÍA QUE SE DERRITE",
+      "PASO DEL TIEMPO"
+    ],
+    "options-chain-reading": [
+      "EL MAPA DEL TESORO DE LOS NÚMEROS",
+      "LEER LA CADENA"
+    ],
+    "support-resistance": [
+      "EL REINO DE SUELOS Y TECHOS",
+      "SOPORTE Y RESISTENCIA"
+    ],
+    "short-risk": [
+      "EL JUEGO PELIGROSO DEL OSO",
+      "RIESGO EN CORTO"
+    ],
+    "valuation-ratios-101": [
+      "EL DETECTIVE DE LAS ETIQUETAS",
+      "VALORACIÓN"
+    ],
+    "macro-vol": [
+      "EL CLIMA DE LOS MERCADOS",
+      "VOLATILIDAD MACRO"
+    ],
+    "rsi-macd-mastery": [
+      "EL SISTEMA DE DOBLE BRÚJULA",
+      "RSI Y MACD"
+    ]
+  },
+  "footnotes": [
+    "INGLÉS, HEBREO Y ESPAÑOL",
+    "SOLO CON FINES EDUCATIVOS. NO ES ASESORAMIENTO FINANCIERO."
+  ]
+}

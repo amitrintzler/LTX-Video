@@ -1,0 +1,123 @@
+{
+  "locale": "en",
+  "name": "English",
+  "dir": "ltr",
+  "titles": {
+    "0": [
+      "YOU ARRIVE WITH ONE QUESTION",
+      "HOW DOES ANYONE READ THIS MARKET?"
+    ],
+    "1": [
+      "WELCOME TO OPTIONS CITY",
+      "A LIVE TRADING SANDBOX"
+    ],
+    "2": [
+      "WHERE EVERY TRADER STARTS",
+      "CHAIN LITERACY | YOUR FIRST COVERED CALL"
+    ],
+    "3": [
+      "THE STREETS ARE THE SYLLABUS",
+      "EVERY ROAD IS A CONCEPT YOU LEARN"
+    ],
+    "4": [
+      "THEN THE TAPE TURNS",
+      "VOL CRUSH AND EVENT REPRICING"
+    ],
+    "5": [
+      "THE MARKET DECIDES THE PLAY",
+      "CALM: SELL PREMIUM | TRENDING: SPREADS"
+    ],
+    "6": [
+      "SO YOU TAKE THE TRADE",
+      "EXECUTE. HOLD. CLOSE FOR P&L."
+    ],
+    "7": [
+      "THE GREEKS RUN THIS CITY",
+      "SENSITIVITIES, EXPOSURE, POSITION MANAGEMENT"
+    ],
+    "8": [
+      "EVERY DAY THE CITY BRIEFS YOU",
+      "STORIES, PODCASTS & DAILY VIDEO - REWRITTEN FROM THE TAPE"
+    ],
+    "9": [
+      "AN ARCADE THAT KEEPS GROWING",
+      "MINI-GAMES: MARKET MAKER DEFENSE | RISK LADDER | STRATEGY BUILDER"
+    ],
+    "10": [
+      "LESSONS BUILT FROM REAL TRADES",
+      "FOUNDATIONS | TECHNICALS | GREEKS | STRATEGIES | RISK"
+    ],
+    "11": [
+      "YOU CAME TO LEARN OPTIONS",
+      "YOU LEAVE TRADING THEM"
+    ],
+    "12": [
+      "OPTIONS EDUCATOR",
+      "START YOUR LEARNING PATH"
+    ]
+  },
+  "signs": {
+    "2": [
+      "OLD TOWN",
+      "STORYBOOK BASICS"
+    ],
+    "3": [
+      "GAMMA STREET",
+      "THETA PATH | VEGA BOULEVARD"
+    ],
+    "4": [
+      "VOLATILITY HEIGHTS",
+      "IV CRUSH ALLEY"
+    ],
+    "6": [
+      "SPREAD PARKWAY",
+      "PREMIUM WAY"
+    ],
+    "7": [
+      "PANTHEON ROW",
+      "STRIKE LANE | RHO LANE"
+    ],
+    "8": [
+      "EXPIRY ROAD",
+      "MARKET NEWS DISTRICT"
+    ]
+  },
+  "stories": {
+    "basics-flow": [
+      "ALEX AND THE MAGIC GARDEN TICKETS",
+      "CALLS AND PUTS"
+    ],
+    "theta-clock": [
+      "THE MELTING ICE CREAM SHOP",
+      "TIME DECAY"
+    ],
+    "options-chain-reading": [
+      "THE TREASURE MAP OF NUMBERS",
+      "READING THE CHAIN"
+    ],
+    "support-resistance": [
+      "THE KINGDOM OF FLOORS AND CEILINGS",
+      "SUPPORT AND RESISTANCE"
+    ],
+    "short-risk": [
+      "THE BEAR'S DANGEROUS GAME",
+      "SHORT RISK"
+    ],
+    "valuation-ratios-101": [
+      "THE PRICE TAG DETECTIVE",
+      "VALUATION"
+    ],
+    "macro-vol": [
+      "THE WEATHER OF MARKETS",
+      "MACRO VOLATILITY"
+    ],
+    "rsi-macd-mastery": [
+      "THE TWIN COMPASS SYSTEM",
+      "RSI AND MACD"
+    ]
+  },
+  "footnotes": [
+    "ENGLISH, HEBREW AND SPANISH",
+    "EDUCATIONAL PURPOSES ONLY. NOT FINANCIAL ADVICE."
+  ]
+}

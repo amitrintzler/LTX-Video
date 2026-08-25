@@ -209,6 +209,9 @@ TIMELINE = [
         "clip": "old_town",
         "start": 4.8,
         "duration": 4.6,
+        # No wall screen here: this window is a fast forward dolly and every candidate
+        # wall sweeps out of frame within two seconds, so a billboard drifts off the
+        # building. The storybook panel carries the beat instead.
         "title": (
             "WHERE EVERY TRADER STARTS",
             "CHAIN LITERACY | YOUR FIRST COVERED CALL",
@@ -325,6 +328,10 @@ TIMELINE = [
         "clip": "city_reveal",
         "start": 2.7,
         "duration": 4.2,
+        "facades": [
+            {"kind": "chain", "ticker": "QQQ",
+             "quad": ((60, 300), (230, 340), (60, 615), (230, 580))}
+        ],
         "title": (
             "AN ARCADE THAT KEEPS GROWING",
             "MINI-GAMES: MARKET MAKER DEFENSE | RISK LADDER | STRATEGY BUILDER",
@@ -340,6 +347,9 @@ TIMELINE = [
         "clip": "pantheon_night",
         "start": 0.4,
         "duration": 4.5,
+        "facades": [
+            {"kind": "chart", "quad": ((1152, 235), (1276, 210), (1152, 420), (1276, 445))}
+        ],
         "title": (
             "LESSONS BUILT FROM REAL TRADES",
             "FOUNDATIONS | TECHNICALS | GREEKS | STRATEGIES | RISK",

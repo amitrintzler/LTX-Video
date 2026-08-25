@@ -189,7 +189,7 @@ TIMELINE = [
             3.4,
         ),
         "facades": [
-            {"kind": "chart", "quad": ((680, 210), (950, 235), (680, 470), (950, 445))}
+            {"kind": "chart", "quad": ((655, 248), (975, 272), (655, 480), (975, 452))}
         ],
     },
     {
@@ -200,7 +200,7 @@ TIMELINE = [
         "title": ("WELCOME TO OPTIONS CITY", "A LIVE TRADING SANDBOX", 0.6, 3.4),
         "sfx": "whoosh",
         "facades": [
-            {"kind": "chart", "quad": ((790, 130), (950, 110), (790, 390), (950, 370))}
+            {"kind": "chart", "quad": ((780, 95), (955, 75), (780, 428), (955, 408))}
         ],
     },
     # -- Act 2: the city is the syllabus -------------------------------------
@@ -232,7 +232,7 @@ TIMELINE = [
         "sign": ("GAMMA STREET", "THETA PATH | VEGA BOULEVARD"),
         "sfx": "click",
         "facades": [
-            {"kind": "chain", "quad": ((228, 300), (420, 344), (228, 620), (420, 596))}
+            {"kind": "chain", "quad": ((215, 255), (428, 300), (215, 655), (428, 625))}
         ],
     },
     # -- Act 3: the tape turns ------------------------------------------------
@@ -244,7 +244,7 @@ TIMELINE = [
         "title": ("THEN THE TAPE TURNS", "VOL CRUSH AND EVENT REPRICING", 0.4, 3.4),
         "facade": {
             "kind": "chart",
-            "quad": ((305, 420), (465, 412), (305, 640), (465, 634)),
+            "quad": ((295, 405), (478, 396), (295, 658), (478, 650)),
         },
         "sign": ("VOLATILITY HEIGHTS", "IV CRUSH ALLEY"),
         "sfx": "whoosh",
@@ -262,7 +262,7 @@ TIMELINE = [
         ),
         "facade": {
             "kind": "chain",
-            "quad": ((812, 256), (948, 250), (812, 462), (948, 456)),
+            "quad": ((800, 244), (960, 238), (800, 472), (960, 466)),
         },
     },
     # -- Act 4: you take the trade -------------------------------------------
@@ -275,7 +275,7 @@ TIMELINE = [
         "sign": ("SPREAD PARKWAY", "PREMIUM WAY"),
         "payoffs": True,
         "facades": [
-            {"kind": "chart", "quad": ((105, 245), (330, 237), (105, 397), (330, 391))}
+            {"kind": "chart", "quad": ((95, 235), (345, 226), (95, 404), (345, 398))}
         ],
         "inset": {"image": "hi_career.png", "region": (0.5, 0.105, 0.60)},
         "sfx": "levelup",
@@ -293,9 +293,9 @@ TIMELINE = [
         ),
         "sign": ("PANTHEON ROW", "STRIKE LANE | RHO LANE"),
         "facades": [
-            {"kind": "chart", "quad": ((155, 250), (300, 242), (155, 392), (300, 386))},
+            {"kind": "chart", "quad": ((145, 240), (310, 232), (145, 398), (310, 392))},
             {"kind": "chain", "ticker": "QQQ",
-             "quad": ((990, 215), (1140, 205), (990, 388), (1140, 380))},
+             "quad": ((978, 205), (1150, 195), (978, 395), (1150, 387))},
         ],
     },
     # -- Act 5: the daily habit ----------------------------------------------
@@ -358,7 +358,7 @@ TIMELINE = [
         "facades": [
             {
                 "kind": "chart",
-                "quad": ((900, 220), (1075, 190), (900, 500), (1075, 470)),
+                "quad": ((890, 208), (1088, 176), (890, 510), (1088, 480)),
             }
         ],
     },
@@ -1014,7 +1014,10 @@ STORY_PAGES = Path("/Users/amitri/Projects/optionseducator/public/story-images")
 STORY_LESSONS = [
     ("basics-flow", "ALEX AND THE MAGIC GARDEN TICKETS", "CALLS AND PUTS"),
     ("theta-clock", "THE MELTING ICE CREAM SHOP", "TIME DECAY"),
-    ("strike-price-mastery", "GOLDILOCKS AND THE THREE STRIKES", "STRIKE SELECTION"),
+    # strike-price-mastery's art is an older flat style with garbled captions,
+    # visibly out of place next to the rendered stories; this lesson teaches the
+    # same territory with art that matches.
+    ("options-chain-reading", "THE TREASURE MAP OF NUMBERS", "READING THE CHAIN"),
     (
         "support-resistance",
         "THE KINGDOM OF FLOORS AND CEILINGS",
@@ -1161,11 +1164,10 @@ def render_chart_panel(out: Path, box: tuple = (64, 160, 620, 348)) -> Path:
     draw = ImageDraw.Draw(canvas)
     scale = H / 348.0
 
-    draw.rounded_rectangle(
+    draw.rectangle(
         (x0, y0, x0 + W, y0 + H),
-        radius=int(7 * scale),
-        fill=(11, 19, 36, 244),
-        outline=(96, 216, 255, 240),
+        fill=(8, 13, 26, 252),
+        outline=(96, 216, 255, 250),
         width=max(2, int(2 * scale)),
     )
     tracked(
@@ -1273,11 +1275,10 @@ def render_chain_panel(
     canvas = Image.new("RGBA", (max(1280, x0 + W), max(720, y0 + H)), (0, 0, 0, 0))
     draw = ImageDraw.Draw(canvas)
     sx, sy = W / 600.0, H / 366.0
-    draw.rounded_rectangle(
+    draw.rectangle(
         (x0, y0, x0 + W, y0 + H),
-        radius=int(6 * sy),
-        fill=(11, 19, 36, 242),
-        outline=(96, 216, 255, 236),
+        fill=(8, 13, 26, 252),
+        outline=(96, 216, 255, 250),
         width=max(2, int(2 * sy)),
     )
     tracked(
@@ -1354,11 +1355,10 @@ def render_tower_board(
     u = W / 240.0  # one layout unit, tied to the board's width
     pad = 14 * u
 
-    draw.rounded_rectangle(
+    draw.rectangle(
         (x0, y0, x0 + W, y0 + H),
-        radius=int(6 * u),
-        fill=(11, 19, 36, 244),
-        outline=(96, 216, 255, 240),
+        fill=(8, 13, 26, 252),
+        outline=(96, 216, 255, 250),
         width=max(2, int(1.8 * u)),
     )
     candles = QQQ_CANDLES if ticker == "QQQ" else CANDLES
@@ -2181,8 +2181,8 @@ def main() -> int:
             # drawn large so a warped facade stays sharp instead of being upscaled
             scale = max(3.0, 900.0 / max(span_x, span_y))
             w, h = int(span_x * scale), int(span_y * scale)
-            # the plate is drawn inset so its glow has somewhere to fall
-            pad = max(12, int(0.07 * max(w, h)))
+            # a whisker of inset so the glow still reads; the art owns the wall
+            pad = max(6, int(0.02 * max(w, h)))
             flat = work / f"facade_flat_{index:02d}_{fi}.png"
             if aspect < 1.25:
                 render_tower_board(

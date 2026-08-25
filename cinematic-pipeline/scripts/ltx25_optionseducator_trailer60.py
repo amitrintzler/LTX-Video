@@ -188,7 +188,6 @@ TIMELINE = [
             0.6,
             3.4,
         ),
-        "hud": {"kind": "chart"},
     },
     {
         "kind": "ltx",
@@ -230,7 +229,6 @@ TIMELINE = [
         ),
         "sign": ("GAMMA STREET", "THETA PATH | VEGA BOULEVARD"),
         "sfx": "click",
-        "hud": {"kind": "chain"},
     },
     # -- Act 3: the tape turns ------------------------------------------------
     {
@@ -239,7 +237,6 @@ TIMELINE = [
         "start": 0.4,
         "duration": 4.2,
         "title": ("THEN THE TAPE TURNS", "VOL CRUSH AND EVENT REPRICING", 0.4, 3.4),
-        "hud": {"kind": "chart"},
         "sign": ("VOLATILITY HEIGHTS", "IV CRUSH ALLEY"),
         "sfx": "whoosh",
     },
@@ -281,7 +278,6 @@ TIMELINE = [
             3.2,
         ),
         "sign": ("PANTHEON ROW", "STRIKE LANE | RHO LANE"),
-        "hud": {"kind": "chain"},
     },
     # -- Act 5: the daily habit ----------------------------------------------
     {
@@ -310,7 +306,7 @@ TIMELINE = [
         "clip": "city_reveal",
         "start": 2.7,
         "duration": 4.2,
-        "hud": {"kind": "chart", "ticker": "QQQ", "at": (64, 168)},
+
         "title": (
             "AN ARCADE THAT KEEPS GROWING",
             "MINI-GAMES: MARKET MAKER DEFENSE | RISK LADDER | STRATEGY BUILDER",
@@ -326,7 +322,6 @@ TIMELINE = [
         "clip": "pantheon_night",
         "start": 0.4,
         "duration": 4.5,
-        "hud": {"kind": "chart"},
         "title": (
             "LESSONS BUILT FROM REAL TRADES",
             "FOUNDATIONS | TECHNICALS | GREEKS | STRATEGIES | RISK",
@@ -341,8 +336,8 @@ TIMELINE = [
         "start": 5.2,
         "duration": 4.6,
         "title": ("YOU CAME TO LEARN OPTIONS", "YOU LEAVE TRADING THEM", 0.4, 3.8),
+        "hud": {"kind": "chart", "ticker": "QQQ"},
         "sfx": "whoosh",
-        "hud": {"kind": "chain", "ticker": "QQQ"},
     },
     {
         "kind": "ui",
@@ -391,8 +386,9 @@ CONFIG_KEYS = [
 ]
 LOOK_TOKEN = "{LOOK}"
 
-# Drawn screens all share one footprint: the podcast and video players set it.
-HUD_W, HUD_H = 560, 300
+# Small and out of the way. A panel on nearly every shot meant the city was
+# never once seen clean; these now appear three times in sixty seconds.
+HUD_W, HUD_H = 372, 200
 
 
 def export_config() -> dict:
@@ -1280,19 +1276,29 @@ def render_chain_panel(
         (226, 232, 240, 255),
         1.8,
     )
-    tracked(
-        draw,
-        (x0 + 205 * sx, y0 + 19 * sy),
-        "EXP 21 DAYS",
-        font(max(9, int(12 * sy)), FACE_DEMI),
-        SUB_RGB,
-        1.6,
-    )
+    # Six columns and a subtitle need room. Below roughly 460px the labels collide,
+    # so a narrow panel drops the expiry line and shows one price a side.
+    compact = W < 460
+    if not compact:
+        tracked(
+            draw,
+            (x0 + 205 * sx, y0 + 19 * sy),
+            "EXP 21 DAYS",
+            font(max(9, int(12 * sy)), FACE_DEMI),
+            SUB_RGB,
+            1.6,
+        )
 
     head_font = font(max(9, int(12 * sy)), FACE_HEAVY)
     cell_font = font(max(10, int(14 * sy)), FACE_DEMI)
-    cols = [x0 + c * sx for c in (24, 108, 192, 288, 388, 480)]
-    headers = ["CALL BID", "CALL ASK", "STRIKE", "PUT BID", "PUT ASK", "IV %"]
+    if compact:
+        cols = [x0 + c * sx for c in (24, 190, 350, 490)]
+        headers = ["CALL", "STRIKE", "PUT", "IV %"]
+        keep = (1, 0, 3, 5)
+    else:
+        cols = [x0 + c * sx for c in (24, 108, 192, 288, 388, 480)]
+        headers = ["CALL BID", "CALL ASK", "STRIKE", "PUT BID", "PUT ASK", "IV %"]
+        keep = None
     hy = y0 + 52 * sy
     for cx, label in zip(cols, headers):
         tracked(draw, (cx, hy), label, head_font, (125, 145, 180, 255), 1.4)
@@ -1313,12 +1319,15 @@ def render_chain_panel(
                 fill=(30, 58, 92, 200),
             )
         ordered = (row[1], row[2], row[0], row[3], row[4], row[5])
+        if keep:
+            ordered = tuple(row[k] for k in keep)
         for col_index, (cx, value) in enumerate(zip(cols, ordered)):
-            if col_index == 2:
+            strike_col = 1 if keep else 2
+            if col_index == strike_col:
                 colour = (250, 204, 21, 255) if at_money else (226, 232, 240, 255)
-            elif col_index < 2:
+            elif col_index < strike_col:
                 colour = (52, 211, 153, 255)
-            elif col_index < 4:
+            elif col_index < (2 if keep else 4) + (1 if keep else 0):
                 colour = (248, 113, 113, 255)
             else:
                 colour = (165, 180, 252, 255)
@@ -2164,7 +2173,7 @@ def main() -> int:
             # building faces distorted the candles, fought the architecture and had
             # to be re-traced every time a clip was re-seeded; the city now carries
             # no lettering at all and the data reads at full sharpness.
-            hx, hy = hud.get("at", (700, 168))
+            hx, hy = hud.get("at", (866, 130))
             kind = hud["kind"]
             flat = work / f"hud_{index:02d}.png"
             tick = hud.get("ticker", "SPY")

@@ -208,6 +208,12 @@ Podcasts and live market news appear in the titles on the owner's explicit
 confirmation. Neither could be verified from the public site, where the career page's
 live feed reads NO SIGNAL and `world-daily-pack` returns 404.
 
+## Licensing
+
+The trailer's music is a licensed third-party track. See
+[LICENSING.md](LICENSING.md) for the terms, the unused alternates, and the
+rights on every other asset in the film.
+
 ## QA
 
 Run the reference README's full check set, and inspect extracted frames inside every

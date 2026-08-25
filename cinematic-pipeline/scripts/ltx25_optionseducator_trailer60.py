@@ -188,9 +188,7 @@ TIMELINE = [
             0.6,
             3.4,
         ),
-        "facades": [
-            {"kind": "chart", "quad": ((655, 248), (975, 272), (655, 480), (975, 452))}
-        ],
+        "hud": {"kind": "chart"},
     },
     {
         "kind": "ltx",
@@ -199,9 +197,7 @@ TIMELINE = [
         "duration": 4.5,
         "title": ("WELCOME TO OPTIONS CITY", "A LIVE TRADING SANDBOX", 0.6, 3.4),
         "sfx": "whoosh",
-        "facades": [
-            {"kind": "chart", "quad": ((780, 95), (955, 75), (780, 428), (955, 408))}
-        ],
+        "hud": {"kind": "chart"},
     },
     # -- Act 2: the city is the syllabus -------------------------------------
     {
@@ -234,9 +230,7 @@ TIMELINE = [
         ),
         "sign": ("GAMMA STREET", "THETA PATH | VEGA BOULEVARD"),
         "sfx": "click",
-        "facades": [
-            {"kind": "chain", "quad": ((215, 255), (428, 300), (215, 655), (428, 625))}
-        ],
+        "hud": {"kind": "chain"},
     },
     # -- Act 3: the tape turns ------------------------------------------------
     {
@@ -245,10 +239,7 @@ TIMELINE = [
         "start": 0.4,
         "duration": 4.2,
         "title": ("THEN THE TAPE TURNS", "VOL CRUSH AND EVENT REPRICING", 0.4, 3.4),
-        "facade": {
-            "kind": "chart",
-            "quad": ((295, 405), (478, 396), (295, 658), (478, 650)),
-        },
+        "hud": {"kind": "chart"},
         "sign": ("VOLATILITY HEIGHTS", "IV CRUSH ALLEY"),
         "sfx": "whoosh",
     },
@@ -263,10 +254,7 @@ TIMELINE = [
             0.4,
             4.0,
         ),
-        "facade": {
-            "kind": "chain",
-            "quad": ((800, 244), (960, 238), (800, 472), (960, 466)),
-        },
+        "hud": {"kind": "chain"},
     },
     # -- Act 4: you take the trade -------------------------------------------
     {
@@ -277,9 +265,7 @@ TIMELINE = [
         "title": ("SO YOU TAKE THE TRADE", "EXECUTE. HOLD. CLOSE FOR P&L.", 0.4, 3.6),
         "sign": ("SPREAD PARKWAY", "PREMIUM WAY"),
         "payoffs": True,
-        "facades": [
-            {"kind": "chart", "quad": ((95, 235), (345, 226), (95, 404), (345, 398))}
-        ],
+        # payoffs and the Career Games screen already fill this shot
         "inset": {"image": "hi_career.png", "region": (0.5, 0.105, 0.60)},
         "sfx": "levelup",
     },
@@ -295,11 +281,7 @@ TIMELINE = [
             3.2,
         ),
         "sign": ("PANTHEON ROW", "STRIKE LANE | RHO LANE"),
-        "facades": [
-            {"kind": "chart", "quad": ((145, 240), (310, 232), (145, 398), (310, 392))},
-            {"kind": "chain", "ticker": "QQQ",
-             "quad": ((978, 205), (1150, 195), (978, 395), (1150, 387))},
-        ],
+        "hud": {"kind": "chain"},
     },
     # -- Act 5: the daily habit ----------------------------------------------
     {
@@ -328,10 +310,7 @@ TIMELINE = [
         "clip": "city_reveal",
         "start": 2.7,
         "duration": 4.2,
-        "facades": [
-            {"kind": "chain", "ticker": "QQQ",
-             "quad": ((60, 300), (230, 340), (60, 615), (230, 580))}
-        ],
+        "hud": {"kind": "chart", "ticker": "QQQ", "at": (64, 168)},
         "title": (
             "AN ARCADE THAT KEEPS GROWING",
             "MINI-GAMES: MARKET MAKER DEFENSE | RISK LADDER | STRATEGY BUILDER",
@@ -347,9 +326,7 @@ TIMELINE = [
         "clip": "pantheon_night",
         "start": 0.4,
         "duration": 4.5,
-        "facades": [
-            {"kind": "chart", "quad": ((1152, 235), (1276, 210), (1152, 420), (1276, 445))}
-        ],
+        "hud": {"kind": "chart"},
         "title": (
             "LESSONS BUILT FROM REAL TRADES",
             "FOUNDATIONS | TECHNICALS | GREEKS | STRATEGIES | RISK",
@@ -365,12 +342,7 @@ TIMELINE = [
         "duration": 4.6,
         "title": ("YOU CAME TO LEARN OPTIONS", "YOU LEAVE TRADING THEM", 0.4, 3.8),
         "sfx": "whoosh",
-        "facades": [
-            {
-                "kind": "chart",
-                "quad": ((890, 208), (1088, 176), (890, 510), (1088, 480)),
-            }
-        ],
+        "hud": {"kind": "chain", "ticker": "QQQ"},
     },
     {
         "kind": "ui",
@@ -418,6 +390,9 @@ CONFIG_KEYS = [
     "PAYOFFS",
 ]
 LOOK_TOKEN = "{LOOK}"
+
+# Drawn screens all share one footprint: the podcast and video players set it.
+HUD_W, HUD_H = 560, 300
 
 
 def export_config() -> dict:
@@ -1163,7 +1138,9 @@ QQQ_CHAIN_ROWS = [
 ]
 
 
-def render_chart_panel(out: Path, box: tuple = (64, 160, 620, 348)) -> Path:
+def render_chart_panel(
+    out: Path, box: tuple = (64, 160, 620, 348), ticker: str = "SPY"
+) -> Path:
     """A trading chart: OHLC candles with wicks, a moving average, signals and volume.
 
     Drawn rather than generated, because four attempts at prompting a legible chart
@@ -1180,10 +1157,11 @@ def render_chart_panel(out: Path, box: tuple = (64, 160, 620, 348)) -> Path:
         outline=(96, 216, 255, 250),
         width=max(2, int(2 * scale)),
     )
+    candles = QQQ_CANDLES if ticker == "QQQ" else CANDLES
     tracked(
         draw,
         (x0 + 20 * scale, y0 + 15 * scale),
-        "SPY  1D",
+        f"{ticker}  1D",
         font(max(12, int(19 * scale)), FACE_HEAVY),
         (226, 232, 240, 255),
         1.8,
@@ -1199,9 +1177,11 @@ def render_chart_panel(out: Path, box: tuple = (64, 160, 620, 348)) -> Path:
 
     plot_l, plot_r = x0 + 20 * scale, x0 + W - 20 * scale
     plot_t, plot_b = y0 + 52 * scale, y0 + H - 78 * scale
-    lows = [c[2] for c in CANDLES]
-    highs = [c[1] for c in CANDLES]
-    lo, hi = min(lows) - 4, max(highs) + 4
+    lows = [c[2] for c in candles]
+    highs = [c[1] for c in candles]
+    # padding relative to the range: a fixed +-4 flattens a listing trading near 500
+    pad_v = max(1, max(highs) - min(lows)) * 0.1
+    lo, hi = min(lows) - pad_v, max(highs) + pad_v
 
     def py(v):
         return plot_b - (v - lo) / (hi - lo) * (plot_b - plot_t)
@@ -1210,11 +1190,11 @@ def render_chart_panel(out: Path, box: tuple = (64, 160, 620, 348)) -> Path:
         gy = plot_t + g * (plot_b - plot_t) / 4
         draw.line([(plot_l, gy), (plot_r, gy)], fill=(34, 46, 70, 165), width=1)
 
-    step = (plot_r - plot_l) / len(CANDLES)
+    step = (plot_r - plot_l) / len(candles)
     body_w = max(3.0, step * 0.62)
     wick_w = max(1, int(round(step * 0.11)))
     closes = []
-    for i, (o, h, l, c) in enumerate(CANDLES):
+    for i, (o, h, l, c) in enumerate(candles):
         cx = plot_l + step * (i + 0.5)
         up = c >= o
         colour = (46, 204, 148, 255) if up else (239, 90, 90, 255)
@@ -1226,8 +1206,8 @@ def render_chart_panel(out: Path, box: tuple = (64, 160, 620, 348)) -> Path:
         closes.append((cx, py(c)))
 
     ma = []
-    for i in range(len(CANDLES)):
-        window = [c[3] for c in CANDLES[max(0, i - 4) : i + 1]]
+    for i in range(len(candles)):
+        window = [c[3] for c in candles[max(0, i - 4) : i + 1]]
         ma.append((closes[i][0], py(sum(window) / len(window))))
     draw.line(
         ma, fill=(250, 204, 21, 240), width=max(2, int(2.5 * scale)), joint="curve"
@@ -1259,8 +1239,8 @@ def render_chart_panel(out: Path, box: tuple = (64, 160, 620, 348)) -> Path:
         )
 
     vb, vt = y0 + H - 20 * scale, y0 + H - 66 * scale
-    peak = max(abs(c[3] - c[0]) for c in CANDLES) or 1
-    for i, (o, h, l, c) in enumerate(CANDLES):
+    peak = max(abs(c[3] - c[0]) for c in candles) or 1
+    for i, (o, h, l, c) in enumerate(candles):
         cx = plot_l + step * (i + 0.5)
         height = (0.25 + 0.75 * abs(c - o) / peak) * (vb - vt)
         colour = (46, 204, 148, 175) if c >= o else (239, 90, 90, 175)
@@ -1273,7 +1253,8 @@ def render_chart_panel(out: Path, box: tuple = (64, 160, 620, 348)) -> Path:
 
 
 def render_chain_panel(
-    out: Path, box: tuple[int, int, int, int] = (636, 120, 600, 366)
+    out: Path, box: tuple[int, int, int, int] = (636, 120, 600, 366),
+    ticker: str = "SPY",
 ) -> Path:
     """An options chain: calls on the left, strikes down the middle, puts on the right.
 
@@ -1294,7 +1275,7 @@ def render_chain_panel(
     tracked(
         draw,
         (x0 + 20 * sx, y0 + 16 * sy),
-        "OPTIONS CHAIN",
+        f"{ticker}  OPTIONS CHAIN",
         font(max(11, int(17 * sy)), FACE_HEAVY),
         (226, 232, 240, 255),
         1.8,
@@ -1321,9 +1302,10 @@ def render_chain_panel(
         width=max(1, int(sy)),
     )
 
-    for row_index, row in enumerate(CHAIN_ROWS):
+    rows = QQQ_CHAIN_ROWS if ticker == "QQQ" else CHAIN_ROWS
+    for row_index, row in enumerate(rows):
         ry = hy + (40 + row_index * 44) * sy
-        at_money = row[0] == "180"
+        at_money = row[0] == ("490" if ticker == "QQQ" else "180")
         if at_money:
             draw.rounded_rectangle(
                 (x0 + 16 * sx, ry - 9 * sy, x0 + W - 16 * sx, ry + 27 * sy),
@@ -2176,46 +2158,26 @@ def main() -> int:
             rendered = render_ltx_shot(shot, index, clips, work)
         if shot.get("inset"):
             rendered = render_inset(shot, index, rendered, work)
-        facades = shot.get("facades") or (
-            [shot["facade"]] if shot.get("facade") else []
-        )
-        for fi, facade in enumerate(facades):
-            kind = facade["kind"]
-            quad = facade["quad"]
-            # Draw the plate at the wall's own proportions. Warping a landscape
-            # chart onto a tower face squeezes the candles into a solid block, so
-            # a wall taller than it is wide gets the stacked board instead.
-            span_x = (abs(quad[1][0] - quad[0][0]) + abs(quad[3][0] - quad[2][0])) / 2.0
-            span_y = (abs(quad[2][1] - quad[0][1]) + abs(quad[3][1] - quad[1][1])) / 2.0
-            aspect = span_x / max(1.0, span_y)
-            # drawn large so a warped facade stays sharp instead of being upscaled
-            scale = max(3.0, 900.0 / max(span_x, span_y))
-            w, h = int(span_x * scale), int(span_y * scale)
-            # a whisker of inset so the glow still reads; the art owns the wall
-            pad = max(6, int(0.02 * max(w, h)))
-            flat = work / f"facade_flat_{index:02d}_{fi}.png"
-            if aspect < 1.25:
-                render_tower_board(
-                    flat,
-                    box=(pad, pad, w, h),
-                    lead="chart" if kind == "chart" else "chain",
-                    ticker=facade.get("ticker", "SPY"),
-                )
-            elif kind == "chart":
-                render_chart_panel(flat, box=(pad, pad, w, h))
+        hud = shot.get("hud")
+        if hud:
+            # A flat panel, composited straight onto the frame. Warping these onto
+            # building faces distorted the candles, fought the architecture and had
+            # to be re-traced every time a clip was re-seeded; the city now carries
+            # no lettering at all and the data reads at full sharpness.
+            hx, hy = hud.get("at", (700, 168))
+            kind = hud["kind"]
+            flat = work / f"hud_{index:02d}.png"
+            tick = hud.get("ticker", "SPY")
+            if kind == "chart":
+                render_chart_panel(flat, box=(0, 0, HUD_W, HUD_H), ticker=tick)
             else:
-                render_chain_panel(flat, box=(pad, pad, w, h))
+                render_chain_panel(flat, box=(0, 0, HUD_W, HUD_H), ticker=tick)
             with Image.open(flat) as full:
-                art = emissive(
-                    full.convert("RGBA").crop((0, 0, w + 2 * pad, h + 2 * pad)),
-                    spread=max(8, pad // 2),
-                )
-            frames = max(2, int(round(shot["duration"] * FPS)))
-            slot = index * 10 + fi
-            plate = facade_sequence(art, quad, frames, work, slot, clip=rendered)
-            rendered = overlay_panel(
-                rendered, plate, 0, 0, slot, work, f"{kind}{fi}", moving=True
-            )
+                art = full.convert("RGBA").crop((0, 0, HUD_W, HUD_H))
+            plate = work / f"hud_plate_{index:02d}.png"
+            art.save(plate)
+            rendered = overlay_panel(rendered, plate, hx, hy, index, work, "hud")
+
         panel = shot.get("panel")
         if panel == "story":
             art = story_panel if story_panel else render_story_panel(work)

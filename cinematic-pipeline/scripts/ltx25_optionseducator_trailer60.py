@@ -2063,9 +2063,9 @@ def apply_locale(code: str) -> None:
     score are language-neutral, so a locale render reuses all of them and
     costs no GPU time at all.
     """
-    if code == "en":
-        LOCALE.update({"locale": "en", "dir": "ltr"})
-        return
+    # English loads from its own file too. Reading the constants instead let the
+    # English end card drift from the others: it still promised "more languages
+    # in progress" while the Hebrew and Spanish cards already named all three.
     path = LOCALE_DIR / f"{code}.json"
     if not path.is_file():
         raise SystemExit(f"No locale file: {path}")
@@ -2179,15 +2179,18 @@ def main() -> int:
     args.output_dir = args.output_dir or (
         PREVIEW_DIR if args.profile == "preview" else OUTPUT_DIR
     )
+    # The locale suffix is decided before the default name is filled in. Doing it
+    # after meant the name was always already set, the suffix never applied, and
+    # every locale wrote over the English master.
+    explicit_name = args.final_name
     args.final_name = args.final_name or (
         PREVIEW_NAME if args.profile == "preview" else FINAL_NAME
     )
+    if args.locale != "en" and not explicit_name:
+        args.final_name = f"{Path(args.final_name).stem}_{args.locale}.mp4"
     args.output_dir.mkdir(parents=True, exist_ok=True)
 
     apply_locale(args.locale)
-    if args.locale != "en" and not args.final_name:
-        stem = Path(args.final_name or FINAL_NAME).stem
-        args.final_name = f"{stem}_{args.locale}.mp4"
 
     validate_timeline()
     check_ltx_ranges(args)

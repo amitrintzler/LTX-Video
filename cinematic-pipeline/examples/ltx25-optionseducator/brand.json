@@ -1,0 +1,11 @@
+{
+  "name": "Options Educator",
+  "wordmark": "OPTIONS EDUCATOR",
+  "tagline": "START YOUR LEARNING PATH",
+  "accent": "#38BDF8",
+  "logo": "assets/logo.png",
+  "endcard": {
+    "logo": true
+  },
+  "watermark": {}
+}

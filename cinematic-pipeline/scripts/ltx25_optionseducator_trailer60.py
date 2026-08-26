@@ -37,7 +37,9 @@ from PIL import Image, ImageDraw, ImageFilter, ImageFont
 # own directory is not on sys.path. Without this the sibling import fails and the
 # studio reports the whole render as unavailable.
 sys.path.insert(0, str(Path(__file__).resolve().parent))
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "engine"))
 
+import draw as draw_engine  # noqa: E402  the shared text and locale layer
 import facade_track
 
 
@@ -428,89 +430,22 @@ def run(cmd: list[str]) -> None:
     subprocess.run(cmd, check=True)
 
 
-# The active locale. Set once from --locale; every drawn string reads it.
-LOCALE = {"locale": "en", "dir": "ltr"}
+# The active locale lives in the engine so every drawn string, wherever it is
+# drawn from, reads the same one.
+LOCALE = draw_engine.LOCALE
 
-# Avenir Next has no Hebrew or Arabic glyphs at all - those strings would render
-# as empty boxes with no error - so each script gets a face that covers it.
-# Arial rather than SF Hebrew or Arial Hebrew. SF Hebrew ships no Latin
-# punctuation and Arial Hebrew no Latin letters at all, so a Hebrew line that
-# keeps a trading term in English - "קריסת IV", "Spreads" - came out as tofu
-# boxes. Arial carries Hebrew, Latin and punctuation in one face, and has a
-# real bold. The tuple is (path, bold index, regular index).
-SCRIPT_FONTS = {
-    "he": ("/System/Library/Fonts/Supplemental/Arial Bold.ttf", 0, 0),
-    "ar": ("/System/Library/Fonts/SFArabic.ttf", 0, 0),
-    "zh": ("/System/Library/Fonts/STHeiti Light.ttc", 0, 0),
-}
-
-
-def is_rtl() -> bool:
-    return LOCALE.get("dir") == "rtl"
+SCRIPT_FONTS = draw_engine.SCRIPT_FONTS
+is_rtl = draw_engine.is_rtl
 
 
 def font(size: int, face: int = FACE_DEMI) -> ImageFont.FreeTypeFont:
     """Avenir Next matches the site's geometric sans far better than Arial."""
-    entry = SCRIPT_FONTS.get(LOCALE.get("locale"))
-    if entry:
-        path, bold_idx, plain_idx = entry
-        return ImageFont.truetype(
-            path, size, index=bold_idx if face == FACE_HEAVY else plain_idx
-        )
-    return ImageFont.truetype(AVENIR, size, index=face)
+    return draw_engine.font(size, face, AVENIR, heavy_face=FACE_HEAVY)
 
 
-def shaped(text: str) -> str:
-    """Put a right-to-left string into the visual order Pillow will draw.
-
-    Pillow here is built without libraqm, so it lays every string out
-    left-to-right and never joins Arabic letters: Hebrew came out reversed and
-    Arabic came out as unconnected letterforms. Reordering the string ourselves
-    and reshaping Arabic before drawing produces the right result without
-    needing a differently-compiled Pillow.
-    """
-    if not is_rtl():
-        return text
-    try:
-        from bidi.algorithm import get_display
-
-        if LOCALE.get("locale") == "ar":
-            import arabic_reshaper
-
-            text = arabic_reshaper.reshape(text)
-        # base_dir is forced rather than detected. The algorithm otherwise takes
-        # its direction from the first strong character, so a Hebrew line that
-        # opens with an English trading term - "Spreads הם הכלי..." - would be
-        # laid out left-to-right and read backwards. The locale decides the
-        # paragraph direction; embedded Latin still runs left-to-right inside it.
-        return get_display(text, base_dir="R")
-    except ImportError:  # pragma: no cover - flagged loudly by check_locale()
-        return text
-
-
-def tracked(
-    draw: ImageDraw.ImageDraw, xy, text: str, f, fill, spacing: float = 0.0
-) -> None:
-    """Draw letterspaced text. Pillow has no tracking option."""
-    text = shaped(text)
-    if is_rtl():
-        # Letterspacing a reshaped right-to-left run would pull joined Arabic
-        # letters apart, and Hebrew is not letterspaced typographically anyway.
-        draw.text(xy, text, font=f, fill=fill)
-        return
-    x, y = xy
-    for ch in text:
-        draw.text((x, y), ch, font=f, fill=fill)
-        x += draw.textlength(ch, font=f) + spacing
-
-
-def tracked_width(draw: ImageDraw.ImageDraw, text: str, f, spacing: float = 0.0) -> int:
-    text = shaped(text)
-    if is_rtl():
-        return int(draw.textlength(text, font=f))
-    return int(
-        sum(draw.textlength(c, font=f) for c in text) + spacing * max(0, len(text) - 1)
-    )
+shaped = draw_engine.shaped
+tracked = draw_engine.tracked
+tracked_width = draw_engine.tracked_width
 
 
 def auth_token(base_url: str = BASE_URL) -> str:

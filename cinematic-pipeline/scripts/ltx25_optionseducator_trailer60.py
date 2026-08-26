@@ -433,11 +433,13 @@ LOCALE = {"locale": "en", "dir": "ltr"}
 
 # Avenir Next has no Hebrew or Arabic glyphs at all - those strings would render
 # as empty boxes with no error - so each script gets a face that covers it.
-# Arial Hebrew rather than SF Hebrew: SF Hebrew ships no Latin punctuation, so
-# the pipes, commas and question marks in these titles came out as tofu boxes.
-# The tuple is (path, bold index, regular index).
+# Arial rather than SF Hebrew or Arial Hebrew. SF Hebrew ships no Latin
+# punctuation and Arial Hebrew no Latin letters at all, so a Hebrew line that
+# keeps a trading term in English - "קריסת IV", "Spreads" - came out as tofu
+# boxes. Arial carries Hebrew, Latin and punctuation in one face, and has a
+# real bold. The tuple is (path, bold index, regular index).
 SCRIPT_FONTS = {
-    "he": ("/System/Library/Fonts/ArialHB.ttc", 1, 0),
+    "he": ("/System/Library/Fonts/Supplemental/Arial Bold.ttf", 0, 0),
     "ar": ("/System/Library/Fonts/SFArabic.ttf", 0, 0),
     "zh": ("/System/Library/Fonts/STHeiti Light.ttc", 0, 0),
 }

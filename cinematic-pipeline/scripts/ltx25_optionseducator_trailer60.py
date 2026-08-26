@@ -478,7 +478,12 @@ def shaped(text: str) -> str:
             import arabic_reshaper
 
             text = arabic_reshaper.reshape(text)
-        return get_display(text)
+        # base_dir is forced rather than detected. The algorithm otherwise takes
+        # its direction from the first strong character, so a Hebrew line that
+        # opens with an English trading term - "Spreads הם הכלי..." - would be
+        # laid out left-to-right and read backwards. The locale decides the
+        # paragraph direction; embedded Latin still runs left-to-right inside it.
+        return get_display(text, base_dir="R")
     except ImportError:  # pragma: no cover - flagged loudly by check_locale()
         return text
 

@@ -680,7 +680,7 @@ def crop_region(image: Path, region: tuple[float, float, float], out: Path) -> P
 
 def render_ui_shot(shot: dict, index: int, work: Path) -> Path:
     """A gentle camera move across a framed region of a real screenshot."""
-    image = REFERENCE_DIR / shot["image"]
+    image = reference(shot["image"])
     if not image.is_file():
         raise SystemExit(f"Screenshot missing: {image}")
     framed = crop_region(image, shot["region"], work / f"shot_{index:02d}_frame.png")
@@ -951,7 +951,7 @@ def render_inset(shot: dict, index: int, base: Path, work: Path) -> Path:
     """
     inset = shot["inset"]
     framed = crop_region(
-        REFERENCE_DIR / inset["image"],
+        reference(inset["image"]),
         inset["region"],
         work / f"shot_{index:02d}_inset.png",
     )
@@ -2099,7 +2099,30 @@ def apply_locale(code: str) -> None:
         if pair:
             STORY_LESSONS[i] = (lesson, pair[0], pair[1])
 
+    # A localised screenshot may need a different crop: on this site only the
+    # chrome is translated, and it sits outside the frame the English shot uses.
+    for index, region in (blob.get("ui_regions") or {}).items():
+        shot = TIMELINE[int(index)]
+        if shot.get("kind") == "ui":
+            shot["region"] = tuple(region)
+
     END_CARD_FOOTNOTES[:] = blob["footnotes"]
+
+
+def reference(name: str) -> Path:
+    """The product screenshot for this locale, falling back to English.
+
+    A screenshot is a picture of the running site, so it carries whatever
+    language the site was in when it was taken. Drop hi_home.es.png next to
+    hi_home.png and the Spanish cut picks it up; without one the English shot
+    is used, which is honest - it is what the product actually looks like.
+    """
+    code = LOCALE.get("locale", "en")
+    if code != "en":
+        localised = REFERENCE_DIR / f"{Path(name).stem}.{code}{Path(name).suffix}"
+        if localised.is_file():
+            return localised
+    return REFERENCE_DIR / name
 
 
 def validate_timeline() -> None:
@@ -2107,8 +2130,8 @@ def validate_timeline() -> None:
     if abs(total - TOTAL_SECONDS) > 0.001:
         raise SystemExit(f"Timeline is {total:.2f}s, expected {TOTAL_SECONDS}s.")
     for shot in TIMELINE:
-        if shot["kind"] == "ui" and not (REFERENCE_DIR / shot["image"]).is_file():
-            raise SystemExit(f"Screenshot missing: {REFERENCE_DIR / shot['image']}")
+        if shot["kind"] == "ui" and not reference(shot["image"]).is_file():
+            raise SystemExit(f"Screenshot missing: {reference(shot['image'])}")
 
 
 def check_ltx_ranges(args: argparse.Namespace) -> None:

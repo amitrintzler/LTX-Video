@@ -1,0 +1,11 @@
+{
+  "veo": {
+    "media": ["video"],
+    "endpoint": "https://generativelanguage.googleapis.com/v1beta/models/veo-3.1-generate-001:predictLongRunning",
+    "auth": {"type": "env_header", "var": "GEMINI_API_KEY", "header": "x-goog-api-key"},
+    "submit": {"prompt": "instances[0].prompt", "seconds": "parameters.durationSeconds"},
+    "poll": {"operation": "name", "done": "done",
+             "url": "https://generativelanguage.googleapis.com/v1beta/{operation}"},
+    "fetch": {"url": "response.generateVideoResponse.generatedSamples[0].video.uri"}
+  }
+}

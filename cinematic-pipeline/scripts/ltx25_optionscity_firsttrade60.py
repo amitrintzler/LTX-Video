@@ -25,6 +25,9 @@ from pathlib import Path
 
 from PIL import Image, ImageDraw, ImageFont
 
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "engine"))
+from providers import ltx_desktop  # noqa: E402
+
 
 BASE_URL = "http://127.0.0.1:41954"
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
@@ -197,28 +200,14 @@ def atempo_chain(source_seconds: int, target_seconds: int) -> str:
     return ",".join(filters)
 
 
-def auth_token() -> str:
-    proc = subprocess.run(["ps", "eww", "-ax"], check=True, text=True, capture_output=True)
-    match = re.search(r"LTX_AUTH_TOKEN=([^ ]+)", proc.stdout)
-    if not match:
-        raise SystemExit("LTX Desktop backend is not running or its local token is unavailable.")
-    return match.group(1)
+# Same fix as the other films: the engine filters token candidates and proves
+# one against the backend, instead of trusting the first `ps` match.
+auth_token = ltx_desktop.auth_token
 
 
-def request(method: str, url: str, token: str, payload: dict | None = None, timeout: int = 30) -> dict:
-    body = None if payload is None else json.dumps(payload).encode()
-    req = urllib.request.Request(
-        url,
-        data=body,
-        method=method,
-        headers={"Authorization": f"Bearer {token}", "Content-Type": "application/json"},
-    )
-    try:
-        with urllib.request.urlopen(req, timeout=timeout) as response:
-            return json.loads(response.read().decode(errors="replace"))
-    except urllib.error.HTTPError as exc:
-        detail = exc.read().decode(errors="replace")
-        raise SystemExit(f"LTX Desktop HTTP {exc.code}: {detail}") from exc
+def request(method: str, url: str, token: str, payload: dict | None = None,
+            timeout: int = 30) -> dict:
+    return ltx_desktop.request(method, url, token, payload, timeout)
 
 
 def ensure_ready(base_url: str, token: str) -> None:

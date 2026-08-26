@@ -16,6 +16,9 @@ from pathlib import Path
 
 from PIL import Image, ImageDraw, ImageFont
 
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "engine"))
+from providers import ltx_desktop  # noqa: E402
+
 
 BASE_URL = "http://127.0.0.1:41954"
 OUTPUT_DIR = Path("/tmp/ltx25-optionscity-openworld60-v3")
@@ -156,28 +159,16 @@ def atempo_chain(source_seconds: int, target_seconds: int) -> str:
     return ",".join(filters)
 
 
-def auth_token() -> str:
-    proc = subprocess.run(["ps", "eww", "-ax"], check=True, text=True, capture_output=True)
-    match = re.search(r"LTX_AUTH_TOKEN=([^ ]+)", proc.stdout)
-    if not match:
-        raise SystemExit("LTX Desktop backend is not running or its local token is unavailable.")
-    return match.group(1)
+# Was: take the first LTX_AUTH_TOKEN match out of `ps` with no validation. Any
+# process merely mentioning the variable could win, and a bogus token surfaced
+# as a 401 mid-render that looked like the GPU had gone away. The engine's
+# version filters candidates and proves one against the backend first.
+auth_token = ltx_desktop.auth_token
 
 
-def request(method: str, url: str, token: str, payload: dict | None = None, timeout: int = 30) -> dict:
-    body = None if payload is None else json.dumps(payload).encode()
-    req = urllib.request.Request(
-        url,
-        data=body,
-        method=method,
-        headers={"Authorization": f"Bearer {token}", "Content-Type": "application/json"},
-    )
-    try:
-        with urllib.request.urlopen(req, timeout=timeout) as response:
-            return json.loads(response.read().decode(errors="replace"))
-    except urllib.error.HTTPError as exc:
-        detail = exc.read().decode(errors="replace")
-        raise SystemExit(f"LTX Desktop HTTP {exc.code}: {detail}") from exc
+def request(method: str, url: str, token: str, payload: dict | None = None,
+            timeout: int = 30) -> dict:
+    return ltx_desktop.request(method, url, token, payload, timeout)
 
 
 def ensure_ready(base_url: str, token: str) -> None:

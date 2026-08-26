@@ -40,6 +40,8 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "engine"))
 
 import draw as draw_engine  # noqa: E402  the shared text and locale layer
+import locales as engine_locales  # noqa: E402
+from providers import ltx_desktop  # noqa: E402
 import facade_track
 
 
@@ -448,60 +450,14 @@ tracked = draw_engine.tracked
 tracked_width = draw_engine.tracked_width
 
 
-def auth_token(base_url: str = BASE_URL) -> str:
-    """Find LTX Desktop's transient local token.
-
-    `ps` output can contain more than one match - any process whose command line
-    mentions the variable, including tools that grep for it - so taking the first
-    match yields a bogus token and a 401 mid-render. Candidates are filtered to
-    plausible tokens and then verified against the backend.
-    """
-    proc = subprocess.run(
-        ["ps", "eww", "-ax"], check=True, text=True, capture_output=True
-    )
-    candidates = [
-        t
-        for t in dict.fromkeys(re.findall(r"LTX_AUTH_TOKEN=([^\s]+)", proc.stdout))
-        if len(t) >= 16 and re.fullmatch(r"[A-Za-z0-9._\-]+", t)
-    ]
-    if not candidates:
-        raise SystemExit(
-            "LTX Desktop backend is not running or its local token is unavailable."
-        )
-    for token in candidates:
-        try:
-            req = urllib.request.Request(
-                f"{base_url}/api/models/ltx-versions",
-                headers={"Authorization": f"Bearer {token}"},
-            )
-            with urllib.request.urlopen(req, timeout=10):
-                return token
-        except Exception:  # noqa: BLE001 - try the next candidate
-            continue
-    raise SystemExit(
-        "Found LTX token candidates but none were accepted. Is LTX Desktop still running?"
-    )
+# The corrected token lookup and the HTTP plumbing live with the provider, so a
+# fix reaches every film rather than only the one that was edited.
+auth_token = ltx_desktop.auth_token
 
 
-def request(
-    method: str, url: str, token: str, payload: dict | None = None, timeout: int = 30
-) -> dict:
-    body = None if payload is None else json.dumps(payload).encode()
-    req = urllib.request.Request(
-        url,
-        data=body,
-        method=method,
-        headers={
-            "Authorization": f"Bearer {token}",
-            "Content-Type": "application/json",
-        },
-    )
-    try:
-        with urllib.request.urlopen(req, timeout=timeout) as response:
-            return json.loads(response.read().decode(errors="replace"))
-    except urllib.error.HTTPError as exc:
-        detail = exc.read().decode(errors="replace")
-        raise SystemExit(f"LTX Desktop HTTP {exc.code}: {detail}") from exc
+def request(method: str, url: str, token: str, payload: dict | None = None,
+            timeout: int = 30) -> dict:
+    return ltx_desktop.request(method, url, token, payload, timeout)
 
 
 def ensure_ready(base_url: str, token: str) -> None:
@@ -1998,27 +1954,10 @@ def apply_locale(code: str) -> None:
     score are language-neutral, so a locale render reuses all of them and
     costs no GPU time at all.
     """
-    # English loads from its own file too. Reading the constants instead let the
-    # English end card drift from the others: it still promised "more languages
-    # in progress" while the Hebrew and Spanish cards already named all three.
-    path = LOCALE_DIR / f"{code}.json"
-    if not path.is_file():
-        raise SystemExit(f"No locale file: {path}")
-    blob = json.loads(path.read_text(encoding="utf-8"))
+    blob = engine_locales.load(LOCALE_DIR, code)
     LOCALE.update({"locale": blob["locale"], "dir": blob.get("dir", "ltr")})
-
     if LOCALE["dir"] == "rtl":
-        missing = []
-        for mod in ("bidi", "arabic_reshaper"):
-            try:
-                __import__(mod)
-            except ImportError:
-                missing.append(mod)
-        if missing:
-            raise SystemExit(
-                f"{code} is right-to-left and needs: {', '.join(missing)}. "
-                f"Install with: python3 -m pip install --user python-bidi arabic-reshaper"
-            )
+        engine_locales.require_rtl_support(code)
 
     for index, shot in enumerate(TIMELINE):
         entry = blob["titles"].get(str(index))
@@ -2045,19 +1984,8 @@ def apply_locale(code: str) -> None:
 
 
 def reference(name: str) -> Path:
-    """The product screenshot for this locale, falling back to English.
-
-    A screenshot is a picture of the running site, so it carries whatever
-    language the site was in when it was taken. Drop hi_home.es.png next to
-    hi_home.png and the Spanish cut picks it up; without one the English shot
-    is used, which is honest - it is what the product actually looks like.
-    """
-    code = LOCALE.get("locale", "en")
-    if code != "en":
-        localised = REFERENCE_DIR / f"{Path(name).stem}.{code}{Path(name).suffix}"
-        if localised.is_file():
-            return localised
-    return REFERENCE_DIR / name
+    """The product screenshot for this locale, falling back to English."""
+    return engine_locales.reference(REFERENCE_DIR, name, LOCALE)
 
 
 def validate_timeline() -> None:

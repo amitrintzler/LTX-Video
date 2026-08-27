@@ -143,7 +143,7 @@
     </tr></thead><tbody></tbody></table>
 
     <h2>Finished videos</h2>
-    <p class="grouphint">Newest first. Click to play above.</p>
+    <p class="grouphint">One slot per film first, then newest. Click to play above. <span id="gHiddenNote" class="grouphint"></span></p>
     <div class="grid" id="gMasters"></div>
     <h2>Music</h2>
     <div class="grid" id="gAudio"></div>
@@ -316,6 +316,12 @@ async function loadGallery(){
   cards(g.images,'image','#gImages');
   cards(g.shots,'video','#gShots');
   if(g.masters.length && !$('#player').src) show('video', g.masters[0].path, g.masters[0].name, g.masters[0].mib+' MiB');
+  // Never truncate silently: a flat recency cap once hid a whole finished film
+  // behind a week of the trailer's own re-renders. If the cap ever does bind,
+  // say so instead of just dropping items off the end.
+  const hiddenNote = document.getElementById('gHiddenNote');
+  if(hiddenNote) hiddenNote.textContent = g.masters_hidden
+    ? `+${g.masters_hidden} older master(s) not shown` : '';
 }
 
 const FIELDS = {

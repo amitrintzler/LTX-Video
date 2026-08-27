@@ -187,8 +187,24 @@ def gallery() -> dict:
 
     masters.sort(key=lambda x: x["modified"], reverse=True)
     shots.sort(key=lambda x: x["modified"], reverse=True)
-    return {"masters": masters[:12], "shots": shots[:24],
-            "audio": audio[:12], "images": images[:12]}
+    # A flat recency cap silently dropped whole films: this trailer's own
+    # re-renders this week filled all 12 slots and pushed out the First Trade
+    # montage from five days earlier - a different, finished deliverable, not
+    # a stale copy of the same one. One slot is reserved per distinct render
+    # group before the remainder fills by recency, so no group disappears
+    # just because another one was re-rendered more recently.
+    MASTER_CAP = 24
+    seen_groups: set[str] = set()
+    kept: list[dict] = []
+    rest: list[dict] = []
+    for m in masters:
+        (kept if m["group"] not in seen_groups else rest).append(m)
+        seen_groups.add(m["group"])
+    masters = (kept + rest)[:MASTER_CAP]
+    dropped = len(kept) + len(rest) - len(masters)
+    return {"masters": masters, "shots": shots[:24],
+            "audio": audio[:12], "images": images[:12],
+            "masters_hidden": dropped}
 
 
 @app.get("/api/poster")

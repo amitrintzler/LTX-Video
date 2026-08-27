@@ -5,6 +5,7 @@ what kinds of thing can be produced, what is each for, and how do I make one -
 and proves each answer with a small, deliberately low-quality proxy clipped from
 real output so the page stays light.
 """
+
 from __future__ import annotations
 
 import subprocess
@@ -30,9 +31,14 @@ KINDS: list[dict[str, Any]] = [
         "job": "render-final",
         "length": "30-90s",
         "kind": "video",
-        "find": lambda: _first([FINAL / "optionseducator_ltx25_trailer60.mp4",
-                                PREVIEW / "optionseducator_ltx25_trailer60_preview.mp4"]),
-        "sample_at": 6.0, "sample_len": 5.0,
+        "find": lambda: _first(
+            [
+                FINAL / "optionseducator_ltx25_trailer60.mp4",
+                PREVIEW / "optionseducator_ltx25_trailer60_preview.mp4",
+            ]
+        ),
+        "sample_at": 6.0,
+        "sample_len": 5.0,
     },
     {
         "id": "world",
@@ -44,7 +50,8 @@ KINDS: list[dict[str, Any]] = [
         "length": "10s per clip",
         "kind": "video",
         "find": lambda: _glob(FINAL / "shots", "*_ltx.mp4"),
-        "sample_at": 0.5, "sample_len": 4.0,
+        "sample_at": 0.5,
+        "sample_len": 4.0,
     },
     {
         "id": "product",
@@ -56,7 +63,8 @@ KINDS: list[dict[str, Any]] = [
         "length": "2-8s per shot",
         "kind": "video",
         "find": lambda: _glob(FINAL / "shots", "*_ui.mp4"),
-        "sample_at": 0.2, "sample_len": 4.0,
+        "sample_at": 0.2,
+        "sample_len": 4.0,
     },
     {
         "id": "story",
@@ -68,7 +76,8 @@ KINDS: list[dict[str, Any]] = [
         "length": "any",
         "kind": "video",
         "find": lambda: _first([FINAL / "shots" / "story_panel.mp4"]),
-        "sample_at": 0.0, "sample_len": 6.0,
+        "sample_at": 0.0,
+        "sample_len": 6.0,
     },
     {
         "id": "chart",
@@ -80,7 +89,8 @@ KINDS: list[dict[str, Any]] = [
         "length": "any",
         "kind": "video",
         "find": lambda: _glob(FINAL / "shots", "*_chart.mp4"),
-        "sample_at": 1.0, "sample_len": 4.0,
+        "sample_at": 1.0,
+        "sample_len": 4.0,
     },
     {
         "id": "chain",
@@ -92,7 +102,8 @@ KINDS: list[dict[str, Any]] = [
         "length": "any",
         "kind": "video",
         "find": lambda: _glob(FINAL / "shots", "*_chain.mp4"),
-        "sample_at": 1.0, "sample_len": 4.0,
+        "sample_at": 1.0,
+        "sample_len": 4.0,
     },
     {
         "id": "podcast",
@@ -103,8 +114,12 @@ KINDS: list[dict[str, Any]] = [
         "job": "reassemble",
         "length": "any",
         "kind": "video",
-        "find": lambda: _glob(FINAL / "shots", "*_podcast.mp4") or _glob(FINAL / "shots", "*_video.mp4"),
-        "sample_at": 1.0, "sample_len": 4.0,
+        "find": lambda: (
+            _glob(FINAL / "shots", "*_podcast.mp4")
+            or _glob(FINAL / "shots", "*_video.mp4")
+        ),
+        "sample_at": 1.0,
+        "sample_len": 4.0,
     },
     {
         "id": "inworld_ui",
@@ -116,7 +131,8 @@ KINDS: list[dict[str, Any]] = [
         "length": "any",
         "kind": "video",
         "find": lambda: _glob(FINAL / "shots", "*_composited.mp4"),
-        "sample_at": 1.0, "sample_len": 4.0,
+        "sample_at": 1.0,
+        "sample_len": 4.0,
     },
     {
         "id": "titles",
@@ -172,7 +188,31 @@ KINDS: list[dict[str, Any]] = [
         "length": "15-60s",
         "kind": "video",
         "find": lambda: _glob(RENDER_ROOT, "studio-vertical-*/*.mp4"),
-        "sample_at": 1.0, "sample_len": 4.0,
+        "sample_at": 1.0,
+        "sample_len": 4.0,
+    },
+    {
+        "id": "openworld-montage",
+        "engine": "LTX + post",
+        "usage": "A wider look at the open world: reveal, old town, storm, first trade, one open city",
+        "title": "Open-world city montage",
+        "purpose": "Five-beat cut of the open world itself, ahead of the product trailer: "
+        "city reveal, old town, reading the storm, the first trade, one open city.",
+        "job": None,
+        "length": "60s",
+        "kind": "video",
+        # A separate script (ltx25_optionscity_firsttrade60.py), not the trailer this
+        # studio drives - so there is a finished montage to show but no "Make one"
+        # button to regenerate it from here yet.
+        "find": lambda: _first(
+            [
+                RENDER_ROOT
+                / "ltx25-optionscity-firsttrade60-preview"
+                / "optionscity_ltx25_firsttrade60_preview.mp4"
+            ]
+        ),
+        "sample_at": 4.0,
+        "sample_len": 5.0,
     },
 ]
 
@@ -198,10 +238,32 @@ def _proxy(src: Path, at: float, length: float) -> Path | None:
     if out.is_file():
         return out
     r = subprocess.run(
-        ["ffmpeg", "-v", "error", "-ss", str(at), "-t", str(length), "-i", str(src),
-         "-an", "-vf", "scale=384:-2,fps=15", "-c:v", "libx264", "-crf", "34",
-         "-preset", "veryfast", "-movflags", "+faststart", "-y", str(out)],
-        capture_output=True)
+        [
+            "ffmpeg",
+            "-v",
+            "error",
+            "-ss",
+            str(at),
+            "-t",
+            str(length),
+            "-i",
+            str(src),
+            "-an",
+            "-vf",
+            "scale=384:-2,fps=15",
+            "-c:v",
+            "libx264",
+            "-crf",
+            "34",
+            "-preset",
+            "veryfast",
+            "-movflags",
+            "+faststart",
+            "-y",
+            str(out),
+        ],
+        capture_output=True,
+    )
     return out if out.is_file() and r.returncode == 0 else None
 
 

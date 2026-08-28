@@ -5,6 +5,7 @@ generates footage must run one at a time. Everything else - reassembly, scoring,
 thumbnails, QA - is cheap and runs in parallel. That split is the whole reason this
 project became workable, so it is enforced here rather than left to the caller.
 """
+
 from __future__ import annotations
 
 import json
@@ -44,7 +45,7 @@ class Job:
     type: str
     params: dict[str, Any]
     gpu: bool
-    status: str = "queued"          # queued | running | done | failed | cancelled
+    status: str = "queued"  # queued | running | done | failed | cancelled
     created: str = field(default_factory=now)
     started: str | None = None
     finished: str | None = None
@@ -88,18 +89,39 @@ def _out_dir(params: dict[str, Any], default: str) -> list[str]:
 
 
 def build_offline_cut(p: dict[str, Any], job: Job) -> list[str]:
-    return [sys.executable, str(TRAILER), "--profile", "preview", "--offline-cut",
-            *_config_arg(p), *_out_dir(p, f"studio-offline-{job.id[:8]}"),
-            "--final-name", "offline_cut.mp4"]
+    return [
+        sys.executable,
+        str(TRAILER),
+        "--profile",
+        "preview",
+        "--offline-cut",
+        *_config_arg(p),
+        *_out_dir(p, f"studio-offline-{job.id[:8]}"),
+        "--final-name",
+        "offline_cut.mp4",
+    ]
 
 
 def build_reassemble(p: dict[str, Any], job: Job) -> list[str]:
     profile = p.get("profile", "preview")
-    return [sys.executable, str(TRAILER), "--profile", profile, "--reuse-existing",
-            *_config_arg(p),
-            *(["--resolution", p["resolution"]] if p.get("resolution") else []),
-            *(["--source-seconds", str(p["source_seconds"])] if p.get("source_seconds") else []),
-            *_out_dir(p, f"ltx25-optionseducator-trailer60{'-preview' if profile == 'preview' else ''}")]
+    return [
+        sys.executable,
+        str(TRAILER),
+        "--profile",
+        profile,
+        "--reuse-existing",
+        *_config_arg(p),
+        *(["--resolution", p["resolution"]] if p.get("resolution") else []),
+        *(
+            ["--source-seconds", str(p["source_seconds"])]
+            if p.get("source_seconds")
+            else []
+        ),
+        *_out_dir(
+            p,
+            f"ltx25-optionseducator-trailer60{'-preview' if profile == 'preview' else ''}",
+        ),
+    ]
 
 
 def build_render(p: dict[str, Any], job: Job) -> list[str]:
@@ -113,7 +135,9 @@ def build_regenerate_clip(p: dict[str, Any], job: Job) -> list[str]:
     if not clip:
         raise ValueError("regenerate-clip needs a clip id")
     profile = p.get("profile", "preview")
-    default = f"ltx25-optionseducator-trailer60{'-preview' if profile == 'preview' else ''}"
+    default = (
+        f"ltx25-optionseducator-trailer60{'-preview' if profile == 'preview' else ''}"
+    )
     target = Path(p.get("output_dir") or (RENDER_ROOT / default))
     removed = []
     for suffix in ("_result.json", "_payload.json"):
@@ -131,9 +155,12 @@ def build_compose_score(p: dict[str, Any], job: Job) -> list[str]:
 
 
 def build_capture(p: dict[str, Any], job: Job) -> list[str]:
-    return [sys.executable, str(SCRIPTS / "studio_capture.py"),
-            p.get("url", "https://gameofoptions.netlify.app"),
-            str(PROJECT / "reference")]
+    return [
+        sys.executable,
+        str(SCRIPTS / "studio_capture.py"),
+        p.get("url", "https://gameofoptions.netlify.app"),
+        str(PROJECT / "reference"),
+    ]
 
 
 def build_qa(p: dict[str, Any], job: Job) -> list[str]:
@@ -154,17 +181,105 @@ def build_vertical(p: dict[str, Any], job: Job) -> list[str]:
     return cmd
 
 
+ENGINE = REPO / "cinematic-pipeline" / "engine"
+
+
+def build_flow(p: dict[str, Any], job: Job) -> list[str]:
+    """Google Flow, driven as a browser session - it has no API to call instead.
+
+    Needs a one-time login outside this job (engine/providers/flow_login.py);
+    if that was never done, or the saved session has expired, the job fails
+    fast with that instruction rather than hanging on a sign-in page it will
+    never get past.
+    """
+    prompt = p.get("prompt")
+    if not prompt:
+        raise ValueError("flow needs a prompt")
+    cmd = [
+        sys.executable,
+        str(ENGINE / "providers" / "flow_cli.py"),
+        prompt,
+        "--kind",
+        p.get("kind", "video"),
+        "--out-dir",
+        p.get("output_dir") or str(RENDER_ROOT / "flow"),
+        "--timeout",
+        str(p.get("timeout", 600)),
+    ]
+    if p.get("seconds"):
+        cmd += ["--seconds", str(p["seconds"])]
+    return cmd
+
+
 SPECS: dict[str, JobSpec] = {
-    s.name: s for s in [
-        JobSpec("offline-cut", False, "Full edit with placeholder footage", build_offline_cut, "~20s"),
-        JobSpec("reassemble", False, "Rebuild titles, audio and edit from cached clips", build_reassemble, "~1 min"),
-        JobSpec("compose-score", False, "Compose the music cue", build_compose_score, "seconds"),
-        JobSpec("capture-screenshots", False, "Re-capture the live site", build_capture, "~1 min"),
-        JobSpec("qa", False, "Measure duration, freeze, dupes, silence, loudness", build_qa, "~30s"),
-        JobSpec("vertical-cut", False, "Derive a 9:16 or 1:1 cut", build_vertical, "~1 min"),
-        JobSpec("regenerate-clip", True, "Regenerate one atmosphere clip", build_regenerate_clip, "~35 min"),
-        JobSpec("render-preview", True, "Generate all clips at preview quality", build_render, "~3 h"),
-        JobSpec("render-final", True, "Generate all clips at final quality", build_render, "~3 h"),
+    s.name: s
+    for s in [
+        JobSpec(
+            "offline-cut",
+            False,
+            "Full edit with placeholder footage",
+            build_offline_cut,
+            "~20s",
+        ),
+        JobSpec(
+            "reassemble",
+            False,
+            "Rebuild titles, audio and edit from cached clips",
+            build_reassemble,
+            "~1 min",
+        ),
+        JobSpec(
+            "compose-score",
+            False,
+            "Compose the music cue",
+            build_compose_score,
+            "seconds",
+        ),
+        JobSpec(
+            "capture-screenshots",
+            False,
+            "Re-capture the live site",
+            build_capture,
+            "~1 min",
+        ),
+        JobSpec(
+            "qa",
+            False,
+            "Measure duration, freeze, dupes, silence, loudness",
+            build_qa,
+            "~30s",
+        ),
+        JobSpec(
+            "vertical-cut", False, "Derive a 9:16 or 1:1 cut", build_vertical, "~1 min"
+        ),
+        JobSpec(
+            "regenerate-clip",
+            True,
+            "Regenerate one atmosphere clip",
+            build_regenerate_clip,
+            "~35 min",
+        ),
+        JobSpec(
+            "render-preview",
+            True,
+            "Generate all clips at preview quality",
+            build_render,
+            "~3 h",
+        ),
+        JobSpec(
+            "render-final",
+            True,
+            "Generate all clips at final quality",
+            build_render,
+            "~3 h",
+        ),
+        JobSpec(
+            "flow",
+            False,
+            "Generate via Google Flow (browser-driven, no API)",
+            build_flow,
+            "~2-5 min",
+        ),
     ]
 }
 
@@ -181,7 +296,9 @@ class Runner:
         self._procs: dict[str, subprocess.Popen] = {}
         threading.Thread(target=self._worker, args=(self.gpu_q,), daemon=True).start()
         for _ in range(workers):
-            threading.Thread(target=self._worker, args=(self.cpu_q,), daemon=True).start()
+            threading.Thread(
+                target=self._worker, args=(self.cpu_q,), daemon=True
+            ).start()
 
     def submit(self, job_type: str, params: dict[str, Any]) -> Job:
         spec = SPECS.get(job_type)
@@ -239,7 +356,9 @@ class Runner:
             fh.write(f"[{now()}] running: {job.command}\n")
             fh.flush()
             try:
-                proc = subprocess.Popen(cmd, cwd=str(REPO), stdout=fh, stderr=subprocess.STDOUT)
+                proc = subprocess.Popen(
+                    cmd, cwd=str(REPO), stdout=fh, stderr=subprocess.STDOUT
+                )
                 self._procs[job.id] = proc
                 code = proc.wait()
             except Exception as exc:  # noqa: BLE001
@@ -265,7 +384,9 @@ class Runner:
         for line in text.splitlines():
             for key in ("final=", "config=", "wrote ", "thumbnail:"):
                 if line.startswith(key) or line.startswith(key.strip()):
-                    found.append(line.split("=", 1)[-1].strip() if "=" in line else line.strip())
+                    found.append(
+                        line.split("=", 1)[-1].strip() if "=" in line else line.strip()
+                    )
         return found[-6:]
 
     def list_jobs(self, limit: int = 60) -> list[dict[str, Any]]:

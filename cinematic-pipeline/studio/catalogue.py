@@ -214,6 +214,23 @@ KINDS: list[dict[str, Any]] = [
         "sample_at": 4.0,
         "sample_len": 5.0,
     },
+    {
+        "id": "flow",
+        "engine": "Google Flow (browser)",
+        "usage": "Anything neither LTX nor a drawn browser page covers, when the local "
+        "GPU is busy or the shot needs a different model entirely",
+        "title": "Google Flow generation",
+        "purpose": "Flow has no public API, so this drives the real web app in a signed-in "
+        "browser: prompt in, generated clip or image out.",
+        "job": "flow",
+        "length": "any",
+        "kind": "video",
+        # There is never a fixed sample to point at - each Flow job's own output is
+        # its sample, found by whichever ran most recently.
+        "find": lambda: _glob(RENDER_ROOT, "flow/*.mp4"),
+        "sample_at": 0.5,
+        "sample_len": 4.0,
+    },
 ]
 
 

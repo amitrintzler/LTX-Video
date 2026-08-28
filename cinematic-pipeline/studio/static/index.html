@@ -334,6 +334,7 @@ const FIELDS = {
   "capture-screenshots":[["url","Site URL","text:https://gameofoptions.netlify.app"]],
   "qa":[["video","Video","masters"]],
   "vertical-cut":[["video","Video","masters"],["square","Also make square 1:1","bool"]],
+  "flow":[["prompt","Prompt","text"],["kind","Media","choice:video,image"],["seconds","Seconds (video only)","number:8"]],
 };
 const chip=(on,label,detail)=>`<div class="chip" title="${detail||''}"><span class="dot ${on?'on':'off'}"></span>${label}</div>`;
 
@@ -343,6 +344,7 @@ async function loadStatus(){
     chip(s.ltx.ok, s.ltx.ok?'LTX Desktop connected':'LTX Desktop unavailable', s.ltx.detail),
     chip(s.ffmpeg,'ffmpeg','needed for every edit and QA job'),
     chip(s.playwright,'Playwright','only needed to re-capture site screenshots'),
+    chip(s.flow.ok, s.flow.ok?'Flow signed in':'Flow not signed in', s.flow.detail),
     chip(s.clips.final.length===6||s.clips.preview.length===6,
       `clips cached: ${s.clips.final.length} final / ${s.clips.preview.length} preview`,'lets you rebuild without the GPU'),
     chip(s.masters.length>0, `${s.masters.length} finished video${s.masters.length===1?'':'s'}`,'')

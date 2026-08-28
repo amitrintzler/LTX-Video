@@ -10,12 +10,14 @@ import json
 from pathlib import Path
 
 from providers.browser import BrowserProvider
+from providers.flow_browser import FlowBrowserProvider
 from providers.http_api import HTTPProvider
 from providers.ltx_desktop import LTXDesktopProvider
 
 BUILTIN = {
     "ltx-desktop": LTXDesktopProvider,
     "browser": BrowserProvider,
+    "flow": FlowBrowserProvider,
 }
 
 

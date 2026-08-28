@@ -5,6 +5,7 @@ as one needing nothing, and a "GPU" badge read as "GPU unavailable". This resolv
 real state instead - is the backend up, is ffmpeg present, are there cached clips to
 reassemble, is there a master to QA - and gives each job a plain reason.
 """
+
 from __future__ import annotations
 
 import importlib.util
@@ -17,7 +18,14 @@ from typing import Any
 
 from jobs import PROJECT, RENDER_ROOT, SCRIPTS, TRAILER
 
-CLIP_IDS = ["city_reveal", "old_town", "tape_turn", "trade_execute", "media_plaza", "pantheon_night"]
+CLIP_IDS = [
+    "city_reveal",
+    "old_town",
+    "tape_turn",
+    "trade_execute",
+    "media_plaza",
+    "pantheon_night",
+]
 
 
 def _trailer_module():
@@ -41,13 +49,22 @@ def ltx_state() -> dict[str, Any]:
         return {"ok": False, "detail": str(exc)}
     try:
         versions = mod.request("GET", f"{mod.BASE_URL}/api/models/ltx-versions", token)
-        model = next((v for v in versions.get("versions", [])
-                      if v.get("model_id") == "ltx-2.5-22b-distilled"), None)
+        model = next(
+            (
+                v
+                for v in versions.get("versions", [])
+                if v.get("model_id") == "ltx-2.5-22b-distilled"
+            ),
+            None,
+        )
         if not model:
             return {"ok": False, "detail": "LTX 2.5 Fast is not present in LTX Desktop"}
         if not model.get("installed"):
             return {"ok": False, "detail": "LTX 2.5 Fast is not fully installed"}
-        return {"ok": True, "detail": f"connected, model {'active' if model.get('active') else 'installed'}"}
+        return {
+            "ok": True,
+            "detail": f"connected, model {'active' if model.get('active') else 'installed'}",
+        }
     except SystemExit as exc:
         return {"ok": False, "detail": str(exc)}
     except Exception as exc:  # noqa: BLE001
@@ -55,7 +72,10 @@ def ltx_state() -> dict[str, Any]:
 
 
 def clips_present(profile: str) -> list[str]:
-    d = RENDER_ROOT / f"ltx25-optionseducator-trailer60{'-preview' if profile == 'preview' else ''}"
+    d = (
+        RENDER_ROOT
+        / f"ltx25-optionseducator-trailer60{'-preview' if profile == 'preview' else ''}"
+    )
     if not d.exists():
         return []
     found = []
@@ -90,8 +110,74 @@ def has_numpy() -> bool:
     return importlib.util.find_spec("numpy") is not None
 
 
+_flow_cache: dict[str, Any] = {"at": 0.0, "state": None}
+_FLOW_CACHE_S = 120  # the dashboard polls status every 6s; a real browser launch
+# on every poll would make Flow's readiness check cost more
+# than the jobs it is guarding
+
+
+def flow_state() -> dict[str, Any]:
+    """Whether the saved Flow session actually still gets past sign-in.
+
+    A profile directory existing only proves a login was done at some point;
+    Google sessions expire, and a job that discovers that mid-run wastes
+    minutes finding out what this can check in a couple of seconds instead.
+    Cached, since the check itself launches a real (headless) browser.
+    """
+    import time
+
+    if (
+        time.time() - _flow_cache["at"] < _FLOW_CACHE_S
+        and _flow_cache["state"] is not None
+    ):
+        return _flow_cache["state"]
+
+    result = _flow_state_uncached()
+    _flow_cache["at"], _flow_cache["state"] = time.time(), result
+    return result
+
+
+def _flow_state_uncached() -> dict[str, Any]:
+    profile = Path.home() / "LTX-Studio" / "flow-profile"
+    if not profile.is_dir():
+        return {
+            "ok": False,
+            "detail": "not signed in - run "
+            "engine/providers/flow_login.py once to sign in",
+        }
+    if not has_playwright():
+        return {"ok": False, "detail": "Playwright is not installed for this Python"}
+    try:
+        from playwright.sync_api import sync_playwright
+    except ImportError:
+        return {"ok": False, "detail": "Playwright is not installed for this Python"}
+    try:
+        with sync_playwright() as pw:
+            ctx = pw.chromium.launch_persistent_context(str(profile), headless=True)
+            try:
+                page = ctx.pages[0] if ctx.pages else ctx.new_page()
+                page.goto(
+                    "https://labs.google/fx/tools/flow",
+                    wait_until="domcontentloaded",
+                    timeout=15000,
+                )
+                signed_out = "signin" in page.url or "accounts.google" in page.url
+            finally:
+                ctx.close()
+        if signed_out:
+            return {
+                "ok": False,
+                "detail": "Flow session expired - re-run "
+                "engine/providers/flow_login.py to sign in again",
+            }
+        return {"ok": True, "detail": "signed in"}
+    except Exception as exc:  # noqa: BLE001 - report, don't crash the dashboard
+        return {"ok": False, "detail": f"could not check Flow session: {exc}"}
+
+
 def snapshot() -> dict[str, Any]:
     ltx = ltx_state()
+    flow = flow_state()
     ffmpeg = shutil.which("ffmpeg") is not None and shutil.which("ffprobe") is not None
     music = (PROJECT / "music" / "composed_score.wav").is_file()
     shots = {p: clips_present(p) for p in ("preview", "final")}
@@ -101,31 +187,56 @@ def snapshot() -> dict[str, Any]:
         return {"ready": ok, "why": why}
 
     numpy_ok = has_numpy()
-    cut_why = ("ffmpeg is not on PATH" if not ffmpeg else
-               "" if numpy_ok else "numpy is not installed for this Python")
+    cut_why = (
+        "ffmpeg is not on PATH"
+        if not ffmpeg
+        else ""
+        if numpy_ok
+        else "numpy is not installed for this Python"
+    )
 
     checks = {
         "offline-cut": ready(ffmpeg and numpy_ok, cut_why),
         "compose-score": ready(True),
-        "qa": ready(ffmpeg and bool(found_masters),
-                    "" if ffmpeg and found_masters else
-                    ("ffmpeg is not on PATH" if not ffmpeg else "no rendered video to check yet")),
-        "vertical-cut": ready(ffmpeg and bool(found_masters),
-                              "" if found_masters else "needs a finished master first"),
-        "capture-screenshots": ready(has_playwright(),
-                                     "" if has_playwright() else
-                                     "Playwright is not installed for this Python"),
-        "reassemble": ready(ffmpeg and numpy_ok and bool(shots["final"] or shots["preview"]),
-                            cut_why or ("" if (shots["final"] or shots["preview"]) else
-                                        "no generated clips cached yet - run a render first")),
+        "qa": ready(
+            ffmpeg and bool(found_masters),
+            ""
+            if ffmpeg and found_masters
+            else (
+                "ffmpeg is not on PATH"
+                if not ffmpeg
+                else "no rendered video to check yet"
+            ),
+        ),
+        "vertical-cut": ready(
+            ffmpeg and bool(found_masters),
+            "" if found_masters else "needs a finished master first",
+        ),
+        "capture-screenshots": ready(
+            has_playwright(),
+            "" if has_playwright() else "Playwright is not installed for this Python",
+        ),
+        "reassemble": ready(
+            ffmpeg and numpy_ok and bool(shots["final"] or shots["preview"]),
+            cut_why
+            or (
+                ""
+                if (shots["final"] or shots["preview"])
+                else "no generated clips cached yet - run a render first"
+            ),
+        ),
         "regenerate-clip": ready(ltx["ok"], "" if ltx["ok"] else ltx["detail"]),
-        "render-preview": ready(ltx["ok"] and numpy_ok,
-                                ltx["detail"] if not ltx["ok"] else cut_why),
-        "render-final": ready(ltx["ok"] and numpy_ok,
-                              ltx["detail"] if not ltx["ok"] else cut_why),
+        "render-preview": ready(
+            ltx["ok"] and numpy_ok, ltx["detail"] if not ltx["ok"] else cut_why
+        ),
+        "render-final": ready(
+            ltx["ok"] and numpy_ok, ltx["detail"] if not ltx["ok"] else cut_why
+        ),
+        "flow": ready(flow["ok"], flow["detail"] if not flow["ok"] else ""),
     }
     return {
         "ltx": ltx,
+        "flow": flow,
         "ffmpeg": ffmpeg,
         "playwright": has_playwright(),
         "numpy": numpy_ok,

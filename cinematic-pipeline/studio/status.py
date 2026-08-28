@@ -18,6 +18,9 @@ from typing import Any
 
 from jobs import PROJECT, RENDER_ROOT, SCRIPTS, TRAILER
 
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "engine"))
+from providers import flow_quota  # noqa: E402
+
 CLIP_IDS = [
     "city_reveal",
     "old_town",
@@ -144,9 +147,14 @@ def _flow_state_uncached() -> dict[str, Any]:
             "ok": False,
             "detail": "not signed in - run "
             "engine/providers/flow_login.py once to sign in",
+            **_quota_info(),
         }
     if not has_playwright():
-        return {"ok": False, "detail": "Playwright is not installed for this Python"}
+        return {
+            "ok": False,
+            "detail": "Playwright is not installed for this Python",
+            **_quota_info(),
+        }
     try:
         from playwright.sync_api import sync_playwright
     except ImportError:
@@ -170,9 +178,21 @@ def _flow_state_uncached() -> dict[str, Any]:
                 "detail": "Flow session expired - re-run "
                 "engine/providers/flow_login.py to sign in again",
             }
-        return {"ok": True, "detail": "signed in"}
+        return {"ok": True, "detail": "signed in", **_quota_info()}
     except Exception as exc:  # noqa: BLE001 - report, don't crash the dashboard
         return {"ok": False, "detail": f"could not check Flow session: {exc}"}
+
+
+def _quota_info() -> dict[str, Any]:
+    """Free-tier posture by default; only changes if the user sets FLOW_TIER=paid."""
+    tier = flow_quota.tier()
+    remaining = flow_quota.remaining_today()
+    return {
+        "tier": tier,
+        "remaining_today": remaining,
+        "daily_limit": flow_quota.daily_limit(),
+        "quota_exceeded": remaining is not None and remaining <= 0,
+    }
 
 
 def snapshot() -> dict[str, Any]:
@@ -232,7 +252,18 @@ def snapshot() -> dict[str, Any]:
         "render-final": ready(
             ltx["ok"] and numpy_ok, ltx["detail"] if not ltx["ok"] else cut_why
         ),
-        "flow": ready(flow["ok"], flow["detail"] if not flow["ok"] else ""),
+        "flow": ready(
+            flow["ok"] and not flow.get("quota_exceeded"),
+            flow["detail"]
+            if not flow["ok"]
+            else (
+                f"free-tier daily cap ({flow.get('daily_limit')}/day) already "
+                "used today - wait for tomorrow, or set FLOW_TIER=paid if this "
+                "account has unrestricted access"
+                if flow.get("quota_exceeded")
+                else ""
+            ),
+        ),
     }
     return {
         "ltx": ltx,

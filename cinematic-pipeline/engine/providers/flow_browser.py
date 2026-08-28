@@ -14,14 +14,27 @@ touches that sign-in. A one-time interactive login (see flow_login.py) saves
 a persistent browser profile to disk; this provider only ever reopens that
 saved profile. If it is not signed in, it fails fast and says how to log in -
 it does not attempt to guess a password field and never will.
+
+Quota: default posture is free tier - limited daily generations, watermarked,
+non-commercial output - tracked locally in flow_quota.py since Flow has no
+quota endpoint to query. That only changes if the user sets FLOW_TIER=paid
+themselves; nothing here infers paid access. Every fetched clip gets a
+.meta.json sidecar recording the tier it was made under, so an assembly step
+mixing Flow footage into a final cut can tell watermarked/free output apart
+from the rest rather than treating it as a finished master.
 """
+
 from __future__ import annotations
 
+import json
 import re
 import time
 from pathlib import Path
 
+from . import flow_quota
 from .base import DONE, FAILED, PENDING, BaseProvider, Job, ProviderError
+
+_QUOTA_WORDS = ("quota", "limit", "credit", "out of generations", "try again later")
 
 PROFILE_DIR = Path.home() / "LTX-Studio" / "flow-profile"
 FLOW_URL = "https://labs.google/fx/tools/flow"
@@ -58,6 +71,7 @@ class FlowBrowserProvider(BaseProvider):
     def submit(self, spec, out_dir: Path) -> Job:
         self.check(spec)
         self._require_session()
+        flow_quota.check_quota()
         try:
             from playwright.sync_api import sync_playwright
         except ImportError:
@@ -72,7 +86,8 @@ class FlowBrowserProvider(BaseProvider):
 
         with sync_playwright() as pw:
             ctx = pw.chromium.launch_persistent_context(
-                str(PROFILE_DIR), headless=self.headless,
+                str(PROFILE_DIR),
+                headless=self.headless,
                 viewport={"width": 1280, "height": 800},
             )
             try:
@@ -91,6 +106,10 @@ class FlowBrowserProvider(BaseProvider):
 
                 gen = page.locator(SEL["generate_button"]).first
                 gen.click()
+                # Counted here, not on fetch - Flow spends the quota the moment
+                # generation starts, whether or not this provider goes on to
+                # successfully retrieve the result.
+                flow_quota.record_generation()
 
                 started_url = page.url
                 print(f"Generating {spec.id} via Flow...", flush=True)
@@ -98,9 +117,11 @@ class FlowBrowserProvider(BaseProvider):
                 # State lives in the page, not in a response we can hold onto, so the
                 # job's "handle" is enough to relocate that same page/context next
                 # time poll() is called rather than a request id a real API would give.
-                return Job(handle={"page": page, "ctx": ctx, "started": time.time()},
-                          payload={"prompt": spec.prompt, "url": started_url},
-                          status=PENDING)
+                return Job(
+                    handle={"page": page, "ctx": ctx, "started": time.time()},
+                    payload={"prompt": spec.prompt, "url": started_url},
+                    status=PENDING,
+                )
             except Exception:
                 ctx.close()
                 raise
@@ -116,7 +137,16 @@ class FlowBrowserProvider(BaseProvider):
         if page.locator(SEL["error_toast"]).count() > 0:
             text = page.locator(SEL["error_toast"]).first.inner_text()
             job.handle["ctx"].close()
-            job.status, job.detail = FAILED, text[:200]
+            job.status = FAILED
+            if any(w in text.lower() for w in _QUOTA_WORDS):
+                job.detail = (
+                    f"Flow reported a quota/limit error, not a generation "
+                    f"failure: {text[:150]!r}. This machine's local free-tier "
+                    f"tracker may be under-counting the real account limit - "
+                    f"treat this as the source of truth and wait it out."
+                )
+            else:
+                job.detail = text[:200]
             return job
 
         if page.locator(SEL["result_video"]).count() > 0:
@@ -152,6 +182,19 @@ class FlowBrowserProvider(BaseProvider):
             else:
                 resp = page.request.get(src)
                 out.write_bytes(resp.body())
+
+            tier = flow_quota.tier()
+            out.with_suffix(out.suffix + ".meta.json").write_text(
+                json.dumps(
+                    {
+                        "provider": "flow",
+                        "tier": tier,
+                        "watermarked": tier == "free",
+                        "commercial_use": tier != "free",
+                        "prompt": job.payload.get("prompt"),
+                    }
+                )
+            )
             return out
         finally:
             ctx.close()

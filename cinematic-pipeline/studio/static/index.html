@@ -335,6 +335,7 @@ const FIELDS = {
   "qa":[["video","Video","masters"]],
   "vertical-cut":[["video","Video","masters"],["square","Also make square 1:1","bool"]],
   "flow":[["prompt","Prompt","text"],["kind","Media","choice:video,image"],["seconds","Seconds (video only)","number:8"]],
+  "openworld-montage":[["profile","Which render","choice:preview,final"]],
 };
 const chip=(on,label,detail)=>`<div class="chip" title="${detail||''}"><span class="dot ${on?'on':'off'}"></span>${label}</div>`;
 

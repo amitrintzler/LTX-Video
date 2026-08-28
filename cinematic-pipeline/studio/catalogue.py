@@ -198,12 +198,12 @@ KINDS: list[dict[str, Any]] = [
         "title": "Open-world city montage",
         "purpose": "Five-beat cut of the open world itself, ahead of the product trailer: "
         "city reveal, old town, reading the storm, the first trade, one open city.",
-        "job": None,
+        "job": "openworld-montage",
         "length": "60s",
         "kind": "video",
         # A separate script (ltx25_optionscity_firsttrade60.py), not the trailer this
-        # studio drives - so there is a finished montage to show but no "Make one"
-        # button to regenerate it from here yet.
+        # studio drives. All five acts are cached, so "Make one" reassembles from
+        # them (ffmpeg + narration) rather than spending a GPU render.
         "find": lambda: _first(
             [
                 RENDER_ROOT

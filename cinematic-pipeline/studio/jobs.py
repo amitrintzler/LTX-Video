@@ -25,6 +25,7 @@ from typing import Any, Callable
 REPO = Path(__file__).resolve().parents[2]
 SCRIPTS = REPO / "cinematic-pipeline" / "scripts"
 TRAILER = SCRIPTS / "ltx25_optionseducator_trailer60.py"
+OPENWORLD_MONTAGE = SCRIPTS / "ltx25_optionscity_firsttrade60.py"
 COMPOSER = SCRIPTS / "compose_trailer_score.py"
 PROJECT = REPO / "cinematic-pipeline" / "examples" / "ltx25-optionseducator"
 RENDER_ROOT = Path.home() / "LTX-Renders"
@@ -181,6 +182,28 @@ def build_vertical(p: dict[str, Any], job: Job) -> list[str]:
     return cmd
 
 
+def build_openworld_montage(p: dict[str, Any], job: Job) -> list[str]:
+    """Rebuild the First Trade open-world montage from its five cached clips.
+
+    All five acts are already rendered and cached under the preview render
+    dir, so --reuse-existing means this is a reassembly (ffmpeg + say), not a
+    GPU render - but the script still authenticates against LTX Desktop
+    unconditionally before reassembling, so it needs LTX up regardless.
+    """
+    profile = p.get("profile", "preview")
+    default = (
+        f"ltx25-optionscity-firsttrade60{'-preview' if profile == 'preview' else ''}"
+    )
+    return [
+        sys.executable,
+        str(OPENWORLD_MONTAGE),
+        "--profile",
+        profile,
+        "--reuse-existing",
+        *_out_dir(p, default),
+    ]
+
+
 ENGINE = REPO / "cinematic-pipeline" / "engine"
 
 
@@ -279,6 +302,13 @@ SPECS: dict[str, JobSpec] = {
             "Generate via Google Flow (browser-driven, no API)",
             build_flow,
             "~2-5 min",
+        ),
+        JobSpec(
+            "openworld-montage",
+            False,
+            "Rebuild the First Trade open-world montage from cached clips",
+            build_openworld_montage,
+            "~1 min",
         ),
     ]
 }

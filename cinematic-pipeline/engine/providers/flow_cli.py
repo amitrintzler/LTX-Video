@@ -3,6 +3,7 @@
 knows how to launch subprocesses - like this repo's studio - can drive it the
 same way it drives every other job, without importing the engine as a library.
 """
+
 from __future__ import annotations
 
 import argparse
@@ -22,20 +23,22 @@ def main() -> int:
     ap.add_argument("--kind", choices=media.KINDS, default=media.VIDEO)
     ap.add_argument("--seconds", type=float, default=None)
     ap.add_argument("--out-dir", default=str(Path.home() / "LTX-Renders" / "flow"))
-    ap.add_argument("--headed", action="store_true",
-                    help="Show the browser window instead of running headless "
-                         "(useful the first time, to watch it actually work).")
     ap.add_argument("--timeout", type=int, default=600)
     args = ap.parse_args()
 
     out_dir = Path(args.out_dir)
     out_dir.mkdir(parents=True, exist_ok=True)
-    spec = media.MediaSpec(id="flow-clip", kind=args.kind, prompt=args.prompt,
-                           seconds=args.seconds)
-    provider = FlowBrowserProvider(headless=not args.headed, timeout_s=args.timeout)
+    spec = media.MediaSpec(
+        id="flow-clip", kind=args.kind, prompt=args.prompt, seconds=args.seconds
+    )
+    # Always attaches to the dedicated, user-launched Chrome (flow_login.py) -
+    # there's no headless/headed choice to make here anymore, since this
+    # never launches a browser of its own. See flow_browser.py's docstring.
+    provider = FlowBrowserProvider(timeout_s=args.timeout)
 
     def wait(job):
         import time
+
         time.sleep(5)
         print(".", end="", flush=True)
 

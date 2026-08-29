@@ -121,12 +121,14 @@ _FLOW_CACHE_S = 120  # the dashboard polls status every 6s; a real browser launc
 
 
 def flow_state() -> dict[str, Any]:
-    """Whether the saved Flow session actually still gets past sign-in.
+    """Whether the dedicated Flow Chrome is up and actually signed in.
 
-    A profile directory existing only proves a login was done at some point;
-    Google sessions expire, and a job that discovers that mid-run wastes
-    minutes finding out what this can check in a couple of seconds instead.
-    Cached, since the check itself launches a real (headless) browser.
+    Google blocks a browser Playwright launches itself from signing in at
+    all, so there's no profile this project owns to launch headlessly -
+    instead this attaches (connect_over_cdp) to a Chrome the user started
+    and signed into themselves (flow_login.py). Cached, since the check
+    itself opens a real connection and a throwaway tab in that browser and
+    the dashboard polls status every 6s.
     """
     import time
 
@@ -142,14 +144,6 @@ def flow_state() -> dict[str, Any]:
 
 
 def _flow_state_uncached() -> dict[str, Any]:
-    profile = Path.home() / "LTX-Studio" / "flow-profile"
-    if not profile.is_dir():
-        return {
-            "ok": False,
-            "detail": "not signed in - run "
-            "engine/providers/flow_login.py once to sign in",
-            **_quota_info(),
-        }
     if not has_playwright():
         return {
             "ok": False,
@@ -162,9 +156,26 @@ def _flow_state_uncached() -> dict[str, Any]:
         return {"ok": False, "detail": "Playwright is not installed for this Python"}
     try:
         with sync_playwright() as pw:
-            ctx = pw.chromium.launch_persistent_context(str(profile), headless=True)
             try:
-                page = ctx.pages[0] if ctx.pages else ctx.new_page()
+                browser = pw.chromium.connect_over_cdp(flow_session.CDP_URL)
+            except Exception:
+                return {
+                    "ok": False,
+                    "detail": "not connected - run engine/providers/flow_login.py "
+                    "to launch the dedicated Flow Chrome, sign in, and leave it open",
+                    **_quota_info(),
+                }
+            if not browser.contexts:
+                return {
+                    "ok": False,
+                    "detail": "Flow Chrome window has no open tabs",
+                    **_quota_info(),
+                }
+            ctx = browser.contexts[0]
+            # A throwaway tab, not the user's existing one - this must never
+            # hijack whatever they're actually looking at in that window.
+            page = ctx.new_page()
+            try:
                 page.goto(
                     "https://labs.google/fx/tools/flow",
                     wait_until="domcontentloaded",
@@ -172,14 +183,15 @@ def _flow_state_uncached() -> dict[str, Any]:
                 )
                 signed_out = flow_session.looks_signed_out(page)
             finally:
-                ctx.close()
+                page.close()
         if signed_out:
             return {
                 "ok": False,
-                "detail": "Flow session expired - re-run "
-                "engine/providers/flow_login.py to sign in again",
+                "detail": "Flow is signed out in the attached Chrome window - "
+                "sign in there yourself, the same way you always do",
+                **_quota_info(),
             }
-        return {"ok": True, "detail": "signed in", **_quota_info()}
+        return {"ok": True, "detail": "attached, signed in", **_quota_info()}
     except Exception as exc:  # noqa: BLE001 - report, don't crash the dashboard
         return {"ok": False, "detail": f"could not check Flow session: {exc}"}
 

@@ -33,6 +33,7 @@ from pathlib import Path
 
 from . import flow_quota
 from .base import DONE, FAILED, PENDING, BaseProvider, Job, ProviderError
+from .flow_session import looks_signed_out
 
 _QUOTA_WORDS = ("quota", "limit", "credit", "out of generations", "try again later")
 
@@ -94,7 +95,7 @@ class FlowBrowserProvider(BaseProvider):
                 page = ctx.pages[0] if ctx.pages else ctx.new_page()
                 page.goto(FLOW_URL, wait_until="domcontentloaded", timeout=30000)
 
-                if "signin" in page.url or "accounts.google" in page.url:
+                if looks_signed_out(page):
                     raise ProviderError(
                         "The saved Flow session is signed out. Re-run "
                         "engine/providers/flow_login.py to sign in again."

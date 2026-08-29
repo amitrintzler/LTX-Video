@@ -20,6 +20,7 @@ from jobs import PROJECT, RENDER_ROOT, SCRIPTS, TRAILER
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "engine"))
 from providers import flow_quota  # noqa: E402
+from providers import flow_session  # noqa: E402
 
 CLIP_IDS = [
     "city_reveal",
@@ -169,7 +170,7 @@ def _flow_state_uncached() -> dict[str, Any]:
                     wait_until="domcontentloaded",
                     timeout=15000,
                 )
-                signed_out = "signin" in page.url or "accounts.google" in page.url
+                signed_out = flow_session.looks_signed_out(page)
             finally:
                 ctx.close()
         if signed_out:

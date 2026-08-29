@@ -27,7 +27,6 @@ from the rest rather than treating it as a finished master.
 from __future__ import annotations
 
 import json
-import re
 import time
 from pathlib import Path
 
@@ -43,11 +42,27 @@ FLOW_URL = "https://labs.google/fx/tools/flow"
 # Selectors are the actual point of fragility here - Flow's DOM, not ours.
 # Kept in one place and named for what they mean, so a UI change is a
 # one-line fix rather than a hunt through the file.
+#
+# prompt_box, generate_button, result_video were checked against the live
+# page (2026-08-29): the composer is a contenteditable div with role="textbox",
+# not a <textarea> - the page also has a hidden reCAPTCHA <textarea>
+# (id="g-recaptcha-response") that the original "textarea, [contenteditable]"
+# selector could have matched instead. The submit control has no aria-label
+# or stable class (styled-components hashes); it's identified by its Material
+# Symbols icon ligature text ("arrow_forward"), which - unlike the visible
+# label next to it ("Create"/"יצירה"/...) - does not change with the UI
+# locale. result_video's src is a same-origin path through a tRPC endpoint
+# (/fx/api/trpc/media.getMediaUrlRedirect), not a blob: URL as originally
+# guessed, and comes back relative from get_attribute("src") - see fetch().
+#
+# generating_indicator and error_toast are still unverified: seeing either
+# needs an in-progress or failed generation, which costs a real credit to
+# produce, so this couldn't be observed without spending the user's quota.
 SEL = {
-    "prompt_box": "textarea, [contenteditable='true']",
-    "generate_button": "button:has-text('Generate')",
+    "prompt_box": '[role="textbox"][contenteditable="true"]',
+    "generate_button": 'button:has-text("arrow_forward")',
     "generating_indicator": "[aria-busy='true'], .generating, .loading",
-    "result_video": "video[src], video source[src]",
+    "result_video": "video[src]",
     "error_toast": "[role='alert'], .error, .toast-error",
 }
 
@@ -161,9 +176,11 @@ class FlowBrowserProvider(BaseProvider):
         ctx = job.handle["ctx"]
         try:
             video = page.locator(SEL["result_video"]).first
-            src = video.get_attribute("src") or video.evaluate(
-                "el => el.querySelector('source')?.src"
-            )
+            # .src (the DOM property, evaluated in-page) is browser-resolved to an
+            # absolute URL; get_attribute("src") is not - Flow's real result src is
+            # a same-origin relative path (/fx/api/trpc/media.getMediaUrlRedirect...),
+            # which page.request.get() can't fetch without this resolution first.
+            src = video.evaluate("el => el.currentSrc || el.src")
             if not src:
                 raise ProviderError("Flow: generation finished but no video src found")
 

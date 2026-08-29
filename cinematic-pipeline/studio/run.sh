@@ -8,6 +8,12 @@
 set -euo pipefail
 cd "$(dirname "${BASH_SOURCE[0]}")"
 
+# The Flow account this connects to is a paid Google AI "PLUS" plan
+# (confirmed 2026-08-29 - not the free tier flow_quota.py defaults to
+# otherwise), so this lifts its daily-cap assumption. Job subprocesses
+# inherit this from the server process, same as everything else here.
+export FLOW_TIER="${FLOW_TIER:-paid}"
+
 PY="/Applications/Xcode.app/Contents/Developer/Library/Frameworks/Python3.framework/Versions/3.9/bin/python3"
 if [ ! -x "$PY" ]; then
   echo "Expected interpreter not found at $PY - falling back to PATH python3." >&2

@@ -54,11 +54,8 @@ class RenderStage:
             return
 
         renderer_name = scene.get("renderer") or default_renderer or "manim"
-        if renderer_name == "manim" and shutil.which("latex") is None:
-            self.log.warning(
-                f"  [{scene_id}] latex not found on PATH; falling back from manim to slides"
-            )
-            renderer_name = "slides"
+        # Note: LaTeX is NOT required - our Manim prompt forbids LaTeX usage and the
+        # normalizer catches any LaTeX attempts before rendering. All text uses Text().
         try:
             renderer = get_renderer(renderer_name)
             resolved_name = renderer_name
@@ -87,9 +84,12 @@ class RenderStage:
         if generated_hint:
             clean_hint = self._sanitize_manim_description(generated_hint)
             sanitized["layout_hint"] = clean_hint
-            sanitized["description"] = (
-                f"{sanitized['description']}\n\nLayout hint: {clean_hint}"
-            )
+            if sanitized.get("description"):
+                sanitized["description"] = (
+                    f"{sanitized['description']}\n\nLayout hint: {clean_hint}"
+                )
+            else:
+                sanitized["description"] = f"Layout hint: {clean_hint}"
         return sanitized
 
     @staticmethod

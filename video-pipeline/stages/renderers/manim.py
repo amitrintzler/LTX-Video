@@ -69,7 +69,11 @@ BLOCKED_MANIM_PATTERNS = (
 
 def render(scene: dict, config: PipelineConfig, out_path: Path) -> Path:
     """Render a manim scene to out_path. Returns out_path on success."""
+    import sys
+    import logging
+
     _check_imports()
+    log = logging.getLogger("manim")
 
     description = scene.get("description", "")
     duration_sec = scene.get("duration_sec", 8)
@@ -87,6 +91,10 @@ def render(scene: dict, config: PipelineConfig, out_path: Path) -> Path:
 
     last_error: Optional[str] = None
     for attempt in range(config.renderer_max_retries):
+        log.info(f"Render attempt {attempt+1}/{config.renderer_max_retries} for {out_path.name}")
+        sys.stderr.flush()
+        sys.stdout.flush()
+
         provider = config.render_llm_provider.strip().lower()
         model = config.render_llm_model_name()
         if provider == "lmstudio":
@@ -100,16 +108,34 @@ def render(scene: dict, config: PipelineConfig, out_path: Path) -> Path:
             )
         else:
             code = _call_claude_cli(model, system, description, last_error)
+
+        log.info(f"Generated Manim code ({len(code)} chars) for {out_path.name}")
+
         try:
             code = _normalize_manim_code(code)
             code = _inject_point_compatibility_shim(code)
             _ensure_safe_codegen(code)
-            rendered = _run_manim(code, out_path, timeout=120)
+            log.info(f"Starting Manim render for {out_path.name}")
+            sys.stderr.flush()
+            sys.stdout.flush()
+            # Use 300s timeout for full-quality renders with potential layout audit retries
+            rendered = _run_manim(code, out_path, timeout=300)
+            log.info(f"Manim render completed for {out_path.name}")
             _audit_rendered_video(rendered, duration_sec=duration_sec)
+            log.info(f"Layout audit passed for {out_path.name}")
             return rendered
         except ManimRenderError as e:
             last_error = str(e)
+            # Log just the first line of the error for brevity
+            first_line = last_error.split('\n')[0][:300]
+            log.error(f"Render failed attempt {attempt+1}: {first_line}")
             if attempt == config.renderer_max_retries - 1:
+                # Save generated code for debugging on final failure
+                debug_code_path = Path("/tmp") / f"manim_debug_{out_path.stem}.py"
+                debug_code_path.write_text(code)
+                log.error(f"Generated code saved to: {debug_code_path}")
+                # Log full error on final failure
+                log.error(f"Final render failure after {config.renderer_max_retries} attempts:\n{last_error[:1000]}")
                 raise
 
     raise ManimRenderError(  # unreachable, but satisfies type checkers
@@ -140,42 +166,110 @@ def _extract_bg_color(style: str) -> str:
 def _build_system_prompt(
     *, width: int, height: int, fps: int, duration_sec: int, bg_color: str
 ) -> str:
-    return f"""You are a Manim Community v0.18 expert. Write a complete Python file with a single class VideoScene(Scene) that animates exactly as described.
+    return f"""You are a professional Manim Community v0.18 animator creating high-quality educational finance videos.
 
-Prioritize pedagogical clarity over decoration. The scene should read like a teaching diagram, not a generic motion graphic. If the description implies a sequence, preserve that sequence exactly.
+Write a complete Python file with a single class VideoScene(Scene) that renders a POLISHED, PROFESSIONAL animation.
 
-At the top of the file, before the class, set the Manim config:
+DESIGN PRINCIPLES (Non-negotiable):
+1. Visual Hierarchy: Main element should dominate. Support elements should be clearly secondary.
+2. Contrast: Use color and size strategically to draw attention. #FFFFFF text on dark backgrounds = readable. Use bright accent colors (#FFD700, #00C896, #FF6B6B) for emphasis.
+3. Spacing & Alignment: All elements aligned to invisible grid. 0.3–0.5 unit margins between elements.
+4. Professional Typography: Font size ≥20 for readability. Line height = 1.4× font size. Weight variation (bold for headers).
+5. Animation Polish: Every transition should have purpose. Easing, not linear. Duration 0.5–1.5s per major element.
+6. Visual Completeness: Rich diagrams, not minimalist sketches. Add subtle grid lines, axis labels, value callouts.
 
+Config:
     from manim import *
     config.pixel_width = {width}
     config.pixel_height = {height}
     config.frame_rate = {fps}
     config.background_color = "{bg_color}"
 
-CRITICAL — LaTeX is NOT installed. You MUST follow these rules:
-- NEVER use MathTex or Tex. They require LaTeX and will crash.
-- Use Text(...) for ALL labels, titles, and annotations.
-- Use Unicode characters for math symbols in Text strings:
-    subscripts: T → use plain "T", S_T → use "S\u209c" or just "S_T" as a string
-    Greek: α→"\u03b1" β→"\u03b2" σ→"\u03c3" μ→"\u03bc" Δ→"\u0394" Γ→"\u0393"
-    operators: ≥→"\u2265" ≤→"\u2264" ×→"\u00d7" ±→"\u00b1"
-- For Brace labels: Text(...) only.
-- Everything else (Axes, Line, Arrow, Dot, DashedLine, Create, Write, etc.) is fine.
-- If the scene description mentions math, translate it into plain English or Unicode text instead of LaTeX syntax.
-- Use explicit hex color strings for all colors. Do not use named color constants like CYAN, TEAL, BLUE, or WHITE.
-- Do not use Axes, NumberPlane, NumberLine, GraphScene, plot, or any coordinate-axis helper.
-  Build payoff curves and charts manually with Line, Dot, Arrow, and Text instead.
-- If you must draw a curve or chart, use explicit points and line segments, not axis helpers or tick labels.
-- Keep the layout sparse: use one title zone, one primary diagram, and at most one or two short callouts at a time.
-- Do not stack multiple large Text blocks on the same region of the screen.
-- Place supporting text in a margin or side panel, not directly over the main geometry.
-- Keep all text out of the central 55% of the frame. Titles belong in the top band; annotations belong in the outer edges or side panels.
-- Do not pass alignment= or align= into Text, SVGMobject, or any other Mobject constructor.
-  If you need left/right placement, use next_to, to_edge, or arrange instead.
-- When styling VMobjects, use `width=` for `set_stroke(...)` only. Do not pass `stroke_width=` to `set_stroke(...)`.
-  Do not use width= on Mobject constructors such as Text or SVGMobject.
+CRITICAL TEXT RULES:
+- NEVER use MathTex or Tex — LaTeX not installed.
+- ALL text uses Text() with explicit font_size, color, weight.
+- Math symbols: use Unicode (α β σ μ Δ ≥ ≤ ×).
+- Use clear, readable font sizes: title ≥32, labels ≥22, annotations ≥18.
+- Font weight for emphasis: Text(..., weight="bold") or Text(..., font_size=28).
 
-The animation must complete within {duration_sec} seconds total. Do not call self.wait() beyond that.
+POSITIONING — EXPLICIT COORDINATES:
+Manim canvas: x ∈ [-8, 8], y ∈ [-4.5, 4.5], z = 0 always.
+
+Safe zones:
+  Top title band (y ≥ 3.0): [0, 3.5, 0] center, [-3, 3.8, 0] left, [3, 3.8, 0] right
+  Left panel (x ≤ -4): x ∈ [-7, -4], y ∈ [-3, 3]
+  Right panel (x ≥ 4): x ∈ [4, 7], y ∈ [-3, 3]
+  Center frame (main diagram): x ∈ [-3, 3], y ∈ [-2.5, 2.5]
+  Bottom callouts (y ≤ -3): [0, -3.5, 0] center, [-3, -3.8, 0] left, [3, -3.8, 0] right
+
+FORBIDDEN: next_to(), to_edge(), align_to(), shift() on grouped children.
+REQUIRED: move_to([x, y, 0]) with explicit hardcoded coordinates.
+
+CENTER BAND RESTRICTION:
+Keep all text OUT of center 55% (x ∈ [-3.5, 3.5], y ∈ [-2.5, 2.5]).
+Text must use margin positions or top/bottom bands.
+
+VISUAL RICHNESS:
+- Axis labels: Add tick marks and value labels (not auto — manual Text() labels).
+- Color coding: Use the global color palette systematically. Highlight important values with bright accent colors.
+- Lines & shapes: Use stroke_width ≥2 for visibility. Dashed lines for guides (stroke_dasharray if needed via SVG).
+- Dots & markers: radius ≥0.08 for visibility. Glow effects via Circle() with lower opacity.
+- Curves: Use 50–100 interpolation points for smooth paths, not rough segments.
+- Grid: Optional faint grid background (very low opacity, ~0.1) for frame reference.
+
+ANIMATION DETAILS:
+- Each element: FadeIn(run_time=0.6), Create(run_time=0.8), Transform(run_time=1.0).
+- No sudden appearance — always fade/create/write in.
+- Easing: Use default (EaseInOutQuad equivalent). Avoid linear.
+- Sequences: Group related elements, animate in logical order (background → structure → labels → emphasis).
+- Duration match: Entire sequence must fit in {duration_sec}s. Budget animation times carefully.
+
+EXAMPLE PROFESSIONAL SCENE:
+```python
+# Title
+title = Text("Payoff Diagram", font_size=36, color="#FFFFFF", weight="bold")
+title.move_to([0, 3.8, 0])
+
+# Axis with labels
+x_axis = Line([-6, -2, 0], [6, -2, 0], stroke_width=2.5, color="#E5E7EB")
+y_axis = Line([-6, -2, 0], [-6, 2, 0], stroke_width=2.5, color="#E5E7EB")
+
+# Labeled tick marks (explicit, not auto)
+for val in [-4, 0, 4]:
+    tick = Line([val, -2.1, 0], [val, -1.9, 0], stroke_width=2, color="#E5E7EB")
+    label = Text(str(val), font_size=18, color="#9CA3AF").move_to([val, -2.5, 0])
+    self.add(tick, label)
+
+# Curve with color emphasis
+curve_points = [...]  # 50+ interpolated points
+curve = VMobject()
+curve.set_points_smoothly(curve_points)
+curve.set_stroke(color="#FFD700", width=4)
+
+# Value callout
+callout = Text("Breakeven: $102", font_size=22, color="#00C896", weight="bold")
+callout.move_to([6, 1.5, 0])
+
+self.play(FadeIn(title), run_time=0.8)
+self.play(Create(x_axis), Create(y_axis), run_time=1.0)
+self.play(Create(curve), run_time=1.2)
+self.play(FadeIn(callout), run_time=0.6)
+self.wait(1.5)
+```
+
+CHECKLIST:
+✓ All text positioned explicitly via move_to([x, y, 0])
+✓ No center-band text
+✓ Font sizes ≥18 for readability
+✓ Color contrast: bright text on dark, dark text on bright
+✓ Axis labels, tick marks, value callouts visible
+✓ Curves smooth (50+ points), not jagged
+✓ Animations have easing and appropriate duration
+✓ Total duration ≤ {duration_sec}s
+✓ No MathTex/Tex, no LaTeX
+✓ No alignment= or align= in constructors
+
+The output must be PROFESSIONAL and POLISHED. Every element should look intentional and well-designed.
 Output only valid Python code. No markdown fences, no explanation."""
 
 
@@ -365,6 +459,8 @@ class _ManimCodeNormalizer(ast.NodeTransformer):
             self.changed = True
         if self._rewrite_point_sequences(node):
             self.changed = True
+        if self._rewrite_coordinate_tuples(node):
+            self.changed = True
         return node
 
     def visit_Assign(self, node: ast.Assign):  # type: ignore[override]
@@ -522,6 +618,29 @@ class _ManimCodeNormalizer(ast.NodeTransformer):
         call.args[0] = padder.visit(call.args[0])
         return padder.changed
 
+    def _rewrite_coordinate_tuples(self, call: ast.Call) -> bool:
+        """Rewrite 2D coordinate tuples/lists to 3D in move_to, shift, next_to, etc."""
+        coordinate_methods = {
+            "move_to", "shift", "next_to", "put_start_and_end_on",
+            "set_points", "set_points_as_corners", "set_points_smoothly",
+        }
+        if not isinstance(call.func, ast.Attribute):
+            return False
+        if call.func.attr not in coordinate_methods:
+            return False
+        if not call.args:
+            return False
+
+        # Check if the first arg is a 2-element tuple/list
+        first_arg = call.args[0]
+        padder = _PadPointSequences()
+        new_arg = padder.visit(first_arg)
+        if padder.changed:
+            call.args[0] = new_arg
+            self.changed = True
+            return True
+        return False
+
     @staticmethod
     def _has_math_import(node: ast.Module) -> bool:
         for stmt in node.body:
@@ -572,6 +691,18 @@ class _PadPointSequences(ast.NodeTransformer):
 
 
 def _normalize_manim_code(code: str) -> str:
+    # Fix stroke_width= parameter in set_stroke() calls (should be width=)
+    code = re.sub(r"set_stroke\s*\(\s*([^)]*?)\bstroke_width\s*=", r"set_stroke(\1width=", code, flags=re.DOTALL)
+
+    # Remove invalid weight= parameter from Text() calls (Manim doesn't support this)
+    code = re.sub(r",\s*weight\s*=\s*['\"][^'\"]*['\"]\s*(?=,|\))", "", code)
+
+    # Remove invalid stroke_dash_array= parameter (Manim doesn't support this)
+    code = re.sub(r",\s*stroke_dash_array\s*=\s*\[[^\]]*\]\s*(?=,|\))", "", code)
+
+    # Remove invalid opacity= parameter (use fill_opacity and stroke_opacity instead)
+    code = re.sub(r",\s*opacity\s*=\s*[0-9.]+\s*(?=,|\))", "", code)
+
     try:
         tree = ast.parse(code)
     except SyntaxError:
@@ -747,8 +878,7 @@ def _find_center_text_like_regions(image_path: Path) -> list[str]:
                 f"bbox=({comp['x0']},{comp['y0']})-({comp['x1']},{comp['y1']}), area={comp['area']}"
             )
 
-    if len(center_hits) < 3:
-        return []
+    # Flag ANY text in center band (was incorrectly requiring 3+)
     return center_hits
 
 
@@ -818,6 +948,12 @@ def _run_manim(code: str, out_path: Path, timeout: int = 120) -> Path:
         code_file = tmp_dir_path / "scene.py"
         code_file.write_text(code)
 
+        # Log the generated code for debugging
+        import logging
+        import sys
+        log = logging.getLogger("manim")
+        log.debug(f"Generated Manim code for {out_path.name}:\n{code}")
+
         try:
             result = subprocess.run(
                 [
@@ -834,8 +970,16 @@ def _run_manim(code: str, out_path: Path, timeout: int = 120) -> Path:
         except subprocess.TimeoutExpired:
             raise ManimRenderError(f"Manim render timed out after {timeout}s")
 
+        # Log full stderr for debugging (even if return code is 0, there may be warnings)
+        if result.stderr:
+            log.debug(f"Manim stderr: {result.stderr}")
+
         if result.returncode != 0:
-            stderr = result.stderr[-2000:]
+            stderr = result.stderr or result.stdout or ""
+            if not stderr.strip():
+                stderr = "(no stderr captured — process may have crashed silently)"
+            else:
+                stderr = stderr[-3000:]  # Increased from 2000 to 3000
             repeated_kw = re.search(r"keyword argument repeated: ([A-Za-z_]\w*)", stderr)
             if repeated_kw:
                 keyword = repeated_kw.group(1)

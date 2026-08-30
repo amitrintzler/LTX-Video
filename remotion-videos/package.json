@@ -1,0 +1,22 @@
+{
+  "name": "remotion-videos",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Self-contained Remotion lesson/promo video templates, moved from the optionseducator repo so the whole studio lives in one place and can go online together.",
+  "scripts": {
+    "studio": "remotion studio src/index.ts",
+    "compositions": "remotion compositions src/index.ts",
+    "render": "remotion render src/index.ts"
+  },
+  "dependencies": {
+    "@remotion/cli": "^4.0.0",
+    "@remotion/media": "^4.0.0",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "remotion": "^4.0.0"
+  },
+  "devDependencies": {
+    "@types/react": "^18.3.3",
+    "typescript": "^5.5.0"
+  }
+}

@@ -71,13 +71,27 @@ def canvas_png(path: Path) -> Path:
     return path
 
 
+def probe_duration(path: Path) -> float:
+    ffprobe = FF.replace("ffmpeg", "ffprobe")  # cfg only exposes the ffmpeg binary
+    out = subprocess.run(
+        [ffprobe, "-v", "error", "-show_entries", "format=duration",
+         "-of", "default=nw=1:nk=1", str(path)],
+        capture_output=True, check=True, text=True).stdout.strip()
+    return float(out)
+
+
 canvas = canvas_png(OUT / ("_canvas_sq.png" if SQUARE else "_canvas_vert.png"))
 sfx = "square_native" if SQUARE else "vertical_native"
 out = OUT / f"{SRC.stem}_{sfx}.mp4"
+# -loop 1 makes the background image an infinite stream, and -shortest alone does
+# not reliably bound that through a filter graph: a run once kept encoding for
+# hours and grew to gigabytes before it was noticed. Bound it explicitly to the
+# source's own duration.
+duration = probe_duration(SRC)
 subprocess.run([
     FF, "-y", "-loglevel", "error", "-loop", "1", "-i", str(canvas), "-i", str(SRC),
     "-filter_complex",
     f"[1:v]scale={VW}:-2[v];[0:v][v]overlay=(W-w)/2:{vy}:format=auto,format=yuv420p[o]",
-    "-map", "[o]", "-c:v", "libx264", "-crf", "18", "-c:a", "aac",
-    "-shortest", str(out)], check=True)
+    "-map", "[o]", "-map", "1:a?", "-c:v", "libx264", "-crf", "18", "-c:a", "aac",
+    "-t", f"{duration:.3f}", "-shortest", str(out)], check=True)
 print("DONE ->", out)

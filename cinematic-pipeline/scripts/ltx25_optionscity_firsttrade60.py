@@ -1,12 +1,21 @@
 #!/usr/bin/env python3
-"""Create a 60-second Options City open-world trailer with local LTX Desktop 2.5."""
+"""Create the 60-second Options City "First Trade" film with local LTX Desktop 2.5.
+
+Copied from ltx25_optionscity_openworld60.py, which remains the verified reference.
+Only the creative constants change here: narration, acts, prompts, titles, seeds,
+output names, and the default keyframe cache. The 60-second timing math, the audio
+mix, and the assembly graph are deliberately identical to the verified run.
+
+Act ids 01_city_reveal and 05_one_open_city are intentionally unchanged: the keyframe
+cache is keyed by act id, and those two ids are what let this film reuse the approved
+identity keyframes instead of regenerating them.
+"""
 
 from __future__ import annotations
 
 import argparse
 import json
 import re
-import shutil
 import subprocess
 import sys
 import time
@@ -21,7 +30,11 @@ from providers import ltx_desktop  # noqa: E402
 
 
 BASE_URL = "http://127.0.0.1:41954"
-OUTPUT_DIR = Path("/tmp/ltx25-optionscity-openworld60-v3")
+PROJECT_ROOT = Path(__file__).resolve().parents[1]
+DEFAULT_KEYFRAME_CACHE_DIR = PROJECT_ROOT / "examples" / "ltx25-desktop-openworld"
+RENDER_ROOT = Path.home() / "LTX-Renders"
+OUTPUT_DIR = RENDER_ROOT / "ltx25-optionscity-firsttrade60"
+PREVIEW_DIR = RENDER_ROOT / "ltx25-optionscity-firsttrade60-preview"
 REFERENCE_IMAGE = Path(
     "/var/folders/f8/4vhxmxld6r52krv4bjd973f40000gn/T/"
     "codex-clipboard-c7a58819-be0c-4730-9176-7ce091fa8b37.png"
@@ -30,17 +43,21 @@ PROJECT_MUSIC = Path(
     "/Users/amitri/Projects/optionseducator/public/assets/videos/"
     "open-world/game-demo/music/cinematic-ambient.mp3"
 )
-FINAL_NAME = "optionscity_ltx25_openworld60_v3.mp4"
-PREVIEW_NAME = "optionscity_ltx25_openworld60_preview.mp4"
+FINAL_NAME = "optionscity_ltx25_firsttrade60.mp4"
+PREVIEW_NAME = "optionscity_ltx25_firsttrade60_preview.mp4"
 ACT_SECONDS = 12
 
+# Measured at 55.0s with `say -v "Reed (English (US))" -r 150`, plus the 650 ms
+# adelay in the mix. Assembly hard-cuts at 60s, so keep any rewrite under ~57s.
 NARRATION = (
-    "This is Options City, a living open world built from the forces that move every market. "
-    "Explore seven connected districts, from Old Town and Derivatives Harbor to Volatility Heights and Pantheon Row. "
-    "Scout the streets. Build terminals, risk towers, and hedge nodes. Trade strategies, then face the catalyst when the whole city changes. "
-    "Every lesson becomes a mission, and every story opens another world: the Magic Garden, Goldilocks and the Three Strikes, the Rocket Launch Zone, and more. "
-    "Across twenty-one playable experiences, your decisions reshape the city, protect your capital, and unlock the next district. "
-    "This is not a course beside a game. The market is the world. The stories are the quests. Your choices build Options City."
+    "You arrive in Options City with one question: how does anybody move a market this large? "
+    "Down in Old Town the answer is everywhere. Every price here is a crowd deciding, and every current "
+    "in the street is somebody's risk changing hands. "
+    "Climb to Volatility Heights and the storm stops looking like chaos. It has a shape. It has a speed. It can be read. "
+    "So you choose. One position. One defined risk. One line you decide not to cross. "
+    "The city answers. Your hedge holds, the district steadies, and the road you walked in on becomes the road you own. "
+    "Seven districts open ahead of you now, and every lesson you clear becomes the next one. "
+    "This is your first trade. Options City has twenty more waiting."
 )
 
 NEGATIVE = (
@@ -53,91 +70,115 @@ NEGATIVE = (
 ACTS = [
     {
         "id": "01_city_reveal",
-        "seed": 25031,
+        "seed": 26041,
         "camera": "dolly_out",
         "use_keyframe": True,
         "keyframe": (
-            "Transform the reference into a vast AAA open-world game city seen from a mountain overlook. Keep the lone "
-            "third-person adventurer and luminous road, but remove every word, ticker, sign, letter, number, and interface. "
-            "Create seven enormous visually distinct districts connected across the horizon: historic stone market streets, "
-            "a luminous harbor, storm-wrapped towers, monumental Greek-inspired architecture, a green hedge park, an industrial "
-            "trading yard, and a radiant clearing citadel. Teal energy and warm gold sunset, cinematic realistic game concept art."
+            "Transform the reference into a vast AAA open-world game city seen from a mountain overlook at sunset. Keep the "
+            "lone third-person traveller and the luminous road, but remove every word, ticker, sign, letter, number, and "
+            "interface. Create seven enormous visually distinct districts connected across the horizon: historic stone market "
+            "streets, a luminous harbor, storm-wrapped towers, monumental Greek-inspired architecture with a golden dome, a "
+            "green hedge park, an industrial trading yard, and distant mountains. Teal energy and warm gold light, cinematic "
+            "realistic game concept art."
         ),
         "prompt": (
-            "Epic opening shot of Options City, a genuinely huge living open-world game metropolis stretching to the horizon. "
-            "A third-person player character stands on a high luminous road, then begins walking as the camera pulls back and rises "
-            "to reveal seven immense connected districts, air traffic, moving transit, waterfalls, storm systems, and flowing market "
-            "energy. The city must feel explorable, populated, and monumental, with strong parallax and continuous environmental motion."
+            "Opening arrival shot of Options City, a genuinely huge living open-world market metropolis stretching to the "
+            "horizon. A lone newcomer carrying a travel pack walks onto a high luminous overlook road and stops, seeing the "
+            "whole city for the first time. The camera pulls back and rises to reveal seven immense connected districts: "
+            "stone market streets, a luminous harbor, storm-wrapped towers, a monumental golden domed forum, hedge parks, an "
+            "industrial trading yard, and far mountains. Transit moves along the roads, boats cross the water, teal and gold "
+            "market energy flows through every street, and clouds drift across the low sun. The city must feel explorable, "
+            "populated, and monumental, with strong parallax and continuous environmental motion."
         ),
     },
     {
-        "id": "02_explore_build_trade",
-        "seed": 25032,
+        "id": "02_old_town_crowd",
+        "seed": 26042,
         "camera": "dolly_right",
         "use_keyframe": False,
         "prompt": (
-            "Third-person gameplay-style tracking shot through Options City. One capable adult player runs from Old Town's stone "
-            "market streets onto the vast Derivatives Harbor waterfront. A scout pulse reveals routes; a sleek trading terminal, "
-            "risk tower, and hedge node construct themselves from luminous modular pieces beside the road. The player activates a "
-            "strategy and the city responds with flowing teal and gold energy. Fast purposeful traversal, dynamic camera, believable "
-            "AAA open-world scale, no interface and no readable signage."
+            "Third-person gameplay-style tracking shot descending into Old Town, the oldest market district of Options City. "
+            "The newcomer walks quickly through crowded stone market streets while luminous teal and gold currents flow "
+            "visibly between the stalls, showing buyers and sellers pulling against each other. The energy gathers, thins, "
+            "and surges as the player passes. Awnings ripple, hanging lanterns swing, carts roll past, birds scatter from the "
+            "rooftops, and a warm shaft of low sun sweeps across the street. Fast purposeful traversal, dynamic side-tracking "
+            "camera, believable AAA open-world density, no interface and no readable signage."
         ),
     },
     {
-        "id": "03_catalyst_disruption",
-        "seed": 25033,
+        "id": "03_reading_the_storm",
+        "seed": 26043,
         "camera": "dolly_in",
-        "use_keyframe": False,
+        "use_keyframe": True,
+        "keyframe_from": "01_city_reveal",
+        "keyframe": (
+            "Transform the reference into a storm-lit district of pale Greek stone towers, gold-capped domes, and teal "
+            "energy channels running through the streets. Remove every word, ticker, sign, letter, number, and interface. "
+            "Cinematic realistic game concept art, huge scale, clean image without any text."
+        ),
         "prompt": (
-            "A major live market catalyst strikes Volatility Heights in Options City. The third-person player races across a high "
-            "bridge while a colossal volatility storm rolls between skyscrapers, probability lightning bends through the sky, and "
-            "market energy surges through the streets. Risk towers deploy protective shields, hedge nodes redirect the shock wave, "
-            "and the player stabilizes the district at the final moment. Spectacular coherent action, powerful forward camera motion, "
-            "large-scale destruction without injury, premium cinematic game trailer."
+            "A lone traveller in a worn coat stands on a high stone balcony in Volatility Heights, a district of pale Greek "
+            "stone towers, gold-capped domes, and teal energy channels running through the streets far below. An enormous "
+            "storm builds over the district and resolves into a readable structure: slowly rotating cloud bands, sweeping "
+            "probability arcs, and one clear leading edge advancing at a steady speed. Lightning bends along the arcs, sheets "
+            "of rain sweep across the pale stone rooftops, wind drives the traveller's coat and hair, and teal light pulses "
+            "outward along the streets. The traveller stays large and clearly visible in the foreground the whole time. "
+            "Powerful forward camera push, spectacular coherent weather, premium cinematic game trailer."
         ),
     },
     {
-        "id": "04_story_worlds",
-        "seed": 25034,
+        "id": "04_the_first_trade",
+        "seed": 26044,
         "camera": "dolly_in",
-        "use_keyframe": False,
+        "use_keyframe": True,
+        "keyframe_from": "05_one_open_city",
+        "keyframe": (
+            "Transform the reference into a luminous elevated stone bridge above a city of pale Greek architecture and "
+            "gold-capped domes, with teal energy channels along the roads below. Remove every word, ticker, sign, letter, "
+            "number, and interface. Cinematic realistic game concept art, clean image without any text."
+        ),
         "prompt": (
-            "Inside a monumental story portal hub in Options City, the third-person player runs along a radiant path as four enormous "
-            "living worlds open around them in sequence: a magical garden town filled with glowing ticket flowers, a fairytale forest "
-            "with three branching strike paths and a golden cottage, an energetic rocket launch zone at sunset, and a whimsical ice "
-            "cream market where melting clocks shape the streets. Each world is a real explorable environment, not a screen or card. "
-            "Seamless portal transitions, adventurous motion, vivid but realistic AAA game art, no written language."
+            "A lone traveller in a worn coat stands at the centre of a luminous elevated stone bridge above Options City, a "
+            "metropolis of pale Greek architecture, gold-capped domes, and teal energy channels. Beside the traveller a tall "
+            "glowing hedge node assembles itself from floating modular pieces and locks into place. The traveller sweeps one "
+            "arm and a single bright gold line draws itself across the bridge deck in front of them. Teal and gold energy "
+            "then rushes outward from the node along the roads below, curved protective shields of light rise over the pale "
+            "stone buildings, and the storm front breaks apart against them as the whole district steadies and brightens. "
+            "The traveller remains large and clearly visible in frame throughout. Strong forward camera motion, large-scale "
+            "energy effects without injury, dramatic cinematic payoff."
         ),
     },
     {
         "id": "05_one_open_city",
-        "seed": 25035,
+        "seed": 26045,
         "camera": "dolly_out",
         "use_keyframe": True,
         "keyframe": (
-            "Transform the reference into the final victorious vista of a massive open-world Options City. Preserve the lone hero "
-            "walking toward the skyline on a luminous elevated road. Remove every word, ticker, sign, letter, number, and interface. "
-            "Show all seven districts alive and interconnected around a monumental Pantheon Row reactor, with many active roads, "
-            "story portals, constructed risk towers, harbor traffic, parks, and distant mountains. Sunrise gold and teal, polished "
+            "Transform the reference into a sunrise vista of a massive open-world Options City. Preserve the lone traveller "
+            "walking toward the skyline on a luminous elevated road. Remove every word, ticker, sign, letter, number, and "
+            "interface. Show all seven districts alive and interconnected around a monumental golden domed forum, with many "
+            "active roads, harbor traffic, parks, constructed towers, and distant mountains. Sunrise gold and teal, polished "
             "realistic AAA game key art, huge geographic scale, clean image without any text."
         ),
         "prompt": (
-            "Final triumphant gameplay-style vista of one enormous interconnected Options City. The same third-person player walks "
-            "onto Pantheon Row as five monumental Greek-force structures awaken and send protective energy across all seven districts. "
-            "The camera sweeps upward and far backward, revealing twenty-one mission beacons, active story portals, constructed terminals, "
-            "moving vehicles, weather over distant districts, and roads reaching the horizon. The player raises one hand as the entire "
-            "living city responds. Inspiring continuous motion, vast AAA open-world scale, clean cinematic ending."
+            "Final shot of Options City at sunrise. The same character, no longer a newcomer, walks onto the elevated road "
+            "above the monumental golden domed forum and the whole city responds around them: light runs outward along every "
+            "road, harbor traffic resumes, story portals open across the far districts, and mission beacons wake one after "
+            "another all the way to the horizon. The camera sweeps upward and far backward to reveal the entire "
+            "interconnected metropolis, moving vehicles, weather over the distant mountains, and roads reaching far beyond "
+            "the city. The character raises one hand as the living city answers. Inspiring continuous motion, vast AAA "
+            "open-world scale, clean cinematic ending."
         ),
     },
 ]
 
 TITLES = [
-    (0.6, 5.7, "OPTIONS CITY", "THE MARKET IS THE WORLD"),
-    (12.4, 17.5, "SEVEN DISTRICTS", "ONE LIVING MARKET"),
-    (24.4, 30.2, "SCOUT. BUILD. TRADE.", "SURVIVE THE CATALYST"),
-    (36.4, 42.6, "EVERY STORY OPENS A WORLD", "MAGIC GARDEN | THREE STRIKES | ROCKET LAUNCH ZONE"),
-    (48.4, 54.0, "21 PLAYABLE EXPERIENCES", "ONE OPEN CITY"),
-    (55.0, 59.4, "YOUR DECISIONS SHAPE IT", "BUILD OPTIONS CITY"),
+    (0.6, 5.7, "OPTIONS CITY", "YOUR FIRST TRADE"),
+    (12.4, 17.5, "EVERY PRICE IS A CROWD", "LEARN TO READ THE STREET"),
+    (24.4, 30.2, "VOLATILITY HAS A SHAPE", "CHAOS BECOMES SIGNAL"),
+    (36.4, 42.6, "ONE POSITION", "DEFINED RISK | A LINE YOU CHOOSE"),
+    (48.4, 54.0, "THE CITY ANSWERS", "YOUR HEDGE HOLDS"),
+    (55.0, 59.4, "THIS IS YOUR FIRST TRADE", "TWENTY MORE ARE WAITING"),
 ]
 
 
@@ -159,10 +200,8 @@ def atempo_chain(source_seconds: int, target_seconds: int) -> str:
     return ",".join(filters)
 
 
-# Was: take the first LTX_AUTH_TOKEN match out of `ps` with no validation. Any
-# process merely mentioning the variable could win, and a bogus token surfaced
-# as a 401 mid-render that looked like the GPU had gone away. The engine's
-# version filters candidates and proves one against the backend first.
+# Same fix as the other films: the engine filters token candidates and proves
+# one against the backend, instead of trusting the first `ps` match.
 auth_token = ltx_desktop.auth_token
 
 
@@ -216,6 +255,23 @@ def make_keyframe(act: dict, args: argparse.Namespace, token: str) -> Path:
     if result.get("status") != "complete" or not paths:
         raise SystemExit(f"Keyframe failed for {act['id']}: {json.dumps(result)}")
     return Path(paths[0])
+
+
+def cached_keyframe(act: dict, cache_dir: Path) -> Path | None:
+    """Resolve an approved keyframe from a cache directory to an absolute path.
+
+    The LTX Desktop backend is a separate process, so imagePath must be absolute.
+    """
+    source_id = act.get("keyframe_from", act["id"])
+    cached_file = cache_dir / f"{source_id}_keyframe_result.json"
+    if not cached_file.exists():
+        return None
+    recorded = Path(json.loads(cached_file.read_text())["image_paths"][0])
+    resolved = recorded if recorded.is_absolute() else cached_file.parent / recorded
+    resolved = resolved.resolve()
+    if not resolved.is_file():
+        raise SystemExit(f"Cached keyframe for {act['id']} is missing on disk: {resolved}")
+    return resolved
 
 
 def video_payload(act: dict, args: argparse.Namespace, keyframe: Path | None) -> dict:
@@ -364,7 +420,7 @@ def main() -> int:
     parser.add_argument("--profile", choices=["preview", "final"], default="final")
     parser.add_argument("--base-url", default=BASE_URL)
     parser.add_argument("--output-dir", type=Path)
-    parser.add_argument("--keyframe-cache-dir", type=Path)
+    parser.add_argument("--keyframe-cache-dir", type=Path, default=DEFAULT_KEYFRAME_CACHE_DIR)
     parser.add_argument("--reference-image", type=Path, default=REFERENCE_IMAGE)
     parser.add_argument("--resolution", choices=["540p", "720p", "1080p"], default="540p")
     parser.add_argument("--fps", type=int, default=24)
@@ -378,9 +434,7 @@ def main() -> int:
     args.source_seconds = args.source_seconds or (5 if args.profile == "preview" else 10)
     args.keyframe_steps = args.keyframe_steps or (4 if args.profile == "preview" else 10)
     args.act_seconds = ACT_SECONDS
-    args.output_dir = args.output_dir or (
-        Path("/tmp/ltx25-optionscity-openworld60-preview") if args.profile == "preview" else OUTPUT_DIR
-    )
+    args.output_dir = args.output_dir or (PREVIEW_DIR if args.profile == "preview" else OUTPUT_DIR)
     args.final_name = args.final_name or (PREVIEW_NAME if args.profile == "preview" else FINAL_NAME)
     args.output_dir.mkdir(parents=True, exist_ok=True)
     (args.output_dir / "storyboard.json").write_text(
@@ -400,7 +454,8 @@ def main() -> int:
     )
     if args.dry_run:
         for act in ACTS:
-            print(json.dumps(video_payload(act, args, args.reference_image if act["use_keyframe"] else None), indent=2))
+            keyframe = cached_keyframe(act, args.keyframe_cache_dir) if act["use_keyframe"] else None
+            print(json.dumps(video_payload(act, args, keyframe), indent=2))
         return 0
 
     token = auth_token()
@@ -418,19 +473,13 @@ def main() -> int:
                 continue
         keyframe = None
         if act["use_keyframe"]:
-            keyframe_file = args.output_dir / f"{act['id']}_keyframe_result.json"
-            cached_keyframe_file = (
-                args.keyframe_cache_dir / f"{act['id']}_keyframe_result.json"
-                if args.keyframe_cache_dir
-                else None
-            )
-            if cached_keyframe_file and cached_keyframe_file.exists():
-                cached_path = Path(json.loads(cached_keyframe_file.read_text())["image_paths"][0])
-                keyframe = cached_path if cached_path.is_absolute() else cached_keyframe_file.parent / cached_path
-            elif args.reuse_existing and keyframe_file.exists():
-                keyframe = Path(json.loads(keyframe_file.read_text())["image_paths"][0])
-            else:
-                keyframe = make_keyframe(act, args, token)
+            keyframe = cached_keyframe(act, args.keyframe_cache_dir) if args.keyframe_cache_dir else None
+            if keyframe is None:
+                keyframe_file = args.output_dir / f"{act['id']}_keyframe_result.json"
+                if args.reuse_existing and keyframe_file.exists():
+                    keyframe = Path(json.loads(keyframe_file.read_text())["image_paths"][0])
+                else:
+                    keyframe = make_keyframe(act, args, token)
         clips.append(make_clip(act, args, token, keyframe))
     audio = make_audio(clips, args.output_dir, args)
     final = assemble(clips, audio, args)

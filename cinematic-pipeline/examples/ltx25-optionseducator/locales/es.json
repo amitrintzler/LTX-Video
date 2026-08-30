@@ -1,0 +1,130 @@
+{
+  "locale": "es",
+  "name": "Spanish",
+  "dir": "ltr",
+  "titles": {
+    "0": [
+      "LLEGAS CON UNA PREGUNTA",
+      "¿CÓMO SE LEE ESTE MERCADO?"
+    ],
+    "1": [
+      "BIENVENIDO A OPTIONS CITY",
+      "UN ENTORNO REAL PARA PRACTICAR TRADING"
+    ],
+    "2": [
+      "DONDE EMPIEZA TODO TRADER",
+      "LEER LA CADENA | TU PRIMERA CALL CUBIERTA"
+    ],
+    "3": [
+      "LAS CALLES SON EL TEMARIO",
+      "CADA CAMINO ES UN CONCEPTO QUE APRENDES"
+    ],
+    "4": [
+      "Y EL MERCADO CAMBIA DE RUMBO",
+      "DESPLOME DE IV Y REVALORACIÓN POR EVENTOS"
+    ],
+    "5": [
+      "EL MERCADO DECIDE LA JUGADA",
+      "CALMA: VENDER PRIMA | TENDENCIA: SPREADS"
+    ],
+    "6": [
+      "ENTONCES ENTRAS EN LA OPERACIÓN",
+      "EJECUTA. AGUANTA. CIERRA CON GANANCIA O PÉRDIDA."
+    ],
+    "7": [
+      "LAS GRIEGAS MANDAN EN ESTA CIUDAD",
+      "SENSIBILIDADES, EXPOSICIÓN Y GESTIÓN DE POSICIÓN"
+    ],
+    "8": [
+      "CADA DÍA LA CIUDAD TE PONE AL DÍA",
+      "HISTORIAS, PODCASTS Y VIDEO DIARIO - ESCRITOS DEL MERCADO DE AYER"
+    ],
+    "9": [
+      "UN ARCADE QUE NO PARA DE CRECER",
+      "MINIJUEGOS: DEFENSA DE CREADOR | ESCALERA DE RIESGO | CONSTRUCTOR"
+    ],
+    "10": [
+      "LECCIONES NACIDAS DE OPERACIONES REALES",
+      "FUNDAMENTOS | ANÁLISIS TÉCNICO | GRIEGAS | ESTRATEGIAS | RIESGO"
+    ],
+    "11": [
+      "VINISTE A APRENDER OPCIONES",
+      "SALES OPERÁNDOLAS"
+    ],
+    "12": [
+      "FORMACIÓN EN TRADING DE OPCIONES",
+      "EMPIEZA TU RUTA DE APRENDIZAJE"
+    ]
+  },
+  "signs": {
+    "2": [
+      "CIUDAD VIEJA",
+      "FUNDAMENTOS ILUSTRADOS"
+    ],
+    "3": [
+      "CALLE GAMMA",
+      "SENDA THETA | BULEVAR VEGA"
+    ],
+    "4": [
+      "ALTOS DE VOLATILIDAD",
+      "CALLEJÓN DEL DESPLOME DE IV"
+    ],
+    "6": [
+      "PASEO DE LOS SPREADS",
+      "VÍA DE LA PRIMA"
+    ],
+    "7": [
+      "PASEO DEL PANTEÓN",
+      "CALLE STRIKE | CALLE RHO"
+    ],
+    "8": [
+      "VÍA DEL VENCIMIENTO",
+      "DISTRITO DE NOTICIAS"
+    ]
+  },
+  "stories": {
+    "basics-flow": [
+      "ALEX Y LAS ENTRADAS DEL JARDÍN MÁGICO",
+      "CALLS Y PUTS"
+    ],
+    "theta-clock": [
+      "LA HELADERÍA QUE SE DERRITE",
+      "EL PASO DEL TIEMPO"
+    ],
+    "options-chain-reading": [
+      "EL MAPA DEL TESORO DE LOS NÚMEROS",
+      "LEER LA CADENA"
+    ],
+    "support-resistance": [
+      "EL REINO DE SUELOS Y TECHOS",
+      "SOPORTE Y RESISTENCIA"
+    ],
+    "short-risk": [
+      "EL JUEGO PELIGROSO DEL OSO",
+      "EL RIESGO DE ESTAR CORTO"
+    ],
+    "valuation-ratios-101": [
+      "EL DETECTIVE DE LAS ETIQUETAS",
+      "VALORACIÓN"
+    ],
+    "macro-vol": [
+      "EL CLIMA DE LOS MERCADOS",
+      "VOLATILIDAD MACRO"
+    ],
+    "rsi-macd-mastery": [
+      "EL SISTEMA DE LA DOBLE BRÚJULA",
+      "RSI Y MACD"
+    ]
+  },
+  "footnotes": [
+    "INGLÉS, HEBREO Y ESPAÑOL",
+    "SOLO CON FINES EDUCATIVOS. NO ES ASESORAMIENTO DE INVERSIÓN."
+  ],
+  "ui_regions": {
+    "12": [
+      0.42,
+      0.2,
+      0.62
+    ]
+  }
+}

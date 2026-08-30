@@ -50,7 +50,7 @@
   "claude_model": "claude-sonnet-4-6",
   "codex_model": "gpt-5.4",
   "renderer_max_retries": 3,
-  "render_workers": 1,
+  "render_workers": 2,
   "script_timeout_sec": 180,
   "script_chunk_size": 1,
   "llm_provider": "codex",

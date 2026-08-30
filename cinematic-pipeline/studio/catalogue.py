@@ -216,6 +216,23 @@ KINDS: list[dict[str, Any]] = [
         "sample_len": 5.0,
     },
     {
+        "id": "showreel",
+        "engine": "All six engines",
+        "usage": "The studio's own demo reel - one chapter per engine, freshly generated",
+        "title": "Studio showreel",
+        "purpose": "ONE STUDIO / SIX ENGINES: LTX world shot, Veo via Flow, Manim math, "
+        "a Remotion template, motion-gfx promo graphics, and the composed score - "
+        "assembled with drawn cards and engine labels.",
+        "job": "showreel",
+        "length": "~60s",
+        "kind": "video",
+        "find": lambda: _first(
+            [Path.home() / "LTX-Renders" / "studio-showreel" / "studio_showreel90.mp4"]
+        ),
+        "sample_at": 4.0,
+        "sample_len": 5.0,
+    },
+    {
         "id": "cinematic-project",
         "engine": "Motion gfx / parallax / LTX-2",
         "usage": "Openmontage promo projects: Game of Options promo, trader films, "

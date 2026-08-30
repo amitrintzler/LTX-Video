@@ -266,6 +266,12 @@ def snapshot() -> dict[str, Any]:
             ltx["ok"] and numpy_ok, ltx["detail"] if not ltx["ok"] else cut_why
         ),
         "openworld-montage": ready(ltx["ok"], ltx["detail"] if not ltx["ok"] else ""),
+        "flow-hero-shots": ready(
+            flow["ok"] and not flow.get("quota_exceeded"),
+            flow["detail"]
+            if not flow["ok"]
+            else ("free-tier daily cap used" if flow.get("quota_exceeded") else ""),
+        ),
         "flow": ready(
             flow["ok"] and not flow.get("quota_exceeded"),
             flow["detail"]

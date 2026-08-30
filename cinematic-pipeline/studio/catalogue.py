@@ -215,6 +215,23 @@ KINDS: list[dict[str, Any]] = [
         "sample_len": 5.0,
     },
     {
+        "id": "flow-hero",
+        "engine": "Flow (Veo) + LTX + post",
+        "usage": "Higher-realism opening and closing shots for the product trailer",
+        "title": "Flow hero bookends",
+        "purpose": "The trailer's first and last shots (city_reveal, pantheon_night) "
+        "regenerated on Veo via Flow, dropped into the clip cache so a reassemble "
+        "picks them up - the middle stays LTX.",
+        "job": "flow-hero-shots",
+        "length": "8s per clip",
+        "kind": "video",
+        "find": lambda: _first(
+            [FINAL / "city_reveal_flow.mp4", FINAL / "pantheon_night_flow.mp4"]
+        ),
+        "sample_at": 1.0,
+        "sample_len": 4.0,
+    },
+    {
         "id": "flow",
         "engine": "Google Flow (browser)",
         "usage": "Anything neither LTX nor a drawn browser page covers, when the local "

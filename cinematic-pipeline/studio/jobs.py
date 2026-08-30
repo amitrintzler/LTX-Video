@@ -234,6 +234,21 @@ def build_flow(p: dict[str, Any], job: Job) -> list[str]:
     return cmd
 
 
+def build_flow_hero_shots(p: dict[str, Any], job: Job) -> list[str]:
+    """Regenerate the trailer's bookend clips (city_reveal / pantheon_night)
+    via Google Flow and register them in the trailer's clip cache, so the next
+    reassemble picks them up. Spends real Flow credits; needs the dedicated
+    Flow Chrome up and signed in, same as the plain flow job.
+    """
+    cmd = [sys.executable, str(SCRIPTS / "flow_hero_shots.py")]
+    only = p.get("only")
+    if only and only != "both":
+        cmd += ["--only", only]
+    if p.get("timeout"):
+        cmd += ["--timeout", str(p["timeout"])]
+    return cmd
+
+
 SPECS: dict[str, JobSpec] = {
     s.name: s
     for s in [
@@ -302,6 +317,13 @@ SPECS: dict[str, JobSpec] = {
             "Generate via Google Flow (browser-driven, no API)",
             build_flow,
             "~2-5 min",
+        ),
+        JobSpec(
+            "flow-hero-shots",
+            False,
+            "Regenerate the trailer's bookend clips via Google Flow (Veo)",
+            build_flow_hero_shots,
+            "~3-8 min",
         ),
         JobSpec(
             "openworld-montage",

@@ -47,8 +47,15 @@ from .base import DONE, FAILED, PENDING, BaseProvider, Job, ProviderError
 from .flow_session import CDP_URL, looks_signed_out
 
 _QUOTA_WORDS = ("quota", "limit", "credit", "out of generations", "try again later")
+_ERROR_WORDS = ("error", "failed", "couldn't", "could not", "שגיאה", "נכשל")
 
 FLOW_URL = "https://labs.google/fx/tools/flow"
+
+# The composer defaults to Flow's image model (Nano Banana, observed
+# 2026-08-30) - submitting a prompt without switching produces stills and no
+# <video> ever appears, so video jobs MUST configure the composer first.
+VIDEO_MODEL = "Veo 3.1 - Fast"
+VIDEO_RESOLUTION = "720p"
 
 # Selectors are the actual point of fragility here - Flow's DOM, not ours.
 # Kept in one place and named for what they mean, so a UI change is a
@@ -74,8 +81,26 @@ FLOW_URL = "https://labs.google/fx/tools/flow"
 # needs an in-progress or failed generation, which costs a real credit to
 # produce, so this couldn't be observed without spending the user's quota.
 SEL = {
-    "new_project": 'text="New project", text="פרויקט חדש"',
+    # Identified by its Material Symbols ligature ("add_2"), which is
+    # locale-independent; the two observed labels are fallbacks. NOTE: comma
+    # OR-lists only work in the CSS engine - 'text="A", text="B"' silently
+    # matches nothing (verified live 2026-08-30), which is why these are
+    # css :has-text() clauses rather than text= selectors.
+    "new_project": (
+        'button:has-text("add_2"), button:has-text("New project"), '
+        'button:has-text("פרויקט חדש")'
+    ),
     "prompt_box": '[role="textbox"][contenteditable="true"]',
+    # The composer's model/settings chip. Its label text changes with the
+    # selected model ("Nano Banana 2", "Veo 3.1 - Fast", ...) but it always
+    # shows the aspect-ratio icon ligature, so that is the stable handle.
+    "composer_chip": (
+        'button[aria-haspopup]:has-text("crop_16_9"), '
+        'button[aria-haspopup]:has-text("crop_9_16")'
+    ),
+    "menu": "[role='menu']",
+    "video_tab": "[role='menu'] *:text-is('videocam')",
+    "model_dropdown": "[role='menu'] *:text-is('arrow_drop_down')",
     "generate_button": 'button:has-text("arrow_forward")',
     "generating_indicator": "[aria-busy='true'], .generating, .loading",
     "result_video": "video[src]",
@@ -115,6 +140,65 @@ class FlowBrowserProvider(BaseProvider):
             raise ProviderError(f"Chrome on {CDP_URL} has no open tabs to work with.")
         return pw, browser.contexts[0]
 
+    def _pick(self, page, label: str, required: bool = False) -> None:
+        """Click one labelled option inside the open composer menu."""
+        loc = page.locator(f"{SEL['menu']} *:text-is('{label}')")
+        if loc.count() > 0:
+            loc.first.click()
+            page.wait_for_timeout(300)
+        elif required:
+            raise ProviderError(
+                f"Flow's composer menu has no {label!r} option - the UI may "
+                "have changed."
+            )
+
+    def _configure_video(self, page, seconds: float | None) -> None:
+        """Switch the composer from its image default to one Veo video.
+
+        Order matters: model first (changing it can reset the option rows),
+        then aspect/resolution/duration/count. Options that a given model
+        doesn't offer are skipped rather than fatal; the model itself is not.
+        """
+        chip = page.locator(SEL["composer_chip"]).first
+        chip.wait_for(state="visible", timeout=20000)
+        chip.click()
+        page.locator(SEL["menu"]).first.wait_for(state="visible", timeout=10000)
+
+        page.locator(SEL["video_tab"]).first.click()
+        page.wait_for_timeout(500)
+
+        dropdown = page.locator(SEL["model_dropdown"])
+        if dropdown.count() > 0:
+            dropdown.first.click()
+            page.wait_for_timeout(500)
+            item = page.locator(f"[role='menuitem']:has-text('{VIDEO_MODEL}')")
+            if item.count() == 0:
+                raise ProviderError(
+                    f"Flow does not list the {VIDEO_MODEL!r} video model - "
+                    "see VIDEO_MODEL in flow_browser.py for what it expects."
+                )
+            item.first.click()
+            page.wait_for_timeout(500)
+
+        self._pick(page, "16:9")
+        self._pick(page, VIDEO_RESOLUTION)
+        wanted_s = int(seconds) if seconds else 8
+        self._pick(page, f"{wanted_s}s")
+        self._pick(page, "x1")
+        page.keyboard.press("Escape")
+        page.wait_for_timeout(300)
+
+        # In video mode the chip reads "<video> · 720p" (the word localized,
+        # e.g. Hebrew "וידאו"), not the model name - so the resolution string
+        # is the locale-independent signal that the switch took.
+        chip_text = chip.inner_text(timeout=5000)
+        if "Veo" not in chip_text and VIDEO_RESOLUTION not in chip_text:
+            raise ProviderError(
+                "Composer did not switch to the video model - the chip still "
+                f"shows {chip_text!r}. Refusing to generate (it would produce "
+                "still images, not video)."
+            )
+
     def submit(self, spec, out_dir: Path) -> Job:
         self.check(spec)
         flow_quota.check_quota()
@@ -137,13 +221,20 @@ class FlowBrowserProvider(BaseProvider):
                 )
 
             new_project = page.locator(SEL["new_project"]).first
-            if new_project.count() == 0:
+            try:
+                # Flow is a SPA; domcontentloaded fires well before hydration,
+                # so wait for the button rather than counting immediately.
+                new_project.wait_for(state="visible", timeout=20000)
+            except Exception:
                 raise ProviderError(
                     "Could not find Flow's 'New project' button - its label "
                     "may have changed, or the account UI is in a language "
                     "this hasn't seen before (see SEL['new_project'])."
                 )
             new_project.click()
+
+            if spec.kind == "video":
+                self._configure_video(page, spec.seconds)
 
             box = page.locator(SEL["prompt_box"]).first
             box.click(timeout=15000)
@@ -179,8 +270,21 @@ class FlowBrowserProvider(BaseProvider):
             job.handle["pw"].stop()
             return job
 
-        if page.locator(SEL["error_toast"]).count() > 0:
-            text = page.locator(SEL["error_toast"]).first.inner_text()
+        toast = page.locator(SEL["error_toast"])
+        # Flow keeps a benign [role=alert] live-region on the page at all
+        # times (observed 2026-08-30 holding the page *title*), so matching
+        # the selector alone is not an error - the text has to actually read
+        # like one.
+        toast_text = ""
+        if toast.count() > 0:
+            try:
+                toast_text = toast.first.inner_text(timeout=2000)
+            except Exception:
+                toast_text = ""
+        if toast_text and any(
+            w in toast_text.lower() for w in _ERROR_WORDS + _QUOTA_WORDS
+        ):
+            text = toast_text
             job.status = FAILED
             if any(w in text.lower() for w in _QUOTA_WORDS):
                 job.detail = (

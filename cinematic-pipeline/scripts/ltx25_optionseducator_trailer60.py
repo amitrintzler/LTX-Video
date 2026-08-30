@@ -223,7 +223,10 @@ TIMELINE = [
     {
         "kind": "ltx",
         "clip": "city_reveal",
-        "start": 5.2,
+        # 3.5, not 5.2: city_reveal is now a Flow/Veo clip (8s, not 10s - see
+        # flow_hero_shots.py), so the window must end by 8.0. Still valid for
+        # a 10s LTX source if the clip is ever reverted.
+        "start": 3.5,
         "duration": 4.4,
         "title": (
             "THE STREETS ARE THE SYLLABUS",
@@ -310,7 +313,6 @@ TIMELINE = [
         "clip": "city_reveal",
         "start": 2.7,
         "duration": 4.2,
-
         "title": (
             "AN ARCADE THAT KEEPS GROWING",
             "MINI-GAMES: MARKET MAKER DEFENSE | RISK LADDER | STRATEGY BUILDER",
@@ -337,7 +339,9 @@ TIMELINE = [
     {
         "kind": "ltx",
         "clip": "pantheon_night",
-        "start": 5.2,
+        # 3.3, not 5.2: pantheon_night is now a Flow/Veo clip (8s, not 10s -
+        # see flow_hero_shots.py), so the window must end by 8.0.
+        "start": 3.3,
         "duration": 4.6,
         "title": ("YOU CAME TO LEARN OPTIONS", "YOU LEAVE TRADING THEM", 0.4, 3.8),
         "hud": {"kind": "chart", "ticker": "QQQ"},
@@ -455,8 +459,9 @@ tracked_width = draw_engine.tracked_width
 auth_token = ltx_desktop.auth_token
 
 
-def request(method: str, url: str, token: str, payload: dict | None = None,
-            timeout: int = 30) -> dict:
+def request(
+    method: str, url: str, token: str, payload: dict | None = None, timeout: int = 30
+) -> dict:
     return ltx_desktop.request(method, url, token, payload, timeout)
 
 
@@ -1210,7 +1215,8 @@ def render_chart_panel(
 
 
 def render_chain_panel(
-    out: Path, box: tuple[int, int, int, int] = (636, 120, 600, 366),
+    out: Path,
+    box: tuple[int, int, int, int] = (636, 120, 600, 366),
     ticker: str = "SPY",
 ) -> Path:
     """An options chain: calls on the left, strikes down the middle, puts on the right.
@@ -1298,7 +1304,9 @@ def render_chain_panel(
 
 
 def render_tower_board(
-    out: Path, box: tuple[int, int, int, int], lead: str = "chart",
+    out: Path,
+    box: tuple[int, int, int, int],
+    lead: str = "chart",
     ticker: str = "SPY",
 ) -> Path:
     """A portrait board for a tower face: candles, volume and a short chain.
@@ -2026,7 +2034,7 @@ def main() -> int:
         "--locale",
         default="en",
         help="Language for every on-screen string (en, he, es). Footage and "
-             "score are reused as-is, so a locale render needs no GPU.",
+        "score are reused as-is, so a locale render needs no GPU.",
     )
     parser.add_argument(
         "--only",

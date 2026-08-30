@@ -105,6 +105,12 @@ def masters() -> list[str]:
     return out
 
 
+def _remotion_ok() -> bool:
+    from jobs import REMOTION_BIN
+
+    return REMOTION_BIN.exists()
+
+
 _anim_cache: dict[str, Any] = {"at": 0.0, "ok": None}
 
 
@@ -301,6 +307,12 @@ def snapshot() -> dict[str, Any]:
         "openworld-montage": ready(ltx["ok"], ltx["detail"] if not ltx["ok"] else ""),
         "regenerate-montage-clip": ready(
             ltx["ok"], ltx["detail"] if not ltx["ok"] else ""
+        ),
+        "remotion": ready(
+            _remotion_ok(),
+            ""
+            if _remotion_ok()
+            else "Remotion is not installed - run: cd remotion-videos && npm install",
         ),
         "animation": ready(
             _anim_python_ok(),

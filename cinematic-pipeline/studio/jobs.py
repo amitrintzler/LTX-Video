@@ -318,6 +318,61 @@ def build_animation(p: dict[str, Any], job: Job) -> list[str]:
     return cmd
 
 
+REMOTION_DIR = REPO / "remotion-videos"
+REMOTION_BIN = REMOTION_DIR / "node_modules" / ".bin" / "remotion"
+REMOTION_COMPS = [
+    "OptionsEducatorDemo",
+    "FrameworkDemo",
+    "LessonWalkthrough",
+    "BasicsFlowVideo",
+    "StrategyBuilderVideo",
+    "GreekVisualizerVideo",
+    "MarketMechanicsVideo",
+    "TechnicalChartVideo",
+    "FundamentalDashboardVideo",
+    "CoreConceptVideo",
+    "PayoffDiagramVideo",
+    "GreekCurveVideo",
+    "GreekCurveVegaVideo",
+    "GreekCurveRhoVideo",
+    "OptionTicketVideo",
+    "PersonalFinanceVideo",
+    "StocksSlideVideo",
+    "CityPulse60",
+    "OpenWorldGameSim90",
+    "OpenWorldGameplayProof90",
+]
+
+
+def build_remotion(p: dict[str, Any], job: Job) -> list[str]:
+    """Render one Remotion composition (remotion-videos/, moved here from the
+    optionseducator repo so the whole studio ships as one repo). Absolute
+    paths throughout because the runner's cwd is the repo root, and Remotion
+    finds its public/ assets by walking up from the entry file to the nearest
+    package.json - which is remotion-videos/.
+    """
+    comp = p.get("comp")
+    if comp not in REMOTION_COMPS:
+        raise ValueError(f"remotion needs comp, one of: {', '.join(REMOTION_COMPS)}")
+    if not REMOTION_BIN.exists():
+        raise ValueError(
+            "Remotion is not installed - run: cd remotion-videos && npm install"
+        )
+    out_dir = Path(p.get("output_dir") or (RENDER_ROOT / "remotion"))
+    out_dir.mkdir(parents=True, exist_ok=True)
+    out = out_dir / f"{comp}.mp4"
+    cmd = [
+        str(REMOTION_BIN),
+        "render",
+        str(REMOTION_DIR / "src" / "index.ts"),
+        comp,
+        str(out),
+    ]
+    if p.get("frames"):
+        cmd += [f"--frames={p['frames']}"]
+    return cmd
+
+
 SPECS: dict[str, JobSpec] = {
     s.name: s
     for s in [
@@ -386,6 +441,13 @@ SPECS: dict[str, JobSpec] = {
             "Generate via Google Flow (browser-driven, no API)",
             build_flow,
             "~2-5 min",
+        ),
+        JobSpec(
+            "remotion",
+            False,
+            "Render a Remotion lesson/promo template",
+            build_remotion,
+            "~1-10 min",
         ),
         JobSpec(
             "animation",

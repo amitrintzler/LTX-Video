@@ -216,6 +216,22 @@ KINDS: list[dict[str, Any]] = [
         "sample_len": 5.0,
     },
     {
+        "id": "remotion",
+        "engine": "Remotion (React)",
+        "usage": "Lesson videos, Greeks curves, payoff walkthroughs, kinetic promos - "
+        "20 ready templates",
+        "title": "Remotion lesson template",
+        "purpose": "The React-based template library moved in from the optionseducator "
+        "repo: pick a composition (payoff diagrams, Greek curves, market mechanics, "
+        "open-world promos...) and render it to MP4.",
+        "job": "remotion",
+        "length": "8s-3 min per template",
+        "kind": "video",
+        "find": lambda: _remotion_sample(),
+        "sample_at": 1.0,
+        "sample_len": 4.0,
+    },
+    {
         "id": "animation",
         "engine": "Manim / HTML / D3 / slides",
         "usage": "Explainer and math animations: payoff curves, Greeks, charts, "
@@ -285,6 +301,24 @@ KINDS: list[dict[str, Any]] = [
         "sample_len": 4.0,
     },
 ]
+
+
+def _remotion_sample() -> Path | None:
+    """Most recent studio-rendered template, else the local validation render
+    (remotion-videos/out is gitignored, so a fresh clone has no sample until
+    the first render)."""
+    rendered = (
+        sorted((RENDER_ROOT / "remotion").glob("*.mp4"))
+        if (RENDER_ROOT / "remotion").exists()
+        else []
+    )
+    fallback = (
+        Path(__file__).resolve().parents[2]
+        / "remotion-videos"
+        / "out"
+        / "payoff-validate.mp4"
+    )
+    return _first([*rendered, fallback])
 
 
 def _montage_clip() -> Path | None:

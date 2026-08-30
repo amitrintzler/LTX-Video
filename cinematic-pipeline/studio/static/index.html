@@ -337,6 +337,7 @@ const FIELDS = {
   "flow":[["prompt","Prompt","text"],["kind","Media","choice:video,image"],["seconds","Seconds (video only)","number:8"]],
   "flow-hero-shots":[["only","Which clips","choice:both,city_reveal,pantheon_night"]],
   "openworld-montage":[["profile","Which render","choice:preview,final"]],
+  "regenerate-montage-clip":[["clip","Which act","choice:01_city_reveal,02_old_town_crowd,03_reading_the_storm,04_the_first_trade,05_one_open_city"],["profile","Which render","choice:preview,final"]],
 };
 const chip=(on,label,detail)=>`<div class="chip" title="${detail||''}"><span class="dot ${on?'on':'off'}"></span>${label}</div>`;
 

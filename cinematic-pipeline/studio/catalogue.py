@@ -215,6 +215,20 @@ KINDS: list[dict[str, Any]] = [
         "sample_len": 5.0,
     },
     {
+        "id": "openworld-clip",
+        "engine": "LTX",
+        "usage": "One act of the open-world montage: reveal, old town, storm, trade, open city",
+        "title": "Open-world montage act",
+        "purpose": "A single act of the First Trade montage, regenerated on its own so one "
+        "weak beat does not cost a full re-render.",
+        "job": "regenerate-montage-clip",
+        "length": "5-10s per act",
+        "kind": "video",
+        "find": lambda: _montage_clip(),
+        "sample_at": 0.5,
+        "sample_len": 4.0,
+    },
+    {
         "id": "flow-hero",
         "engine": "Flow (Veo) + LTX + post",
         "usage": "Higher-realism opening and closing shots for the product trailer",
@@ -249,6 +263,26 @@ KINDS: list[dict[str, Any]] = [
         "sample_len": 4.0,
     },
 ]
+
+
+def _montage_clip() -> Path | None:
+    """First montage act whose cached result still points at a real file."""
+    import json
+
+    for d in (
+        RENDER_ROOT / "ltx25-optionscity-firsttrade60-preview",
+        RENDER_ROOT / "ltx25-optionscity-firsttrade60",
+    ):
+        if not d.exists():
+            continue
+        for result in sorted(d.glob("0*_result.json")):
+            try:
+                p = Path(json.loads(result.read_text()).get("video_path", ""))
+            except Exception:  # noqa: BLE001
+                continue
+            if p.is_file():
+                return p
+    return None
 
 
 def _first(paths: list[Path]) -> Path | None:

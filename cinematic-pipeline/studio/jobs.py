@@ -234,6 +234,40 @@ def build_flow(p: dict[str, Any], job: Job) -> list[str]:
     return cmd
 
 
+MONTAGE_CLIPS = [
+    "01_city_reveal",
+    "02_old_town_crowd",
+    "03_reading_the_storm",
+    "04_the_first_trade",
+    "05_one_open_city",
+]
+
+
+def build_regenerate_montage_clip(p: dict[str, Any], job: Job) -> list[str]:
+    """Drop one montage act's cached payload/result, then let the montage
+    rebuild refill it - the same delete-and-refill pattern regenerate-clip
+    uses for the trailer, against the First Trade script's own cache.
+    """
+    clip = p.get("clip")
+    if clip not in MONTAGE_CLIPS:
+        raise ValueError(
+            f"regenerate-montage-clip needs one of: {', '.join(MONTAGE_CLIPS)}"
+        )
+    profile = p.get("profile", "preview")
+    default = (
+        f"ltx25-optionscity-firsttrade60{'-preview' if profile == 'preview' else ''}"
+    )
+    target = Path(p.get("output_dir") or (RENDER_ROOT / default))
+    removed = []
+    for suffix in ("_result.json", "_payload.json", "_keyframe_payload.json"):
+        f = target / f"{clip}{suffix}"
+        if f.exists():
+            f.unlink()
+            removed.append(f.name)
+    job.params = {**p, "_cleared": removed}
+    return build_openworld_montage(p, job)
+
+
 def build_flow_hero_shots(p: dict[str, Any], job: Job) -> list[str]:
     """Regenerate the trailer's bookend clips (city_reveal / pantheon_night)
     via Google Flow and register them in the trailer's clip cache, so the next
@@ -331,6 +365,13 @@ SPECS: dict[str, JobSpec] = {
             "Rebuild the First Trade open-world montage from cached clips",
             build_openworld_montage,
             "~1 min",
+        ),
+        JobSpec(
+            "regenerate-montage-clip",
+            True,
+            "Regenerate one open-world montage act on LTX",
+            build_regenerate_montage_clip,
+            "~20-40 min",
         ),
     ]
 }

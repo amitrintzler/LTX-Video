@@ -283,6 +283,41 @@ def build_flow_hero_shots(p: dict[str, Any], job: Job) -> list[str]:
     return cmd
 
 
+VIDEO_PIPELINE = REPO / "video-pipeline"
+# The animation pipeline needs Python 3.11+ with manim/etc installed - its
+# README is explicit that it will not run on the system 3.9 this studio uses.
+ANIM_PYTHON = "/opt/homebrew/bin/python3.11"
+
+
+def build_animation(p: dict[str, Any], job: Job) -> list[str]:
+    """The programmatic-animation pipeline (video-pipeline/): Manim math
+    animations, HTML/hyperframes scenes, D3 charts and slides - the non-LTX
+    renderers from the openmontage work. Input is a topic ("covered calls")
+    or a path to a scene-script JSON; the pipeline plans scenes, picks a
+    renderer per scene, renders, narrates and stitches.
+    """
+    src = p.get("input")
+    if not src:
+        raise ValueError("animation needs a topic or a script JSON path")
+    if not Path(ANIM_PYTHON).exists():
+        raise ValueError(
+            f"{ANIM_PYTHON} is not installed - the animation "
+            "pipeline needs Python 3.11+ with manim"
+        )
+    cmd = [
+        ANIM_PYTHON,
+        str(VIDEO_PIPELINE / "pipeline.py"),
+        src,
+        "--config",
+        str(VIDEO_PIPELINE / "config.json"),
+    ]
+    if p.get("stage"):
+        cmd += ["--stage", p["stage"]]
+    if p.get("max_scenes"):
+        cmd += ["--max-scenes", str(p["max_scenes"])]
+    return cmd
+
+
 SPECS: dict[str, JobSpec] = {
     s.name: s
     for s in [
@@ -351,6 +386,13 @@ SPECS: dict[str, JobSpec] = {
             "Generate via Google Flow (browser-driven, no API)",
             build_flow,
             "~2-5 min",
+        ),
+        JobSpec(
+            "animation",
+            False,
+            "Manim / HTML / D3 / slides animation via the video-pipeline",
+            build_animation,
+            "~5-30 min",
         ),
         JobSpec(
             "flow-hero-shots",

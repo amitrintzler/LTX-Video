@@ -105,6 +105,39 @@ def masters() -> list[str]:
     return out
 
 
+_anim_cache: dict[str, Any] = {"at": 0.0, "ok": None}
+
+
+def _anim_python_ok() -> bool:
+    """Whether the animation pipeline's own interpreter (3.11 + manim) works.
+
+    Checked by actually importing manim in that interpreter, since this
+    studio's 3.9 can't introspect another Python's site-packages. Cached:
+    the import takes ~2s and status polls every 6s.
+    """
+    import time
+
+    if time.time() - _anim_cache["at"] < 300 and _anim_cache["ok"] is not None:
+        return _anim_cache["ok"]
+    from jobs import ANIM_PYTHON
+
+    ok = False
+    if Path(ANIM_PYTHON).exists():
+        try:
+            ok = (
+                subprocess.run(
+                    [ANIM_PYTHON, "-c", "import manim"],
+                    capture_output=True,
+                    timeout=30,
+                ).returncode
+                == 0
+            )
+        except Exception:  # noqa: BLE001
+            ok = False
+    _anim_cache["at"], _anim_cache["ok"] = time.time(), ok
+    return ok
+
+
 def has_playwright() -> bool:
     return importlib.util.find_spec("playwright") is not None
 
@@ -268,6 +301,12 @@ def snapshot() -> dict[str, Any]:
         "openworld-montage": ready(ltx["ok"], ltx["detail"] if not ltx["ok"] else ""),
         "regenerate-montage-clip": ready(
             ltx["ok"], ltx["detail"] if not ltx["ok"] else ""
+        ),
+        "animation": ready(
+            _anim_python_ok(),
+            ""
+            if _anim_python_ok()
+            else "needs Python 3.11 with manim (see video-pipeline/README.md)",
         ),
         "flow-hero-shots": ready(
             flow["ok"] and not flow.get("quota_exceeded"),

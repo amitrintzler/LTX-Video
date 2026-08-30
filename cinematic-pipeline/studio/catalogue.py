@@ -19,6 +19,7 @@ PROXY_DIR.mkdir(parents=True, exist_ok=True)
 
 FINAL = RENDER_ROOT / "ltx25-optionseducator-trailer60"
 PREVIEW = RENDER_ROOT / "ltx25-optionseducator-trailer60-preview"
+VIDEO_PIPELINE_OUT = Path(__file__).resolve().parents[2] / "video-pipeline" / "output"
 
 # id, title, what it is for, the job that makes one, how to find a sample
 KINDS: list[dict[str, Any]] = [
@@ -212,6 +213,27 @@ KINDS: list[dict[str, Any]] = [
             ]
         ),
         "sample_at": 4.0,
+        "sample_len": 5.0,
+    },
+    {
+        "id": "animation",
+        "engine": "Manim / HTML / D3 / slides",
+        "usage": "Explainer and math animations: payoff curves, Greeks, charts, "
+        "narrated concept walkthroughs - no GPU model involved",
+        "title": "Programmatic animation",
+        "purpose": "The video-pipeline's non-LTX renderers, from the openmontage work: "
+        "give it a topic or scene script and it plans scenes, picks a renderer per "
+        "scene (Manim, HTML/hyperframes, D3, slides), renders, narrates and stitches.",
+        "job": "animation",
+        "length": "any",
+        "kind": "video",
+        "find": lambda: _first(
+            [
+                VIDEO_PIPELINE_OUT / "options-trailer-final.mp4",
+                VIDEO_PIPELINE_OUT / "trading-trailer-final.mp4",
+            ]
+        ),
+        "sample_at": 2.0,
         "sample_len": 5.0,
     },
     {

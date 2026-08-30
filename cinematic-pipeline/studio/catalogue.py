@@ -216,6 +216,24 @@ KINDS: list[dict[str, Any]] = [
         "sample_len": 5.0,
     },
     {
+        "id": "cinematic-project",
+        "engine": "Motion gfx / parallax / LTX-2",
+        "usage": "Openmontage promo projects: Game of Options promo, trader films, "
+        "depth-parallax shots, motion-graphics explainers",
+        "title": "Cinematic promo project",
+        "purpose": "The openmontage promo engine: a project.json describes shots "
+        "(motion graphics, SDXL-still parallax camera moves, LTX-2 generations), "
+        "and the pipeline renders keyframes, footage, audio bed and the graded final.",
+        "job": "cinematic-project",
+        "length": "any",
+        "kind": "video",
+        "find": lambda: _glob(
+            Path(__file__).resolve().parents[1] / "projects", "*/output/*_final.mp4"
+        ),
+        "sample_at": 1.0,
+        "sample_len": 4.0,
+    },
+    {
         "id": "remotion",
         "engine": "Remotion (React)",
         "usage": "Lesson videos, Greeks curves, payoff walkthroughs, kinetic promos - "

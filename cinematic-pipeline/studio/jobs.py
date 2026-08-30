@@ -318,6 +318,34 @@ def build_animation(p: dict[str, Any], job: Job) -> list[str]:
     return cmd
 
 
+CINEMATIC = REPO / "cinematic-pipeline"
+PROJECTS_DIR = CINEMATIC / "projects"
+
+
+def build_cinematic_project(p: dict[str, Any], job: Job) -> list[str]:
+    """Run one cinematic-pipeline project (project.json -> keyframes ->
+    LTX-2 generate -> audio -> edit/grade). This is the openmontage promo
+    engine - motion graphics, depth parallax, the Game of Options promo -
+    which had no studio door before. The generate stage needs the GPU lane;
+    keyframes/audio/edit degrade gracefully without it.
+    """
+    name = p.get("project")
+    pj = PROJECTS_DIR / str(name) / "project.json"
+    if not name or not pj.is_file():
+        have = sorted(
+            d.name for d in PROJECTS_DIR.iterdir() if (d / "project.json").is_file()
+        )
+        raise ValueError(f"cinematic-project needs project, one of: {', '.join(have)}")
+    cmd = [sys.executable, str(CINEMATIC / "pipeline.py"), str(pj)]
+    if p.get("stage"):
+        cmd += ["--stage", p["stage"]]
+    if p.get("tier"):
+        cmd += ["--tier", p["tier"]]
+    if p.get("dry_run"):
+        cmd += ["--dry-run"]
+    return cmd
+
+
 REMOTION_DIR = REPO / "remotion-videos"
 REMOTION_BIN = REMOTION_DIR / "node_modules" / ".bin" / "remotion"
 REMOTION_COMPS = [
@@ -441,6 +469,13 @@ SPECS: dict[str, JobSpec] = {
             "Generate via Google Flow (browser-driven, no API)",
             build_flow,
             "~2-5 min",
+        ),
+        JobSpec(
+            "cinematic-project",
+            True,
+            "Run an openmontage promo project (motion gfx, parallax, LTX-2)",
+            build_cinematic_project,
+            "minutes to hours",
         ),
         JobSpec(
             "remotion",

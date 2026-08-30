@@ -308,6 +308,7 @@ def snapshot() -> dict[str, Any]:
         "regenerate-montage-clip": ready(
             ltx["ok"], ltx["detail"] if not ltx["ok"] else ""
         ),
+        "cinematic-project": ready(ffmpeg, "" if ffmpeg else "ffmpeg is not on PATH"),
         "remotion": ready(
             _remotion_ok(),
             ""

@@ -60,12 +60,15 @@ DEFAULT_MUSIC = (
 
 TRAILER = HERE / "ltx25_optionseducator_trailer60.py"
 
+# Style holds, but motion must be REAL: the first pass said "stays exactly
+# the same" with strength 0.9 and the model obeyed - five statues. Motion is
+# described per page (the spec's "motion" field) and the suffix only guards
+# style and text.
 ANIM_SUFFIX = (
-    " Subtle living-illustration animation of this exact scene: gentle "
-    "parallax drift, drifting clouds, softly flickering window lights, "
-    "light movement in hair, fabric and foliage. The illustration style, "
-    "colours and composition stay exactly the same throughout. No visible "
-    "text, letters, words, numbers, captions, signs, watermark, or logos."
+    " Smooth continuous 2D animation of this illustrated scene, constant "
+    "obvious movement throughout every moment. The hand-drawn illustration "
+    "style and colours are preserved. No visible text, letters, words, "
+    "numbers, captions, signs, watermark, or logos."
 )
 
 
@@ -120,26 +123,21 @@ def make_pages(story: dict) -> None:
 
 
 def _accept_animation(src: Path, label: str) -> None:
-    """Refuse solid/static clips - completion status has lied before."""
+    """Refuse broken or statue clips - completion status has lied before.
+
+    Gate: freezedetect at a coarse noise tolerance (n=0.01). Film-grain
+    statues flicker enough to evade the fine tolerance but freeze at this
+    one; genuine motion - even smooth camera drift on flat-shaded art -
+    does not. (A YDIF-average gate was tried first and could not separate
+    a statue at 3.8 from a Veo walk-through at 4.7.)"""
     probe = subprocess.run(
-        [
-            "ffmpeg",
-            "-v",
-            "info",
-            "-i",
-            str(src),
-            "-vf",
-            "freezedetect=n=0.003:d=1",  # d=1: clips can be <4s (MPS frame caps)
-            "-an",
-            "-f",
-            "null",
-            "-",
-        ],
-        capture_output=True,
-        text=True,
+        ["ffmpeg", "-v", "info", "-i", str(src), "-vf",
+         "freezedetect=n=0.01:d=1.5", "-an", "-f", "null", "-"],
+        capture_output=True, text=True,
     )
     if "freeze_start" in probe.stderr or Path(src).stat().st_size < 100_000:
         raise SystemExit(f"{label}: broken/static clip at {src} - not accepting it.")
+    print(f"{label}: motion ok", flush=True)
 
 
 def make_animate_repo(story: dict) -> None:
@@ -170,13 +168,16 @@ def make_animate_repo(story: dict) -> None:
             continue
         if not page_png.is_file():
             raise SystemExit(f"page {i} art missing - run --make pages first")
+        motion = page.get("motion", "Gentle continuous movement in the scene.")
         shot = {
             "id": f"p{i:02d}",
-            "prompt": f"{page['prompt']} {style}{ANIM_SUFFIX}",
+            "prompt": f"{motion} {page['prompt']} {style}{ANIM_SUFFIX}",
             "duration": PAGE_SECONDS + 1,
-            "seed": 92000 + i,
+            "seed": 93000 + i,
             "keyframe": str(page_png),
-            "keyframe_strength": 0.9,
+            # 0.7, not 0.9: 0.9 pinned every frame to the keyframe and
+            # produced statues. 0.7 keeps the composition and lets it move.
+            "keyframe_strength": 0.7,
         }
         started = time.time()
         clip = gen.generate_shot(shot, project, tier, d / "gen", dev)
@@ -184,6 +185,53 @@ def make_animate_repo(story: dict) -> None:
         _accept_animation(clip, f"page {i}")
         subprocess.run(["cp", str(clip), str(out)], check=True)
         print(f"page {i}: {out}", flush=True)
+
+
+def make_animate_veo(story: dict, only_pages: set | None = None) -> None:
+    """Living paintings via Veo image-to-video on Flow: the page art becomes
+    the start frame, Veo animates it. Real credits (~20/page on Veo Fast) -
+    the LTX 2b i2v path produced statues from flat illustrations twice, so
+    this is the quality lane."""
+    import media
+    from providers.flow_browser import FlowBrowserProvider
+
+    d = work_dir(story)
+    style = story.get("style", "")
+    for i, page in enumerate(story["pages"], start=1):
+        if only_pages and i not in only_pages:
+            continue
+        page_png = d / "pages" / f"{i:02d}.png"
+        out = d / "pages" / f"{i:02d}_anim.mp4"
+        if out.is_file():
+            print(f"page {i}: animation exists, keeping", flush=True)
+            continue
+        if not page_png.is_file():
+            raise SystemExit(f"page {i} art missing - run --make pages first")
+        motion = page.get("motion", "Gentle continuous movement in the scene.")
+        provider = FlowBrowserProvider(timeout_s=900)
+        spec = media.MediaSpec(
+            id=f"{story['id']}_anim{i}",
+            kind=media.VIDEO,
+            prompt=(
+                f"Animate this illustration: {motion} The hand-drawn "
+                f"style, colours and composition of the image are preserved. "
+                f"{style}"
+            ),
+            seconds=8,
+            extra={"start_frame": str(page_png)},
+        )
+
+        def wait(job):
+            time.sleep(10)
+            print(".", end="", flush=True)
+
+        fetched = provider.generate(spec, d / "pages", wait=wait)
+        _accept_animation(fetched, f"page {i}")
+        Path(fetched).rename(out)
+        meta = Path(fetched).with_suffix(Path(fetched).suffix + ".meta.json")
+        if meta.exists():
+            meta.rename(out.with_suffix(".mp4.meta.json"))
+        print(f"\npage {i}: {out}", flush=True)
 
 
 def make_animate(story: dict) -> None:
@@ -559,9 +607,14 @@ def main() -> int:
         "--make", required=True, choices=["pages", "animate", "reel", "all"]
     )
     ap.add_argument(
+        "--pages",
+        default="",
+        help="comma-separated page numbers to animate (blank = all)",
+    )
+    ap.add_argument(
         "--engine",
-        choices=["repo", "desktop"],
-        default="repo",
+        choices=["repo", "desktop", "veo"],
+        default="veo",
         help="animation backend: this repo's own LTX-2 inference (default; "
         "LTX Desktop's 2026-08-30 update writes broken output) or the "
         "Desktop app's API",
@@ -571,7 +624,10 @@ def main() -> int:
     if args.make in ("pages", "all"):
         make_pages(story)
     if args.make in ("animate", "all"):
-        if args.engine == "repo":
+        only = {int(p) for p in args.pages.split(",") if p.strip()} or None
+        if args.engine == "veo":
+            make_animate_veo(story, only)
+        elif args.engine == "repo":
             make_animate_repo(story)
         else:
             make_animate(story)

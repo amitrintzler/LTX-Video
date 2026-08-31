@@ -101,6 +101,11 @@ SEL = {
     "menu": "[role='menu']",
     "video_tab": "[role='menu'] *:text-is('videocam')",
     "image_tab": "[role='menu'] *:text-is('image')",
+    # The video menu's frames sub-tab (start/end-frame conditioning, i.e.
+    # image-to-video). Its icon ligature is crop_free; the file input it
+    # reveals in the composer takes the start frame.
+    "frames_tab": "[role='menu'] *:text-is('crop_free')",
+    "frame_file_input": "input[type='file']",
     "model_dropdown": "[role='menu'] *:text-is('arrow_drop_down')",
     "generate_button": 'button:has-text("arrow_forward")',
     "generating_indicator": "[aria-busy='true'], .generating, .loading",
@@ -200,6 +205,39 @@ class FlowBrowserProvider(BaseProvider):
                 "still images, not video)."
             )
 
+    def _configure_frames(self, page, image: Path) -> None:
+        """Image-to-video: frames sub-tab, upload the start frame.
+
+        Costs real credits like any video generation (~20 on Veo Fast)."""
+        if not image.is_file():
+            raise ProviderError(f"start frame not found: {image}")
+        chip = page.locator(SEL["composer_chip"]).first
+        chip.wait_for(state="visible", timeout=20000)
+        chip.click()
+        page.locator(SEL["menu"]).first.wait_for(state="visible", timeout=10000)
+        page.locator(SEL["video_tab"]).first.click()
+        page.wait_for_timeout(500)
+        tab = page.locator(SEL["frames_tab"])
+        if tab.count() == 0:
+            raise ProviderError(
+                "Flow's frames (image-to-video) sub-tab is missing - the UI "
+                "may have changed (see SEL['frames_tab'])."
+            )
+        tab.first.click()
+        page.wait_for_timeout(500)
+        self._pick(page, "16:9")
+        self._pick(page, "x1")
+        page.keyboard.press("Escape")
+        page.wait_for_timeout(300)
+
+        file_input = page.locator(SEL["frame_file_input"])
+        if file_input.count() == 0:
+            raise ProviderError(
+                "Frames mode is on but no file input appeared for the start frame."
+            )
+        file_input.first.set_input_files(str(image))
+        page.wait_for_timeout(2000)
+
     def _configure_image(self, page) -> None:
         """Composer to image mode: Nano Banana, 16:9, one output.
 
@@ -264,7 +302,10 @@ class FlowBrowserProvider(BaseProvider):
                 )
             new_project.click()
 
-            if spec.kind == "video":
+            start_frame = (spec.extra or {}).get("start_frame")
+            if spec.kind == "video" and start_frame:
+                self._configure_frames(page, Path(start_frame))
+            elif spec.kind == "video":
                 self._configure_video(page, spec.seconds)
             else:
                 self._configure_image(page)

@@ -27,6 +27,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import subprocess
 import sys
 import time
@@ -128,7 +129,7 @@ def _accept_animation(src: Path, label: str) -> None:
             "-i",
             str(src),
             "-vf",
-            "freezedetect=n=0.003:d=4",
+            "freezedetect=n=0.003:d=1",  # d=1: clips can be <4s (MPS frame caps)
             "-an",
             "-f",
             "null",
@@ -151,7 +152,11 @@ def make_animate_repo(story: dict) -> None:
     from stages import generate as gen
 
     dev = ccfg.detect_device()
-    tier = ccfg.select_tier(dev)
+    # 2b-distilled by default: the 13b tier's i2v path exceeds this machine's
+    # 48GB even resolution-capped (see config.py's i2v note) and took the
+    # whole Mac down once. The keyframe carries the illustration style, so
+    # the light model holds up for subtle living-painting motion.
+    tier = ccfg.select_tier(dev, prefer=os.environ.get("STORY_TIER", "2b-distilled"))
     print(f"repo engine: {dev.kind} {dev.name} tier={tier['name']}", flush=True)
 
     d = work_dir(story)
@@ -236,7 +241,7 @@ def make_animate(story: dict) -> None:
                 "-i",
                 src,
                 "-vf",
-                "freezedetect=n=0.003:d=4",
+                "freezedetect=n=0.003:d=1",  # d=1: clips can be <4s (MPS frame caps)
                 "-an",
                 "-f",
                 "null",
@@ -392,7 +397,11 @@ def make_reel(story: dict) -> Path:
         anim = d / "pages" / f"{i:02d}_anim.mp4"
         if anim.is_file():
             # A real LTX-animated living painting - the still is only the
-            # keyframe it grew from.
+            # keyframe it grew from. MPS frame caps make these clips shorter
+            # than the page (41 frames on the 2b tier), so the clip is turned
+            # into a forward+reverse palindrome and looped to fill the page -
+            # the "breathing" living-painting look, with no jump cut.
+            pal = d / f"pal_{i:02d}.mp4"
             subprocess.run(
                 [
                     "ffmpeg",
@@ -401,12 +410,35 @@ def make_reel(story: dict) -> Path:
                     "error",
                     "-i",
                     str(anim),
+                    "-filter_complex",
+                    "[0:v]scale=1280:720:force_original_aspect_ratio=increase,"
+                    f"crop=1280:720,fps={FPS},split[a][b];"
+                    "[b]reverse[r];[a][r]concat=n=2:v=1[out]",
+                    "-map",
+                    "[out]",
+                    "-an",
+                    "-c:v",
+                    "libx264",
+                    "-crf",
+                    "16",
+                    str(pal),
+                ],
+                check=True,
+            )
+            subprocess.run(
+                [
+                    "ffmpeg",
+                    "-y",
+                    "-loglevel",
+                    "error",
+                    "-stream_loop",
+                    "-1",
+                    "-i",
+                    str(pal),
                     "-i",
                     str(cap_png),
                     "-filter_complex",
-                    "[0:v]scale=1280:720:force_original_aspect_ratio=increase,"
-                    f"crop=1280:720,fps={FPS}[v];"
-                    f"[v][1:v]overlay=0:0:enable='between(t,0.6,{PAGE_SECONDS - 0.4})',"
+                    f"[0:v][1:v]overlay=0:0:enable='between(t,0.6,{PAGE_SECONDS - 0.4})',"
                     "format=yuv420p[out]",
                     "-map",
                     "[out]",

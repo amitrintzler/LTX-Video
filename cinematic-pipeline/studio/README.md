@@ -27,7 +27,7 @@ default.
 The dashboard's status chips tell you live which engines are ready and exactly
 why one isn't. Trust the chip, not memory.
 
-## Jobs (17)
+## Jobs (20)
 
 | Job | GPU lane | Typical time | Use it for |
 |---|---|---|---|
@@ -39,6 +39,9 @@ why one isn't. Trust the chip, not memory.
 | `offline-cut` | no | ~20 s | Full edit with placeholder footage (test timing cheaply) |
 | `flow` | no | ~2–5 min | Freeform Veo generation from a prompt |
 | `flow-hero-shots` | no | ~3–8 min | Regenerate the trailer's bookends on Veo |
+| `image` | no | ~1 min | A still via Flow's image model — **0 credits** on this plan |
+| `animate-image` | no | ~2–4 min | Any still → real Veo animation (start-frame i2v, ~20 credits) |
+| `story-reel` | no | ~5–20 min | Story spec → free art → Veo-animated pages → captioned film |
 | `animation` | no | ~5–30 min | Manim/HTML/D3/slides video from a topic or scene script |
 | `remotion` | no | ~1–10 min | One of the 20 React templates |
 | `cinematic-project` | yes | min–hours | An openmontage promo project (motion gfx / parallax / LTX-2) |
@@ -119,3 +122,9 @@ curl -s localhost:8765/api/catalogue  # what the studio can make, with samples
   percussive synth material; use macOS's `aac_at`.
 - **Rejected media goes to macOS Trash**, never deleted, never left in active
   output directories.
+- **LTX i2v cannot animate flat illustrations** — 2b makes grain-statues at
+  any conditioning strength, 13b i2v exceeds 48GB and crashed the machine.
+  Real animation of stills is Veo i2v via Flow's frames tab (`animate-image`).
+- **Statue detection**: fine-tolerance freezedetect passes grain-statues and
+  YDIF averages can't separate a statue from a smooth camera move — use
+  freezedetect at coarse tolerance (`n=0.01:d=1.5`).

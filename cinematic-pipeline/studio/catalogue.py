@@ -228,6 +228,33 @@ KINDS: list[dict[str, Any]] = [
         "find": lambda: _glob(RENDER_ROOT / "images", "*.png"),
     },
     {
+        "id": "animate-image",
+        "engine": "Veo i2v (Flow)",
+        "usage": "Turn any still into real animation: story art, keyframes, posters",
+        "title": "Animated illustration",
+        "purpose": "An image becomes the start frame and Veo animates it with real "
+        "motion - characters walk, cameras track, weather moves. The lane that "
+        "replaced LTX i2v's statues.",
+        "job": "animate-image",
+        "length": "8s",
+        "kind": "video",
+        "find": lambda: (
+            _first(
+                [
+                    Path.home()
+                    / "LTX-Renders"
+                    / "stories"
+                    / "first_trade_fable"
+                    / "pages"
+                    / "01_anim.mp4"
+                ]
+            )
+            or _glob(RENDER_ROOT / "animations", "*.mp4")
+        ),
+        "sample_at": 1.0,
+        "sample_len": 5.0,
+    },
+    {
         "id": "story-reel",
         "engine": "Flow images + post",
         "usage": "Illustrated lesson stories, social storytelling, in-app tales",

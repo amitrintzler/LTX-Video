@@ -22,6 +22,12 @@ def main() -> int:
     ap.add_argument("prompt")
     ap.add_argument("--kind", choices=media.KINDS, default=media.VIDEO)
     ap.add_argument("--seconds", type=float, default=None)
+    ap.add_argument(
+        "--start-frame",
+        default=None,
+        help="image path: animate this image (Veo image-to-video via the "
+        "frames tab) instead of generating from text alone",
+    )
     ap.add_argument("--out-dir", default=str(Path.home() / "LTX-Renders" / "flow"))
     ap.add_argument("--timeout", type=int, default=600)
     args = ap.parse_args()
@@ -29,7 +35,12 @@ def main() -> int:
     out_dir = Path(args.out_dir)
     out_dir.mkdir(parents=True, exist_ok=True)
     spec = media.MediaSpec(
-        id="flow-clip", kind=args.kind, prompt=args.prompt, seconds=args.seconds
+        id="flow-clip",
+        kind=args.kind,
+        prompt=args.prompt,
+        # video needs a duration (MediaSpec enforces it); Veo Fast's cap is 8s
+        seconds=args.seconds or (8 if args.kind == media.VIDEO else None),
+        extra={"start_frame": args.start_frame} if args.start_frame else {},
     )
     # Always attaches to the dedicated, user-launched Chrome (flow_login.py) -
     # there's no headless/headed choice to make here anymore, since this

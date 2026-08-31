@@ -318,6 +318,40 @@ def build_animation(p: dict[str, Any], job: Job) -> list[str]:
     return cmd
 
 
+def build_image(p: dict[str, Any], job: Job) -> list[str]:
+    """One still via Flow's Nano Banana image model - 0 credits on this plan.
+    The studio's free image source: story art, keyframes, thumbnails, moods.
+    """
+    prompt = p.get("prompt")
+    if not prompt:
+        raise ValueError("image needs a prompt")
+    return [
+        sys.executable,
+        str(ENGINE / "providers" / "flow_cli.py"),
+        prompt,
+        "--kind",
+        "image",
+        "--out-dir",
+        p.get("output_dir") or str(RENDER_ROOT / "images"),
+        "--timeout",
+        str(p.get("timeout", 300)),
+    ]
+
+
+def build_story_reel(p: dict[str, Any], job: Job) -> list[str]:
+    """Illustrated story reel: free Flow images per page, drawn captions,
+    Ken Burns, composed score. Stage 'pages' generates art, 'reel' assembles,
+    'all' does both.
+    """
+    stage = p.get("stage", "all")
+    if stage not in ("pages", "reel", "all"):
+        raise ValueError("story-reel stage must be pages, reel or all")
+    cmd = [sys.executable, str(SCRIPTS / "story_reel.py"), "--make", stage]
+    if p.get("story"):
+        cmd += ["--story", p["story"]]
+    return cmd
+
+
 def build_showreel(p: dict[str, Any], job: Job) -> list[str]:
     """One stage of the six-engine studio showreel (studio_showreel90.py).
 
@@ -488,6 +522,20 @@ SPECS: dict[str, JobSpec] = {
             "Generate via Google Flow (browser-driven, no API)",
             build_flow,
             "~2-5 min",
+        ),
+        JobSpec(
+            "image",
+            False,
+            "Generate a still via Flow (Nano Banana, free on this plan)",
+            build_image,
+            "~1 min",
+        ),
+        JobSpec(
+            "story-reel",
+            False,
+            "Illustrated story: free Flow art + drawn captions + score",
+            build_story_reel,
+            "~2-10 min",
         ),
         JobSpec(
             "showreel",

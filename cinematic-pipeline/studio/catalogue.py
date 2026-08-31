@@ -216,6 +216,33 @@ KINDS: list[dict[str, Any]] = [
         "sample_len": 5.0,
     },
     {
+        "id": "image",
+        "engine": "Flow (Nano Banana)",
+        "usage": "Story art, mood boards, keyframes, thumbnails - free on this plan",
+        "title": "Generated still",
+        "purpose": "One illustration or photo-style still from a prompt via Flow's "
+        "image model. Costs zero credits, so it is the studio's default image source.",
+        "job": "image",
+        "length": "still",
+        "kind": "image",
+        "find": lambda: _glob(RENDER_ROOT / "images", "*.png"),
+    },
+    {
+        "id": "story-reel",
+        "engine": "Flow images + post",
+        "usage": "Illustrated lesson stories, social storytelling, in-app tales",
+        "title": "Illustrated story reel",
+        "purpose": "A story spec (pages: prompt + caption) becomes generated storybook "
+        "art with drawn captions, Ken Burns motion and a composed score - free art, "
+        "no GPU.",
+        "job": "story-reel",
+        "length": "30-90s",
+        "kind": "video",
+        "find": lambda: _glob(Path.home() / "LTX-Renders" / "stories", "*/*.mp4"),
+        "sample_at": 4.0,
+        "sample_len": 5.0,
+    },
+    {
         "id": "showreel",
         "engine": "All six engines",
         "usage": "The studio's own demo reel - one chapter per engine, freshly generated",

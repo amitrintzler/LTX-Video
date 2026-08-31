@@ -14,6 +14,10 @@ Character consistency comes from the spec's shared `style` paragraph, which
 describes the recurring character and world precisely and is appended to
 every page prompt.
 
+Interpreters: pages/reel run on the system 3.9 (Playwright/PIL); the
+`animate` stage with --engine repo must run on an interpreter with the repo's
+inference deps (torch/imageio) - the main checkout's .venv/bin/python.
+
 Audio follows the showreel's hard-won chain: loudnorm (then resample - it
 outputs 192kHz), alimiter with level=0 (default level=1 boosts), aac_at
 (ffmpeg's native aac overshoots decoded peaks ~6dB on percussive material).
@@ -36,6 +40,32 @@ OUT_ROOT = Path.home() / "LTX-Renders" / "stories"
 FPS = 24
 PAGE_SECONDS = 6.0
 XFADE = 0.7
+
+# Default bed: the licensed ambient track already in this repo. The
+# code-composed trailer cue is a percussive 128BPM stinger and reads as
+# noise under a storybook - real music is the baseline, the composed cue is
+# only the last-resort fallback if no track exists.
+DEFAULT_MUSIC = (
+    CINEMATIC.parent
+    / "remotion-videos"
+    / "public"
+    / "assets"
+    / "videos"
+    / "open-world"
+    / "game-demo"
+    / "music"
+    / "cinematic-ambient.mp3"
+)
+
+TRAILER = HERE / "ltx25_optionseducator_trailer60.py"
+
+ANIM_SUFFIX = (
+    " Subtle living-illustration animation of this exact scene: gentle "
+    "parallax drift, drifting clouds, softly flickering window lights, "
+    "light movement in hair, fabric and foliage. The illustration style, "
+    "colours and composition stay exactly the same throughout. No visible "
+    "text, letters, words, numbers, captions, signs, watermark, or logos."
+)
 
 
 def load_story(path: Path) -> dict:
@@ -83,6 +113,146 @@ def make_pages(story: dict) -> None:
         if meta.exists():
             meta.rename(out.with_suffix(".png.meta.json"))
         print(f"\npage {i}: {out}", flush=True)
+
+
+# ── page animation (LTX image-to-video) ─────────────────────────────────────
+
+
+def _accept_animation(src: Path, label: str) -> None:
+    """Refuse solid/static clips - completion status has lied before."""
+    probe = subprocess.run(
+        [
+            "ffmpeg",
+            "-v",
+            "info",
+            "-i",
+            str(src),
+            "-vf",
+            "freezedetect=n=0.003:d=4",
+            "-an",
+            "-f",
+            "null",
+            "-",
+        ],
+        capture_output=True,
+        text=True,
+    )
+    if "freeze_start" in probe.stderr or Path(src).stat().st_size < 100_000:
+        raise SystemExit(f"{label}: broken/static clip at {src} - not accepting it.")
+
+
+def make_animate_repo(story: dict) -> None:
+    """Living paintings via this repo's own LTX-2 inference (i2v keyframe
+    conditioning on MPS) - fully independent of the LTX Desktop app, whose
+    2026-08-30 auto-update currently writes solid-colour output from healthy
+    diffusion runs (see the studio README's landmines)."""
+    sys.path.insert(0, str(CINEMATIC))
+    import config as ccfg
+    from stages import generate as gen
+
+    dev = ccfg.detect_device()
+    tier = ccfg.select_tier(dev)
+    print(f"repo engine: {dev.kind} {dev.name} tier={tier['name']}", flush=True)
+
+    d = work_dir(story)
+    style = story.get("style", "")
+    project = {"fps": FPS, "resolution": {"width": 1280, "height": 704}}
+    for i, page in enumerate(story["pages"], start=1):
+        page_png = d / "pages" / f"{i:02d}.png"
+        out = d / "pages" / f"{i:02d}_anim.mp4"
+        if out.is_file():
+            print(f"page {i}: animation exists, keeping", flush=True)
+            continue
+        if not page_png.is_file():
+            raise SystemExit(f"page {i} art missing - run --make pages first")
+        shot = {
+            "id": f"p{i:02d}",
+            "prompt": f"{page['prompt']} {style}{ANIM_SUFFIX}",
+            "duration": PAGE_SECONDS + 1,
+            "seed": 92000 + i,
+            "keyframe": str(page_png),
+            "keyframe_strength": 0.9,
+        }
+        started = time.time()
+        clip = gen.generate_shot(shot, project, tier, d / "gen", dev)
+        print(f"page {i}: done in {time.time() - started:.0f}s", flush=True)
+        _accept_animation(clip, f"page {i}")
+        subprocess.run(["cp", str(clip), str(out)], check=True)
+        print(f"page {i}: {out}", flush=True)
+
+
+def make_animate(story: dict) -> None:
+    """Turn each generated page into a living painting via LTX Desktop i2v.
+
+    Free (local GPU), one at a time on the single Metal pipeline. Every
+    result is freeze/size-checked before acceptance - the backend's
+    "status": "complete" has lied before (broken 19-21KB encodes)."""
+    import importlib.util
+
+    spec = importlib.util.spec_from_file_location("trailer_mod", TRAILER)
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    token = mod.auth_token()
+    mod.ensure_ready(mod.BASE_URL, token)
+
+    d = work_dir(story)
+    style = story.get("style", "")
+    for i, page in enumerate(story["pages"], start=1):
+        page_png = d / "pages" / f"{i:02d}.png"
+        out = d / "pages" / f"{i:02d}_anim.mp4"
+        if out.is_file():
+            print(f"page {i}: animation exists, keeping", flush=True)
+            continue
+        if not page_png.is_file():
+            raise SystemExit(f"page {i} art missing - run --make pages first")
+        payload = {
+            "prompt": f"{page['prompt']} {style}{ANIM_SUFFIX}",
+            "negativePrompt": mod.NEGATIVE,
+            "resolution": "720p",
+            "model": "fast",
+            "cameraMotion": "dolly_in" if i % 2 else "dolly_out",
+            "duration": 10,
+            "fps": FPS,
+            "audio": False,
+            "imagePath": str(page_png),
+            "aspectRatio": "16:9",
+            "seed": 92000 + i,
+            "loras": [],
+        }
+        print(f"page {i}: animating on LTX...", flush=True)
+        started = time.time()
+        result = mod.request(
+            "POST", f"{mod.BASE_URL}/api/generate", token, payload, 3600
+        )
+        print(f"page {i}: done in {time.time() - started:.0f}s", flush=True)
+        src = result.get("video_path")
+        if result.get("status") != "complete" or not src:
+            raise SystemExit(f"page {i} animation failed: {json.dumps(result)[:200]}")
+        probe = subprocess.run(
+            [
+                "ffmpeg",
+                "-v",
+                "info",
+                "-i",
+                src,
+                "-vf",
+                "freezedetect=n=0.003:d=4",
+                "-an",
+                "-f",
+                "null",
+                "-",
+            ],
+            capture_output=True,
+            text=True,
+        )
+        if "freeze_start" in probe.stderr or Path(src).stat().st_size < 100_000:
+            raise SystemExit(
+                f"page {i}: LTX returned a broken/static clip at {src} - "
+                "backend may be in its broken-encode state; restart LTX "
+                "Desktop and rerun."
+            )
+        subprocess.run(["cp", src, str(out)], check=True)
+        print(f"page {i}: {out}", flush=True)
 
 
 # ── drawn text ──────────────────────────────────────────────────────────────
@@ -168,12 +338,20 @@ def make_reel(story: dict) -> Path:
             f"pages not generated yet: {', '.join(missing)} (--make pages)"
         )
 
-    score = d / "score.wav"
-    if not score.is_file():
-        subprocess.run(
-            [sys.executable, str(HERE / "compose_trailer_score.py"), str(score)],
-            check=True,
-        )
+    music = Path(story.get("music", "")).expanduser() if story.get("music") else None
+    if music and not music.is_file():
+        raise SystemExit(f"story music not found: {music}")
+    if not music and DEFAULT_MUSIC.is_file():
+        music = DEFAULT_MUSIC
+    if not music:
+        music = d / "score.wav"
+        if not music.is_file():
+            subprocess.run(
+                [sys.executable, str(HERE / "compose_trailer_score.py"), str(music)],
+                check=True,
+            )
+    score = music
+    print(f"music: {score}", flush=True)
 
     segs: list[Path] = []
 
@@ -211,9 +389,43 @@ def make_reel(story: dict) -> Path:
         cap_png = _caption_overlay(page["caption"], d / f"cap_{i:02d}.png")
         seg = d / f"seg_{i:02d}.mp4"
         frames = int(PAGE_SECONDS * FPS)
-        # Alternate the camera: odd pages push in, even pages pull out - the
-        # classic storybook Ken Burns rhythm.
-        zexpr = "1+0.0011*on" if i % 2 else f"1.16-0.0011*on"
+        anim = d / "pages" / f"{i:02d}_anim.mp4"
+        if anim.is_file():
+            # A real LTX-animated living painting - the still is only the
+            # keyframe it grew from.
+            subprocess.run(
+                [
+                    "ffmpeg",
+                    "-y",
+                    "-loglevel",
+                    "error",
+                    "-i",
+                    str(anim),
+                    "-i",
+                    str(cap_png),
+                    "-filter_complex",
+                    "[0:v]scale=1280:720:force_original_aspect_ratio=increase,"
+                    f"crop=1280:720,fps={FPS}[v];"
+                    f"[v][1:v]overlay=0:0:enable='between(t,0.6,{PAGE_SECONDS - 0.4})',"
+                    "format=yuv420p[out]",
+                    "-map",
+                    "[out]",
+                    "-frames:v",
+                    str(frames),
+                    "-an",
+                    "-c:v",
+                    "libx264",
+                    "-crf",
+                    "16",
+                    str(seg),
+                ],
+                check=True,
+            )
+            segs.append(seg)
+            continue
+        # Fallback: Ken Burns over the still. Odd pages push in, even pull
+        # out - the classic storybook rhythm.
+        zexpr = "1+0.0011*on" if i % 2 else "1.16-0.0011*on"
         subprocess.run(
             [
                 "ffmpeg",
@@ -311,11 +523,26 @@ def main() -> int:
     ap.add_argument(
         "--story", default=str(CINEMATIC / "stories" / "first_trade_fable.json")
     )
-    ap.add_argument("--make", required=True, choices=["pages", "reel", "all"])
+    ap.add_argument(
+        "--make", required=True, choices=["pages", "animate", "reel", "all"]
+    )
+    ap.add_argument(
+        "--engine",
+        choices=["repo", "desktop"],
+        default="repo",
+        help="animation backend: this repo's own LTX-2 inference (default; "
+        "LTX Desktop's 2026-08-30 update writes broken output) or the "
+        "Desktop app's API",
+    )
     args = ap.parse_args()
     story = load_story(Path(args.story))
     if args.make in ("pages", "all"):
         make_pages(story)
+    if args.make in ("animate", "all"):
+        if args.engine == "repo":
+            make_animate_repo(story)
+        else:
+            make_animate(story)
     if args.make in ("reel", "all"):
         make_reel(story)
     return 0

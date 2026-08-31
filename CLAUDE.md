@@ -1,5 +1,8 @@
 # Claude Agent Guidance
 
+For anything the studio can generate (all six engines, all 17 jobs, and the
+efficiency playbook), read `cinematic-pipeline/studio/README.md` first.
+
 For local LTX Desktop 2.5 trailer work, read:
 
 - `cinematic-pipeline/examples/ltx25-desktop-openworld/README.md`

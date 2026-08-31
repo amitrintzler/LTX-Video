@@ -318,6 +318,25 @@ def build_animation(p: dict[str, Any], job: Job) -> list[str]:
     return cmd
 
 
+def build_showreel(p: dict[str, Any], job: Job) -> list[str]:
+    """One stage of the six-engine studio showreel (studio_showreel90.py).
+
+    The generators are separate stages so the studio's queues do the
+    scheduling: 'ltx' belongs on the GPU lane, everything else is CPU/network.
+    Run the five generators plus 'score', then 'assemble'.
+    """
+    stage = p.get("stage")
+    valid = ("ltx", "flow", "manim", "remotion", "promo", "score", "assemble")
+    if stage not in valid:
+        raise ValueError(f"showreel needs stage, one of: {', '.join(valid)}")
+    return [
+        sys.executable,
+        str(SCRIPTS / "studio_showreel90.py"),
+        "--make",
+        stage,
+    ]
+
+
 CINEMATIC = REPO / "cinematic-pipeline"
 PROJECTS_DIR = CINEMATIC / "projects"
 
@@ -469,6 +488,14 @@ SPECS: dict[str, JobSpec] = {
             "Generate via Google Flow (browser-driven, no API)",
             build_flow,
             "~2-5 min",
+        ),
+        JobSpec(
+            "showreel",
+            False,  # only the ltx stage needs the GPU; it self-serializes
+            # against LTX Desktop like every other caller
+            "Build one stage of the six-engine studio showreel",
+            build_showreel,
+            "~1-35 min per stage",
         ),
         JobSpec(
             "cinematic-project",

@@ -1,0 +1,33 @@
+{
+  "id": "first_trade_fable",
+  "title": "The Traveller's First Trade",
+  "subtitle": "an Options City story",
+  "style": "Warm children's-storybook illustration, flat colours and soft paper texture, gentle rim light. The city is stylised low-poly: tan geometric towers with glowing teal window panels, cyan-lit avenues. The traveller is a small figure with dark braided hair, a teal poncho, a brown leather satchel and a wooden walking stick. No text, letters, numbers, signs or logos anywhere in the image.",
+  "pages": [
+    {
+      "caption": "A traveller arrived at Options City with one question: how does anyone read this market?",
+      "prompt": "The traveller stands on a dirt road before the great open gates of the city at dawn, towers glowing beyond the wall, a winding cyan-lit avenue leading inside.",
+      "motion": "The great gates swing slowly open, the traveller walks forward toward them, clouds drift across the dawn sky, lights flicker on along the avenue."
+    },
+    {
+      "caption": "In Old Town, a shopkeeper smiled. 'Every road here is a lesson,' she said. 'Start on the smallest one.'",
+      "prompt": "Inside a cosy Old Town market street, the traveller talks with a kind elderly shopkeeper at a fruit stall, lanterns strung overhead, low sandstone buildings with carved arches.",
+      "motion": "The shopkeeper hands the traveller a fruit and gestures warmly, lanterns sway overhead, people stroll past the stalls, flags flutter."
+    },
+    {
+      "caption": "The traveller watched the great boards glow calm teal, and learned that patience is also a position.",
+      "prompt": "The traveller sits on a rooftop ledge at dusk, small against a skyline of towers whose big blank teal panels glow softly, legs dangling, chin in hand, thoughtful.",
+      "motion": "The traveller's braid and poncho stir in the evening breeze, tower panels pulse gently, tiny cars stream along the avenues below, stars appear."
+    },
+    {
+      "caption": "When the storm came and every panel flared red, the traveller did not run. The plan was already written.",
+      "prompt": "Dramatic page: black storm clouds and lightning over the city, tower panels glowing warning red, the traveller standing firm on a bridge holding their hat, poncho whipping in the wind.",
+      "motion": "Lightning flashes across the churning storm clouds, rain sweeps through, the traveller's poncho whips in the wind, panels flash red in waves."
+    },
+    {
+      "caption": "At dawn the traveller made the first trade - small, careful, understood - and the city felt like home.",
+      "prompt": "Golden sunrise over the city, the traveller stands tall on a high walkway overlooking calm teal avenues, arms relaxed, satchel open, a single warm light beam across the scene.",
+      "motion": "The sun rises higher, long light beams sweep across the city, the traveller raises an arm to shade their eyes, birds cross the sky, traffic flows below."
+    }
+  ]
+}

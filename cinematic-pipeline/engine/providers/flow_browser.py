@@ -100,6 +100,12 @@ SEL = {
     ),
     "menu": "[role='menu']",
     "video_tab": "[role='menu'] *:text-is('videocam')",
+    "image_tab": "[role='menu'] *:text-is('image')",
+    # The video menu's frames sub-tab (start/end-frame conditioning, i.e.
+    # image-to-video). Its icon ligature is crop_free; the file input it
+    # reveals in the composer takes the start frame.
+    "frames_tab": "[role='menu'] *:text-is('crop_free')",
+    "frame_file_input": "input[type='file']",
     "model_dropdown": "[role='menu'] *:text-is('arrow_drop_down')",
     "generate_button": 'button:has-text("arrow_forward")',
     "generating_indicator": "[aria-busy='true'], .generating, .loading",
@@ -199,9 +205,72 @@ class FlowBrowserProvider(BaseProvider):
                 "still images, not video)."
             )
 
+    def _configure_frames(self, page, image: Path) -> None:
+        """Image-to-video: frames sub-tab, upload the start frame.
+
+        Costs real credits like any video generation (~20 on Veo Fast)."""
+        if not image.is_file():
+            raise ProviderError(f"start frame not found: {image}")
+        chip = page.locator(SEL["composer_chip"]).first
+        chip.wait_for(state="visible", timeout=20000)
+        chip.click()
+        page.locator(SEL["menu"]).first.wait_for(state="visible", timeout=10000)
+        page.locator(SEL["video_tab"]).first.click()
+        page.wait_for_timeout(500)
+        tab = page.locator(SEL["frames_tab"])
+        if tab.count() == 0:
+            raise ProviderError(
+                "Flow's frames (image-to-video) sub-tab is missing - the UI "
+                "may have changed (see SEL['frames_tab'])."
+            )
+        tab.first.click()
+        page.wait_for_timeout(500)
+        self._pick(page, "16:9")
+        self._pick(page, "x1")
+        page.keyboard.press("Escape")
+        page.wait_for_timeout(300)
+
+        file_input = page.locator(SEL["frame_file_input"])
+        if file_input.count() == 0:
+            raise ProviderError(
+                "Frames mode is on but no file input appeared for the start frame."
+            )
+        file_input.first.set_input_files(str(image))
+        page.wait_for_timeout(2000)
+
+    def _configure_image(self, page) -> None:
+        """Composer to image mode: Nano Banana, 16:9, one output.
+
+        Image generations cost 0 credits on this account's plan (the menu
+        says so explicitly), so this path is the studio's free stills source.
+        """
+        chip = page.locator(SEL["composer_chip"]).first
+        chip.wait_for(state="visible", timeout=20000)
+        chip.click()
+        page.locator(SEL["menu"]).first.wait_for(state="visible", timeout=10000)
+        page.locator(SEL["image_tab"]).first.click()
+        page.wait_for_timeout(500)
+        self._pick(page, "16:9")
+        self._pick(page, "x1")
+        page.keyboard.press("Escape")
+        page.wait_for_timeout(300)
+
+    @staticmethod
+    def _content_images(page) -> list[str]:
+        """Srcs of real media images on the page (not avatars/UI chrome)."""
+        return page.evaluate(
+            """() => Array.from(document.querySelectorAll('img'))
+                .map(el => el.currentSrc || el.src)
+                .filter(s => s && !s.includes('googleusercontent.com/a/')
+                          && (s.startsWith('http') || s.startsWith('blob:')))"""
+        )
+
     def submit(self, spec, out_dir: Path) -> Job:
         self.check(spec)
-        flow_quota.check_quota()
+        if spec.kind == "video":
+            # Images are free on this plan; the quota tracker only guards
+            # credit-spending video generations.
+            flow_quota.check_quota()
 
         out_dir = Path(out_dir)
         out_dir.mkdir(parents=True, exist_ok=True)
@@ -233,8 +302,17 @@ class FlowBrowserProvider(BaseProvider):
                 )
             new_project.click()
 
-            if spec.kind == "video":
+            start_frame = (spec.extra or {}).get("start_frame")
+            if spec.kind == "video" and start_frame:
+                self._configure_frames(page, Path(start_frame))
+            elif spec.kind == "video":
                 self._configure_video(page, spec.seconds)
+            else:
+                self._configure_image(page)
+            # Media already in the project (there shouldn't be any - this is
+            # a fresh project - but don't assume): the new result is whatever
+            # image appears that wasn't here before generate was clicked.
+            baseline = set(self._content_images(page))
 
             box = page.locator(SEL["prompt_box"]).first
             box.click(timeout=15000)
@@ -242,10 +320,12 @@ class FlowBrowserProvider(BaseProvider):
 
             gen = page.locator(SEL["generate_button"]).first
             gen.click()
-            # Counted here, not on fetch - Flow spends the quota the moment
-            # generation starts, whether or not this provider goes on to
-            # successfully retrieve the result.
-            flow_quota.record_generation()
+            if spec.kind == "video":
+                # Counted here, not on fetch - Flow spends the quota the
+                # moment generation starts, whether or not this provider goes
+                # on to retrieve the result. Image generations cost 0 credits
+                # on this plan and are not counted.
+                flow_quota.record_generation()
 
             started_url = page.url
             print(f"Generating {spec.id} via Flow...", flush=True)
@@ -254,7 +334,13 @@ class FlowBrowserProvider(BaseProvider):
             # job's "handle" keeps pw/page alive for poll()/fetch() to reuse,
             # the same way a request id would for a real API.
             return Job(
-                handle={"pw": pw, "page": page, "started": time.time()},
+                handle={
+                    "pw": pw,
+                    "page": page,
+                    "started": time.time(),
+                    "kind": spec.kind,
+                    "baseline": baseline,
+                },
                 payload={"prompt": spec.prompt, "url": started_url},
                 status=PENDING,
             )
@@ -298,6 +384,15 @@ class FlowBrowserProvider(BaseProvider):
             job.handle["pw"].stop()
             return job
 
+        if job.handle.get("kind") == "image":
+            fresh = [
+                s for s in self._content_images(page) if s not in job.handle["baseline"]
+            ]
+            if fresh:
+                job.handle["result_src"] = fresh[0]
+                job.status = DONE
+            return job
+
         if page.locator(SEL["result_video"]).count() > 0:
             job.status = DONE
             return job
@@ -307,6 +402,39 @@ class FlowBrowserProvider(BaseProvider):
     def fetch(self, job: Job, out_dir: Path) -> Path:
         page = job.handle["page"]
         try:
+            if job.handle.get("kind") == "image":
+                src = job.handle.get("result_src")
+                if not src:
+                    raise ProviderError(
+                        "Flow: image generation finished but no new image "
+                        "appeared on the page"
+                    )
+                out = out_dir / f"flow_{abs(hash(job.payload['prompt']))}.png"
+                if src.startswith("blob:"):
+                    data = page.evaluate(
+                        """async (u) => {
+                            const r = await fetch(u);
+                            const b = await r.arrayBuffer();
+                            return Array.from(new Uint8Array(b));
+                        }""",
+                        src,
+                    )
+                    out.write_bytes(bytes(data))
+                else:
+                    out.write_bytes(page.request.get(src).body())
+                out.with_suffix(out.suffix + ".meta.json").write_text(
+                    json.dumps(
+                        {
+                            "provider": "flow",
+                            "kind": "image",
+                            "model": "nano-banana",
+                            "cost_credits": 0,
+                            "prompt": job.payload.get("prompt"),
+                        }
+                    )
+                )
+                return out
+
             video = page.locator(SEL["result_video"]).first
             # .src (the DOM property, evaluated in-page) is browser-resolved to an
             # absolute URL; get_attribute("src") is not - Flow's real result src is

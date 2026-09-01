@@ -318,6 +318,71 @@ def build_animation(p: dict[str, Any], job: Job) -> list[str]:
     return cmd
 
 
+def build_image(p: dict[str, Any], job: Job) -> list[str]:
+    """One still via Flow's Nano Banana image model - 0 credits on this plan.
+    The studio's free image source: story art, keyframes, thumbnails, moods.
+    """
+    prompt = p.get("prompt")
+    if not prompt:
+        raise ValueError("image needs a prompt")
+    return [
+        sys.executable,
+        str(ENGINE / "providers" / "flow_cli.py"),
+        prompt,
+        "--kind",
+        "image",
+        "--out-dir",
+        p.get("output_dir") or str(RENDER_ROOT / "images"),
+        "--timeout",
+        str(p.get("timeout", 300)),
+    ]
+
+
+def build_animate_image(p: dict[str, Any], job: Job) -> list[str]:
+    """Animate any still image via Veo image-to-video (Flow's frames tab):
+    the image is the start frame, the prompt directs the motion. ~20 credits
+    per clip on Veo Fast. This is the real-animation lane - LTX i2v produces
+    statues from flat art (see story_reel.py's history).
+    """
+    image = p.get("image")
+    prompt = p.get("prompt")
+    if not image or not Path(image).expanduser().is_file():
+        raise ValueError(f"animate-image needs an existing image path, got {image!r}")
+    if not prompt:
+        raise ValueError("animate-image needs a motion prompt")
+    return [
+        sys.executable,
+        str(ENGINE / "providers" / "flow_cli.py"),
+        prompt,
+        "--kind",
+        "video",
+        "--start-frame",
+        str(Path(image).expanduser()),
+        "--out-dir",
+        p.get("output_dir") or str(RENDER_ROOT / "animations"),
+        "--timeout",
+        str(p.get("timeout", 900)),
+    ]
+
+
+def build_story_reel(p: dict[str, Any], job: Job) -> list[str]:
+    """Illustrated story reel: free Flow images per page, drawn captions,
+    Ken Burns, composed score. Stage 'pages' generates art, 'reel' assembles,
+    'all' does both.
+    """
+    stage = p.get("stage", "all")
+    if stage not in ("pages", "animate", "reel", "all"):
+        raise ValueError("story-reel stage must be pages, animate, reel or all")
+    cmd = [sys.executable, str(SCRIPTS / "story_reel.py"), "--make", stage]
+    if p.get("story"):
+        cmd += ["--story", p["story"]]
+    if p.get("engine"):
+        cmd += ["--engine", p["engine"]]
+    if p.get("pages"):
+        cmd += ["--pages", str(p["pages"])]
+    return cmd
+
+
 def build_showreel(p: dict[str, Any], job: Job) -> list[str]:
     """One stage of the six-engine studio showreel (studio_showreel90.py).
 
@@ -488,6 +553,27 @@ SPECS: dict[str, JobSpec] = {
             "Generate via Google Flow (browser-driven, no API)",
             build_flow,
             "~2-5 min",
+        ),
+        JobSpec(
+            "image",
+            False,
+            "Generate a still via Flow (Nano Banana, free on this plan)",
+            build_image,
+            "~1 min",
+        ),
+        JobSpec(
+            "animate-image",
+            False,
+            "Animate any still via Veo image-to-video (~20 credits)",
+            build_animate_image,
+            "~2-4 min",
+        ),
+        JobSpec(
+            "story-reel",
+            False,
+            "Illustrated story: free Flow art + drawn captions + score",
+            build_story_reel,
+            "~2-10 min",
         ),
         JobSpec(
             "showreel",

@@ -309,6 +309,19 @@ def snapshot() -> dict[str, Any]:
             ltx["ok"], ltx["detail"] if not ltx["ok"] else ""
         ),
         "showreel": ready(ffmpeg, "" if ffmpeg else "ffmpeg is not on PATH"),
+        # Image generations are free, so these gate only on the Flow session
+        # itself, never on the credit quota.
+        "image": ready(flow["ok"], flow["detail"] if not flow["ok"] else ""),
+        "animate-image": ready(
+            flow["ok"] and not flow.get("quota_exceeded"),
+            flow["detail"] if not flow["ok"] else "",
+        ),
+        "story-reel": ready(
+            flow["ok"] and ffmpeg,
+            flow["detail"]
+            if not flow["ok"]
+            else ("" if ffmpeg else "ffmpeg is not on PATH"),
+        ),
         "cinematic-project": ready(ffmpeg, "" if ffmpeg else "ffmpeg is not on PATH"),
         "remotion": ready(
             _remotion_ok(),

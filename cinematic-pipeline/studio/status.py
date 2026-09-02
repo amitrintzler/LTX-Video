@@ -65,10 +65,18 @@ def ltx_state() -> dict[str, Any]:
             return {"ok": False, "detail": "LTX 2.5 Fast is not present in LTX Desktop"}
         if not model.get("installed"):
             return {"ok": False, "detail": "LTX 2.5 Fast is not fully installed"}
-        return {
-            "ok": True,
-            "detail": f"connected, model {'active' if model.get('active') else 'installed'}",
-        }
+        detail = f"connected, model {'active' if model.get('active') else 'installed'}"
+        # The backend reports healthy and every generation "completes", but the
+        # decoded output has been a flat RGB(0,76,0) frame since 2026-08-30 -
+        # reproduced 7x across every app version and every model weight file
+        # (see LTX-Renders/diag/lightricks_bug_report.md, filed with
+        # Lightricks). Ready-check can't catch this without running a real
+        # generation, so it's surfaced here instead of silently claiming health.
+        if (
+            Path.home() / "LTX-Renders" / "diag" / "lightricks_bug_report.md"
+        ).is_file():
+            detail += " - KNOWN BUG: output may be blank (see LTX-Renders/diag/lightricks_bug_report.md)"
+        return {"ok": True, "detail": detail}
     except SystemExit as exc:
         return {"ok": False, "detail": str(exc)}
     except Exception as exc:  # noqa: BLE001

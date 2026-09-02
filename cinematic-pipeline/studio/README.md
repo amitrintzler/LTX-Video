@@ -128,3 +128,11 @@ curl -s localhost:8765/api/catalogue  # what the studio can make, with samples
 - **Statue detection**: fine-tolerance freezedetect passes grain-statues and
   YDIF averages can't separate a statue from a smooth camera move — use
   freezedetect at coarse tolerance (`n=0.01:d=1.5`).
+- **Known upstream bug (open, filed with Lightricks, 2026-09-02)**: local LTX
+  generation reports success but decodes to a flat RGB(0,76,0) frame, every
+  time, regardless of prompt/seed/duration/app version. Reproduced 7x;
+  redownloading every model weight file and a full reboot did not fix it —
+  see `~/LTX-Renders/diag/lightricks_bug_report.md`. The studio's readiness
+  chip still shows LTX as connected (the backend genuinely is healthy) but
+  flags this in its tooltip. Check for an LTX Desktop update before trusting
+  any LTX-generated clip; always eyeball the frames.

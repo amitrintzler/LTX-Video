@@ -29,7 +29,7 @@ SPEC = TrailerSpec(
         / "LTX-Renders"
         / "ltx25-optionseducator-trailer60"
         / "music-candidates"
-        / "4_energetic_orchestral.mp3"
+        / "1_total_war_epic_action.mp3"
     ),
     brand_tag="OPTIONS CHAIN",
     open_lines=[

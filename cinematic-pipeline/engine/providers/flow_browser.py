@@ -161,9 +161,21 @@ class FlowBrowserProvider(BaseProvider):
     def _configure_video(self, page, seconds: float | None) -> None:
         """Switch the composer from its image default to one Veo video.
 
-        Order matters: model first (changing it can reset the option rows),
-        then aspect/resolution/duration/count. Options that a given model
-        doesn't offer are skipped rather than fatal; the model itself is not.
+        A brand-new project's composer always opens in image mode (Nano
+        Banana), regardless of any prior project's mode or of
+        localStorage['FLOW_MAIN_PROMPT_BOX_STATE'] (confirmed live: patching
+        that key does not change what a fresh "New project" composer opens
+        into - the earlier version of this method tried that and it silently
+        left the composer in image mode, listing Nano Banana models instead
+        of Veo). The video tab click below is the real, working transition
+        for that default case. Order matters for what follows: model first
+        (changing it can reset the option rows), then
+        aspect/resolution/duration/count. Options a given model doesn't
+        offer are skipped rather than fatal; the model itself is not.
+
+        This can still land on a stuck composer left over from an earlier
+        image-to-video (frames) generation in the same Chrome session - see
+        the retry wrapper in submit() for the recovery.
         """
         chip = page.locator(SEL["composer_chip"]).first
         chip.wait_for(state="visible", timeout=20000)
@@ -206,7 +218,7 @@ class FlowBrowserProvider(BaseProvider):
             )
 
     def _configure_frames(self, page, image: Path) -> None:
-        """Image-to-video: frames sub-tab, upload the start frame.
+        """Image-to-video: video tab, then the frames sub-tab, upload start frame.
 
         Costs real credits like any video generation (~20 on Veo Fast)."""
         if not image.is_file():
@@ -240,6 +252,10 @@ class FlowBrowserProvider(BaseProvider):
 
     def _configure_image(self, page) -> None:
         """Composer to image mode: Nano Banana, 16:9, one output.
+
+        A brand-new project's composer already defaults to image mode, but
+        click the tab anyway rather than assume - cheap, and it self-heals
+        if that default ever changes.
 
         Image generations cost 0 credits on this account's plan (the menu
         says so explicitly), so this path is the studio's free stills source.
@@ -289,26 +305,49 @@ class FlowBrowserProvider(BaseProvider):
                     "provider never touches that form."
                 )
 
-            new_project = page.locator(SEL["new_project"]).first
-            try:
-                # Flow is a SPA; domcontentloaded fires well before hydration,
-                # so wait for the button rather than counting immediately.
-                new_project.wait_for(state="visible", timeout=20000)
-            except Exception:
-                raise ProviderError(
-                    "Could not find Flow's 'New project' button - its label "
-                    "may have changed, or the account UI is in a language "
-                    "this hasn't seen before (see SEL['new_project'])."
-                )
-            new_project.click()
-
             start_frame = (spec.extra or {}).get("start_frame")
-            if spec.kind == "video" and start_frame:
-                self._configure_frames(page, Path(start_frame))
-            elif spec.kind == "video":
-                self._configure_video(page, spec.seconds)
-            else:
-                self._configure_image(page)
+
+            def _new_project_and_configure() -> None:
+                new_project = page.locator(SEL["new_project"]).first
+                try:
+                    # Flow is a SPA; domcontentloaded fires well before
+                    # hydration, so wait for the button rather than counting
+                    # immediately.
+                    new_project.wait_for(state="visible", timeout=20000)
+                except Exception:
+                    raise ProviderError(
+                        "Could not find Flow's 'New project' button - its "
+                        "label may have changed, or the account UI is in a "
+                        "language this hasn't seen before (see "
+                        "SEL['new_project'])."
+                    )
+                new_project.click()
+                if spec.kind == "video" and start_frame:
+                    self._configure_frames(page, Path(start_frame))
+                elif spec.kind == "video":
+                    self._configure_video(page, spec.seconds)
+                else:
+                    self._configure_image(page)
+
+            try:
+                _new_project_and_configure()
+            except ProviderError:
+                # The composer can get stuck in a mode left over from an
+                # earlier generation in this same long-lived Chrome tab
+                # (observed live: after an image-to-video/frames run, a
+                # later plain text-to-video project opened with a Start/End
+                # frame picker and no working generate button, and clicking
+                # the tabs again did not recover it). A hard navigation back
+                # to Flow plus a fresh project reliably does - confirmed live
+                # - so retry exactly once before giving up for real.
+                print(
+                    "Flow composer looked stuck; reloading and retrying once...",
+                    flush=True,
+                )
+                page.goto(FLOW_URL, wait_until="domcontentloaded", timeout=30000)
+                if looks_signed_out(page):
+                    raise
+                _new_project_and_configure()
             # Media already in the project (there shouldn't be any - this is
             # a fresh project - but don't assume): the new result is whatever
             # image appears that wasn't here before generate was clicked.

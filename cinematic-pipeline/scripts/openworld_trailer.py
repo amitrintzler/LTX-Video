@@ -1,24 +1,33 @@
 #!/usr/bin/env python3
-"""Open-World Options City feature trailer - real product, real motion.
+"""Open-World Options City feature trailer - generated cinematics + real proof.
 
-Every base image is the real app: two clean 1920x1080 captures of the actual
-3D open-world city (via capture_open_world.py - pointer-lock first-person
-movement fails under browser automation, so these are the game's own
-Explorer-view establishing angles) plus the real branded landing/simulator
-screenshots already shipping in remotion-videos' assets.
+Two kinds of beat, both honest, clearly different jobs:
 
-Motion is drawn, not generated: Veo image-to-video was tried first and
-rejected on two separate attempts - it doesn't preserve a distinctive art
-style or real UI text under motion, it invents a *different* scene instead
-(a real-world photoreal city, then a cyberpunk city with Chinese signage,
-neither resembling the actual low-poly game; separately, a fake phone home
-screen with gibberish app names over the real landing page). Shipping any of
-that would misrepresent the product. Instead this draws real motion graphics
-over the real, unmodified screenshots - a scanning light sweep and ambient
-particles for the city shots, animated highlight rings and callout chips at
-the real UI's own coordinates (reusing its own on-screen text, not inventing
-copy) for the two branded screens. Genuine per-frame animation, zero
-fabricated content.
+  "cinematic"  - genuine Veo (Flow) text-to-video generations of the city's
+                 own visual language (tan towers, teal-lit windows, cyan
+                 avenues, drones, trams). This is new creative footage, made
+                 for the trailer, not a claim that it's captured gameplay -
+                 the same way a real trailer's concept-art b-roll doesn't
+                 pretend to be a screen recording. LTX would normally do
+                 this; it's on the known blank-output bug (see
+                 LTX-Renders/diag/lightricks_bug_report.md), so Flow/Veo
+                 stands in as the same class of generator.
+
+  "atmosphere" / "callout" - real, unmodified 1920x1080 captures: the actual
+                 3D open-world Explorer view (capture_open_world.py -
+                 pointer-lock first-person movement fails under browser
+                 automation, so these are the game's own establishing
+                 angles) and the real branded landing/simulator screenshots.
+                 Motion here is drawn, not generated: Veo image-to-video was
+                 tried directly on these first and rejected on two attempts -
+                 it doesn't preserve a distinctive art style or real UI text
+                 under i2v motion, it invents a *different* scene instead (a
+                 photoreal city, then a cyberpunk city with Chinese signage;
+                 separately a fake phone home screen with gibberish app names
+                 over the real landing page). So these beats get a scanning
+                 light sweep, ambient particles, and highlight rings/callout
+                 chips at the UI's own real coordinates instead - genuine
+                 per-frame animation, zero fabricated content.
 
 Audio: a different licensed track per trailer, not the same ambient bed
 reused everywhere (see LICENSING.md for terms) - and the proven mix chain:
@@ -37,6 +46,7 @@ from pathlib import Path
 HERE = Path(__file__).resolve().parent
 CINEMATIC = HERE.parent
 ASSETS = CINEMATIC / "trailers" / "open-world" / "assets"
+CINE_CLIPS = CINEMATIC / "trailers" / "open-world" / "cinematic"
 WORK = Path.home() / "LTX-Renders" / "trailers" / "open-world"
 FINAL = WORK / "open_world_trailer.mp4"
 FPS = 24
@@ -70,31 +80,43 @@ SIM_CALLOUTS = [
 ]
 
 BEATS = [
-    # (image, kind, callouts, seconds, label_no, title, sub)
+    # (source, kind, callouts, seconds, label_no, title, sub)
+    # Two genuine Veo cinematic generations - the studio's LTX-class engine
+    # standing in while LTX Desktop is on its known bug.
     (
-        "city_a.png",
-        "atmosphere",
-        CITY_HOTSPOTS,
+        "cine_a.mp4",
+        "cinematic",
+        None,
         8.0,
         1,
         "AN OPEN WORLD",
         "built around real markets",
     ),
     (
-        "city_b.png",
-        "atmosphere",
-        CITY_HOTSPOTS,
+        "cine_b.mp4",
+        "cinematic",
+        None,
         8.0,
         2,
-        "EVERY DISTRICT",
-        "old town to the derivatives harbor",
+        "LIVE THE STORY",
+        "every avenue has a market read",
+    ),
+    # Real, unmodified captures from here on - the actual product.
+    (
+        "city_a.png",
+        "atmosphere",
+        CITY_HOTSPOTS,
+        6.0,
+        3,
+        "THE REAL GAME",
+        "this is the actual product, not concept art",
     ),
     (
         "brand_hero.png",
         "callout",
         HERO_CALLOUTS,
         7.0,
-        3,
+        4,
         "MASTER TRADING",
         "like a game, not a gamble",
     ),
@@ -103,7 +125,7 @@ BEATS = [
         "callout",
         SIM_CALLOUTS,
         7.0,
-        4,
+        5,
         "PLAY MONEY, REAL MECHANICS",
         "P/L curves, saved scenarios, zero risk",
     ),
@@ -258,6 +280,34 @@ def _draw_callout(
     d.text((chip_x + 12, chip_y + 6), text, font=font, fill=(210, 250, 255, chip_alpha))
 
 
+def _cinematic_clip(clip_name: str, secs: float, out: Path) -> Path:
+    """Scale/crop a real Veo generation to frame - no drawing, it's already
+    genuine per-frame motion."""
+    frames = int(secs * FPS)
+    subprocess.run(
+        [
+            "ffmpeg",
+            "-y",
+            "-loglevel",
+            "error",
+            "-i",
+            str(CINE_CLIPS / clip_name),
+            "-vf",
+            f"scale={W}:{H}:force_original_aspect_ratio=increase,crop={W}:{H},fps={FPS}",
+            "-frames:v",
+            str(frames),
+            "-an",
+            "-c:v",
+            "libx264",
+            "-crf",
+            "16",
+            str(out),
+        ],
+        check=True,
+    )
+    return out
+
+
 def _motion_clip(img_name: str, kind: str, callouts, secs: float, out: Path) -> Path:
     from PIL import Image
 
@@ -382,7 +432,10 @@ def build() -> Path:
             f"beat {i}: rendering {kind} motion over {img_name} ({secs}s)...",
             flush=True,
         )
-        clip = _motion_clip(img_name, kind, callouts, secs, WORK / f"clip_{i}.mp4")
+        if kind == "cinematic":
+            clip = _cinematic_clip(img_name, secs, WORK / f"clip_{i}.mp4")
+        else:
+            clip = _motion_clip(img_name, kind, callouts, secs, WORK / f"clip_{i}.mp4")
         label = _label(no, title, sub, WORK / f"label_{i}.png")
         out = WORK / f"seg_{i}.mp4"
         frames = int(secs * FPS)

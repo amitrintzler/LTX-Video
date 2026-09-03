@@ -228,6 +228,30 @@ KINDS: list[dict[str, Any]] = [
         "find": lambda: _glob(RENDER_ROOT / "images", "*.png"),
     },
     {
+        "id": "openworld-trailer",
+        "engine": "Real product (no LTX, no Flow)",
+        "usage": "The Open-World Options City feature, pitched: what it is, why it's "
+        "different, what you can do in it",
+        "title": "Open-World Options City trailer",
+        "purpose": "A feature trailer built entirely from the real product - live "
+        "captures of the actual 3D city (scripts/capture_open_world.py) and the "
+        "real landing/simulator screenshots - not AI-generated footage.",
+        "job": "openworld-trailer",
+        "length": "~35s",
+        "kind": "video",
+        "find": lambda: _first(
+            [
+                Path.home()
+                / "LTX-Renders"
+                / "trailers"
+                / "open-world"
+                / "open_world_trailer.mp4"
+            ]
+        ),
+        "sample_at": 6.0,
+        "sample_len": 5.0,
+    },
+    {
         "id": "animate-image",
         "engine": "Veo i2v (Flow)",
         "usage": "Turn any still into real animation: story art, keyframes, posters",

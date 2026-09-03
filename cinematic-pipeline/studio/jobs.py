@@ -338,6 +338,14 @@ def build_image(p: dict[str, Any], job: Job) -> list[str]:
     ]
 
 
+def build_openworld_trailer(p: dict[str, Any], job: Job) -> list[str]:
+    """The Open-World Options City feature trailer: real product screenshots
+    (no LTX, no Flow), drawn cards/lower-thirds, real music. See
+    scripts/openworld_trailer.py.
+    """
+    return [sys.executable, str(SCRIPTS / "openworld_trailer.py")]
+
+
 def build_animate_image(p: dict[str, Any], job: Job) -> list[str]:
     """Animate any still image via Veo image-to-video (Flow's frames tab):
     the image is the start frame, the prompt directs the motion. ~20 credits
@@ -559,6 +567,13 @@ SPECS: dict[str, JobSpec] = {
             False,
             "Generate a still via Flow (Nano Banana, free on this plan)",
             build_image,
+            "~1 min",
+        ),
+        JobSpec(
+            "openworld-trailer",
+            False,
+            "Open-World Options City feature trailer (real product screenshots)",
+            build_openworld_trailer,
             "~1 min",
         ),
         JobSpec(

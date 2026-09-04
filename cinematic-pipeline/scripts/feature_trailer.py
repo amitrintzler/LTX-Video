@@ -27,11 +27,12 @@ Two kinds of beat, both honest, clearly different jobs:
                 *different* scene instead (verified on the open-world
                 trailer: a fabricated phone home screen with gibberish app
                 names, then an unrelated photoreal/cyberpunk city). So these
-                beats get a scanning light sweep, ambient particles, and
-                highlight rings/callout chips at the UI's own real
-                coordinates instead - genuine per-frame animation, zero
-                fabricated content. Callout chip text is the screenshot's
-                own on-screen copy, never invented.
+                beats get drifting ambient particles plus highlight
+                rings/callout chips at the UI's own real coordinates instead
+                - genuine per-frame animation, zero fabricated content, and
+                nothing ever drawn over the screenshot's own text. Callout
+                chip text is the screenshot's own on-screen copy, never
+                invented.
 
 Audio: pass a distinct licensed track per trailer (see LICENSING.md for
 terms) - reusing the same bed across every film in the repo reads as one
@@ -140,23 +141,22 @@ def _draw_pulse_ring(d, x, y, t, accent, base_r=16):
 
 
 def _draw_atmosphere(d, size, t, secs, hotspots, accent, opacity=1.0):
+    """Particle drift + hotspot rings only - no full-frame sweep bars.
+
+    An earlier version drew diagonal light-sweep bars across the whole
+    frame to defeat freezedetect on these mostly-static real screenshots;
+    rejected on sight (they cut across real UI text and looked like a
+    generic scan effect, not a considered motion design). The particle
+    drift alone is enough motion per frame to keep freezedetect happy
+    (verified) without ever drawing over the screenshot's own content.
+    """
     w, h = size
-    sweep_x = -300 + (t / secs) * (w + 600)
-    for i in range(3):
-        band_x = sweep_x - i * 60
-        alpha = max(0, int((40 - i * 14) * opacity))
-        if alpha > 0:
-            d.line(
-                [(band_x, 0), (band_x - h * 0.4, h)],
-                fill=(180, 230, 255, alpha),
-                width=18,
-            )
-    for i in range(22):
+    for i in range(34):
         seed = i * 137.5
         px = (seed * 3.7) % w
-        py = h - ((t * 26 + seed * 5) % (h + 40))
-        r = 1.5 + (i % 3) * 0.6
-        alpha = int((90 + 40 * math.sin(t * 2 + i)) * opacity)
+        py = h - ((t * 22 + seed * 5) % (h + 40))
+        r = 1.3 + (i % 3) * 0.5
+        alpha = int((70 + 35 * math.sin(t * 2 + i)) * opacity)
         d.ellipse([px - r, py - r, px + r, py + r], fill=(210, 245, 255, max(0, alpha)))
     if opacity >= 1.0:
         for x, y in hotspots:

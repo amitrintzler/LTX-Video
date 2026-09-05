@@ -346,6 +346,52 @@ def build_openworld_trailer(p: dict[str, Any], job: Job) -> list[str]:
     return [sys.executable, str(SCRIPTS / "openworld_trailer.py")]
 
 
+def build_options_chain_trailer(p: dict[str, Any], job: Job) -> list[str]:
+    """The Options Chain feature trailer. See scripts/options_chain_trailer.py."""
+    return [sys.executable, str(SCRIPTS / "options_chain_trailer.py")]
+
+
+def build_lesson_hub_trailer(p: dict[str, Any], job: Job) -> list[str]:
+    """The Lesson Hub feature trailer. See scripts/lesson_hub_trailer.py."""
+    return [sys.executable, str(SCRIPTS / "lesson_hub_trailer.py")]
+
+
+def build_insight_engine_trailer(p: dict[str, Any], job: Job) -> list[str]:
+    """The Insight Engine feature trailer. See scripts/insight_engine_trailer.py."""
+    return [sys.executable, str(SCRIPTS / "insight_engine_trailer.py")]
+
+
+def build_simulator_trailer(p: dict[str, Any], job: Job) -> list[str]:
+    """The Guided Simulator feature trailer. See scripts/simulator_trailer.py."""
+    return [sys.executable, str(SCRIPTS / "simulator_trailer.py")]
+
+
+def build_lesson_library_trailer(p: dict[str, Any], job: Job) -> list[str]:
+    """The Lesson Library feature trailer. See scripts/lesson_library_trailer.py."""
+    return [sys.executable, str(SCRIPTS / "lesson_library_trailer.py")]
+
+
+def build_assistant_trailer(p: dict[str, Any], job: Job) -> list[str]:
+    """The AI Assistant feature trailer. See scripts/assistant_trailer.py."""
+    return [sys.executable, str(SCRIPTS / "assistant_trailer.py")]
+
+
+def build_trade_demos_trailer(p: dict[str, Any], job: Job) -> list[str]:
+    """The Trade Demo Timeline Lab feature trailer. See scripts/trade_demos_trailer.py."""
+    return [sys.executable, str(SCRIPTS / "trade_demos_trailer.py")]
+
+
+def build_mini_games_trailer(p: dict[str, Any], job: Job) -> list[str]:
+    """The Mini-Games Arcade feature trailer. See scripts/mini_games_trailer.py."""
+    return [sys.executable, str(SCRIPTS / "mini_games_trailer.py")]
+
+
+def build_market_maker_defense_trailer(p: dict[str, Any], job: Job) -> list[str]:
+    """The Market Maker Defense feature trailer. See
+    scripts/market_maker_defense_trailer.py."""
+    return [sys.executable, str(SCRIPTS / "market_maker_defense_trailer.py")]
+
+
 def build_animate_image(p: dict[str, Any], job: Job) -> list[str]:
     """Animate any still image via Veo image-to-video (Flow's frames tab):
     the image is the start frame, the prompt directs the motion. ~20 credits
@@ -574,6 +620,69 @@ SPECS: dict[str, JobSpec] = {
             False,
             "Open-World Options City feature trailer (real product screenshots)",
             build_openworld_trailer,
+            "~1 min",
+        ),
+        JobSpec(
+            "options-chain-trailer",
+            False,
+            "Options Chain feature trailer (real product screenshots)",
+            build_options_chain_trailer,
+            "~1 min",
+        ),
+        JobSpec(
+            "lesson-hub-trailer",
+            False,
+            "Lesson Hub feature trailer (real product screenshots)",
+            build_lesson_hub_trailer,
+            "~1 min",
+        ),
+        JobSpec(
+            "insight-engine-trailer",
+            False,
+            "Insight Engine feature trailer (real product screenshots)",
+            build_insight_engine_trailer,
+            "~1 min",
+        ),
+        JobSpec(
+            "simulator-trailer",
+            False,
+            "Guided Simulator feature trailer (real product screenshots)",
+            build_simulator_trailer,
+            "~1 min",
+        ),
+        JobSpec(
+            "lesson-library-trailer",
+            False,
+            "Lesson Library feature trailer (real product screenshots)",
+            build_lesson_library_trailer,
+            "~1 min",
+        ),
+        JobSpec(
+            "assistant-trailer",
+            False,
+            "AI Assistant feature trailer (real product screenshots)",
+            build_assistant_trailer,
+            "~1 min",
+        ),
+        JobSpec(
+            "trade-demos-trailer",
+            False,
+            "Trade Demo Timeline Lab feature trailer (real product screenshots)",
+            build_trade_demos_trailer,
+            "~1 min",
+        ),
+        JobSpec(
+            "mini-games-trailer",
+            False,
+            "Mini-Games Arcade feature trailer (real product screenshots)",
+            build_mini_games_trailer,
+            "~1 min",
+        ),
+        JobSpec(
+            "market-maker-defense-trailer",
+            False,
+            "Market Maker Defense feature trailer (real product screenshots)",
+            build_market_maker_defense_trailer,
             "~1 min",
         ),
         JobSpec(

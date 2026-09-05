@@ -347,6 +347,23 @@ def snapshot() -> dict[str, Any]:
         # itself, never on the credit quota.
         "image": ready(flow["ok"], flow["detail"] if not flow["ok"] else ""),
         "openworld-trailer": ready(ffmpeg, "" if ffmpeg else "ffmpeg is not on PATH"),
+        "options-chain-trailer": ready(
+            ffmpeg, "" if ffmpeg else "ffmpeg is not on PATH"
+        ),
+        "lesson-hub-trailer": ready(ffmpeg, "" if ffmpeg else "ffmpeg is not on PATH"),
+        "insight-engine-trailer": ready(
+            ffmpeg, "" if ffmpeg else "ffmpeg is not on PATH"
+        ),
+        "simulator-trailer": ready(ffmpeg, "" if ffmpeg else "ffmpeg is not on PATH"),
+        "lesson-library-trailer": ready(
+            ffmpeg, "" if ffmpeg else "ffmpeg is not on PATH"
+        ),
+        "assistant-trailer": ready(ffmpeg, "" if ffmpeg else "ffmpeg is not on PATH"),
+        "trade-demos-trailer": ready(ffmpeg, "" if ffmpeg else "ffmpeg is not on PATH"),
+        "mini-games-trailer": ready(ffmpeg, "" if ffmpeg else "ffmpeg is not on PATH"),
+        "market-maker-defense-trailer": ready(
+            ffmpeg, "" if ffmpeg else "ffmpeg is not on PATH"
+        ),
         "animate-image": ready(
             flow["ok"] and not flow.get("quota_exceeded"),
             flow["detail"] if not flow["ok"] else "",

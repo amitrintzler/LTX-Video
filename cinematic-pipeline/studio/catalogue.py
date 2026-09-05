@@ -252,6 +252,215 @@ KINDS: list[dict[str, Any]] = [
         "sample_len": 5.0,
     },
     {
+        "id": "options-chain-trailer",
+        "engine": "Real product (no LTX, no Flow) + Flow cinematics",
+        "usage": "The Options Chain tool, pitched: live Black-Scholes pricing "
+        "across the full strike ladder",
+        "title": "Options Chain trailer",
+        "purpose": "2 real Flow cinematic shots plus a real Options Chain screenshot "
+        "with drawn highlights on the actual Greeks grid.",
+        "job": "options-chain-trailer",
+        "length": "~35s",
+        "kind": "video",
+        "find": lambda: _first(
+            [
+                Path.home()
+                / "LTX-Renders"
+                / "trailers"
+                / "options-chain"
+                / "options_chain_trailer.mp4"
+            ]
+        ),
+        "sample_at": 6.0,
+        "sample_len": 5.0,
+    },
+    {
+        "id": "lesson-hub-trailer",
+        "engine": "Real product (no LTX, no Flow) + Flow cinematics",
+        "usage": "The learner dashboard/roadmap, pitched: one clear path through "
+        "options & markets",
+        "title": "Lesson Hub trailer",
+        "purpose": "1 real Flow cinematic shot plus real dashboard screenshots with "
+        "drawn highlights on the actual roadmap and module cards.",
+        "job": "lesson-hub-trailer",
+        "length": "~34s",
+        "kind": "video",
+        "find": lambda: _first(
+            [
+                Path.home()
+                / "LTX-Renders"
+                / "trailers"
+                / "lesson-hub"
+                / "lesson_hub_trailer.mp4"
+            ]
+        ),
+        "sample_at": 6.0,
+        "sample_len": 5.0,
+    },
+    {
+        "id": "insight-engine-trailer",
+        "engine": "Real product (no LTX, no Flow)",
+        "usage": "The strategy-selection simulator, pitched: see the trade-off "
+        "before you make the trade",
+        "title": "Insight Engine trailer",
+        "purpose": "Built entirely from real captures of the Iron Condor "
+        "strategy-selection flow, with drawn highlights - no cinematic shots "
+        "were generated for this one (Flow was out of video credits).",
+        "job": "insight-engine-trailer",
+        "length": "~26s",
+        "kind": "video",
+        "find": lambda: _first(
+            [
+                Path.home()
+                / "LTX-Renders"
+                / "trailers"
+                / "insight-engine"
+                / "insight_engine_trailer.mp4"
+            ]
+        ),
+        "sample_at": 6.0,
+        "sample_len": 5.0,
+    },
+    {
+        "id": "simulator-trailer",
+        "engine": "Real product (no LTX, no Flow)",
+        "usage": "The Guided Simulator workspace, pitched: practice the trade "
+        "before it's real",
+        "title": "Guided Simulator trailer",
+        "purpose": "Built entirely from real captures of the guided practice "
+        "workspace and the 5-step interactive simulation, with drawn highlights.",
+        "job": "simulator-trailer",
+        "length": "~26s",
+        "kind": "video",
+        "find": lambda: _first(
+            [
+                Path.home()
+                / "LTX-Renders"
+                / "trailers"
+                / "simulator"
+                / "simulator_trailer.mp4"
+            ]
+        ),
+        "sample_at": 6.0,
+        "sample_len": 5.0,
+    },
+    {
+        "id": "lesson-library-trailer",
+        "engine": "Real product (no LTX, no Flow)",
+        "usage": "The lesson catalog and achievements, pitched: curated paths, "
+        "real achievements",
+        "title": "Lesson Library trailer",
+        "purpose": "Built entirely from real captures of the library hero, mini "
+        "modules, achievement badges, and curriculum cards, with drawn highlights.",
+        "job": "lesson-library-trailer",
+        "length": "~26s",
+        "kind": "video",
+        "find": lambda: _first(
+            [
+                Path.home()
+                / "LTX-Renders"
+                / "trailers"
+                / "lesson-library"
+                / "lesson_library_trailer.mp4"
+            ]
+        ),
+        "sample_at": 6.0,
+        "sample_len": 5.0,
+    },
+    {
+        "id": "assistant-trailer",
+        "engine": "Real product (no LTX, no Flow)",
+        "usage": "The AI Assistant, pitched: ask questions, get grounded answers",
+        "title": "AI Assistant trailer",
+        "purpose": "Built entirely from a real capture of the assistant's chat "
+        "interface (lesson-aware mode, citation chips, concept highlights), with "
+        "drawn highlights.",
+        "job": "assistant-trailer",
+        "length": "~26s",
+        "kind": "video",
+        "find": lambda: _first(
+            [
+                Path.home()
+                / "LTX-Renders"
+                / "trailers"
+                / "assistant"
+                / "assistant_trailer.mp4"
+            ]
+        ),
+        "sample_at": 6.0,
+        "sample_len": 5.0,
+    },
+    {
+        "id": "trade-demos-trailer",
+        "engine": "Real product (no LTX, no Flow)",
+        "usage": "The 30-day trade timeline lab, pitched: watch a real trade play "
+        "out, day by day",
+        "title": "Trade Demo Timeline Lab trailer",
+        "purpose": "Built entirely from a real capture of the NVDA breakout call "
+        "spread timeline (daily narrative, Greeks snapshot), with drawn highlights.",
+        "job": "trade-demos-trailer",
+        "length": "~26s",
+        "kind": "video",
+        "find": lambda: _first(
+            [
+                Path.home()
+                / "LTX-Renders"
+                / "trailers"
+                / "trade-demos"
+                / "trade_demos_trailer.mp4"
+            ]
+        ),
+        "sample_at": 6.0,
+        "sample_len": 5.0,
+    },
+    {
+        "id": "mini-games-trailer",
+        "engine": "Real product (no LTX, no Flow)",
+        "usage": "The mini-games arcade, pitched: five fast drills for real "
+        "options skills",
+        "title": "Mini-Games trailer",
+        "purpose": "Built entirely from a real capture of the arcade catalog "
+        "(Sim Challenge, Strategy Builder, Risk Ladder, Scenario Sprint, Market "
+        "Maker Defense), with drawn highlights.",
+        "job": "mini-games-trailer",
+        "length": "~26s",
+        "kind": "video",
+        "find": lambda: _first(
+            [
+                Path.home()
+                / "LTX-Renders"
+                / "trailers"
+                / "mini-games"
+                / "mini_games_trailer.mp4"
+            ]
+        ),
+        "sample_at": 6.0,
+        "sample_len": 5.0,
+    },
+    {
+        "id": "market-maker-defense-trailer",
+        "engine": "Real product (no LTX, no Flow)",
+        "usage": "The Market Maker Defense mini-game, pitched: survive the "
+        "opening bell",
+        "title": "Market Maker Defense trailer",
+        "purpose": "Built entirely from real captures of the mission briefing "
+        "(delta & gamma concept) and the live trading HUD, with drawn highlights.",
+        "job": "market-maker-defense-trailer",
+        "length": "~26s",
+        "kind": "video",
+        "find": lambda: _first(
+            [
+                Path.home()
+                / "LTX-Renders"
+                / "trailers"
+                / "market-maker-defense"
+                / "market_maker_defense_trailer.mp4"
+            ]
+        ),
+        "sample_at": 6.0,
+        "sample_len": 5.0,
+    },
+    {
         "id": "animate-image",
         "engine": "Veo i2v (Flow)",
         "usage": "Turn any still into real animation: story art, keyframes, posters",

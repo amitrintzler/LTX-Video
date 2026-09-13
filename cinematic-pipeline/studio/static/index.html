@@ -315,7 +315,12 @@ async function loadGallery(){
   cards(g.audio,'audio','#gAudio');
   cards(g.images,'image','#gImages');
   cards(g.shots,'video','#gShots');
-  if(g.masters.length && !$('#player').src) show('video', g.masters[0].path, g.masters[0].name, g.masters[0].mib+' MiB');
+  // No default auto-play: whichever master has the newest mtime is not
+  // necessarily the one worth calling "the standard" - a dev/meta showreel
+  // re-rendered for an unrelated reason could outrank the actual product
+  // trailer just by timestamp. Land on "Nothing selected" and let the
+  // person pick, same as this page's very first load before any master
+  // existed.
   // Never truncate silently: a flat recency cap once hid a whole finished film
   // behind a week of the trailer's own re-renders. If the cap ever does bind,
   // say so instead of just dropping items off the end.

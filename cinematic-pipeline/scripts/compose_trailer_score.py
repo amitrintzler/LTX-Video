@@ -14,8 +14,10 @@ Key C minor, Aeolian, i-VI-III-VII (Cm - Ab - Eb - Bb). 128 BPM, 4/4: a bar is
 Measured targets, checked by the caller after rendering: treble (2-12kHz) at
 least 15% of band energy, roughly -15 LUFS standalone, no clipping.
 """
+
 from __future__ import annotations
 
+import argparse
 import sys
 from pathlib import Path
 
@@ -23,41 +25,121 @@ import numpy as np
 import soundfile as sf
 
 SR = 48000
+BARS = 32
+
+# Every voice below (supersaw, arp, hook lead, drums) is written against
+# module-level BPM/PROGRESSION/HOOK globals rather than passed parameters -
+# that was fine when there was exactly one cue. Now that a second preset
+# exists, PRESETS holds each one's (root shift in semitones, hook shape) and
+# _apply_preset() sets the globals from it before compose() runs, so every
+# voice function keeps working unmodified. "default" reproduces the original
+# Cm/128bpm cue byte-for-byte - existing callers (story_reel.py,
+# studio_showreel90.py without --preset) are unaffected.
+#
+# BPM is fixed at 128 for every preset, not a per-preset knob: 32 bars *
+# 1.875s/bar is exactly 60.0s at 128 BPM, and studio_showreel90.py's edit
+# aligns its six cuts to that exact runtime (see its own comment: "the
+# composed score is exactly 60s, and the cut must end inside it - a tail
+# past the score reads as a silent dropout in QA"). Any other BPM produces a
+# score shorter or longer than the video it's meant to score.
 BPM = 128.0
 BEAT = 60.0 / BPM
 BAR = BEAT * 4
-BARS = 32
 DUR = BAR * BARS
 
-# Cm scale degrees as MIDI numbers
-C3, EB3, F3, G3, AB3, BB3 = 48, 51, 53, 55, 56, 58
-C4, EB4, F4, G4, AB4, BB4 = 60, 63, 65, 67, 68, 70
-C5, EB5, G5 = 72, 75, 79
+PRESETS = {
+    # Cm, Aeolian, i-VI-III-VII. The original cue.
+    "default": {"root": 0, "hook": "default"},
+    # Up a fifth to Gm - brighter register, same mode and chord shapes -
+    # plus a reshaped hook (rising instead of the original's fall-then-hold)
+    # for a melody that doesn't just repeat the original one transposed.
+    "drive": {"root": 7, "hook": "rising"},
+}
 
-PROGRESSION = [  # one chord per bar, repeating: i VI III VII
-    [C3, EB3, G3],
-    [AB3 - 12, C4 - 12, EB4 - 12],
-    [EB3, G3, BB3],
-    [BB3 - 12, EB4 - 12, G4 - 12],
-]
 
-# The hook: eight notes, stated plainly so it can be remembered.
-HOOK = [(G4, 1.0), (EB4, 0.5), (F4, 0.5), (G4, 1.0), (BB4, 1.0), (G4, 0.5), (F4, 0.5), (EB4, 2.0)]
+def _apply_preset(name: str) -> None:
+    global C3, EB3, F3, G3, AB3, BB3, C4, EB4, F4, G4, AB4, BB4, C5, EB5, G5
+    global PROGRESSION, HOOK
+
+    p = PRESETS[name]
+    root = p["root"]
+
+    # Cm scale degrees as MIDI numbers, shifted by `root` semitones for
+    # other presets (the interval structure - i-VI-III-VII, the hook's
+    # melodic shape - stays identical; only the pitch centre moves).
+    C3, EB3, F3, G3, AB3, BB3 = (
+        48 + root,
+        51 + root,
+        53 + root,
+        55 + root,
+        56 + root,
+        58 + root,
+    )
+    C4, EB4, F4, G4, AB4, BB4 = (
+        60 + root,
+        63 + root,
+        65 + root,
+        67 + root,
+        68 + root,
+        70 + root,
+    )
+    C5, EB5, G5 = (72 + root, 75 + root, 79 + root)
+
+    PROGRESSION = [  # one chord per bar, repeating: i VI III VII
+        [C3, EB3, G3],
+        [AB3 - 12, C4 - 12, EB4 - 12],
+        [EB3, G3, BB3],
+        [BB3 - 12, EB4 - 12, G4 - 12],
+    ]
+
+    # The hook: eight notes, stated plainly so it can be remembered.
+    # "default": falls from the fifth, holds on the flat sixth, settles low.
+    # "rising": climbs instead - same 7-beat total, same chord tones, a
+    # genuinely different melodic shape rather than the same line transposed.
+    if p["hook"] == "rising":
+        HOOK = [
+            (EB4, 0.5),
+            (F4, 0.5),
+            (G4, 1.0),
+            (BB4, 0.5),
+            (C5, 0.5),
+            (BB4, 1.0),
+            (G4, 1.0),
+            (EB4, 2.0),
+        ]
+    else:
+        HOOK = [
+            (G4, 1.0),
+            (EB4, 0.5),
+            (F4, 0.5),
+            (G4, 1.0),
+            (BB4, 1.0),
+            (G4, 0.5),
+            (F4, 0.5),
+            (EB4, 2.0),
+        ]
+
+
+_apply_preset("default")
 
 
 def midi(n: float) -> float:
     return 440.0 * 2 ** ((n - 69) / 12.0)
 
 
-def env(n: int, attack: float, decay: float, sustain: float, release: float) -> np.ndarray:
+def env(
+    n: int, attack: float, decay: float, sustain: float, release: float
+) -> np.ndarray:
     a, d, r = int(attack * SR), int(decay * SR), int(release * SR)
     s = max(0, n - a - d - r)
-    return np.concatenate([
-        np.linspace(0, 1, a, endpoint=False) if a else np.array([]),
-        np.linspace(1, sustain, d, endpoint=False) if d else np.array([]),
-        np.full(s, sustain),
-        np.linspace(sustain, 0, r) if r else np.array([]),
-    ])[:n]
+    return np.concatenate(
+        [
+            np.linspace(0, 1, a, endpoint=False) if a else np.array([]),
+            np.linspace(1, sustain, d, endpoint=False) if d else np.array([]),
+            np.full(s, sustain),
+            np.linspace(sustain, 0, r) if r else np.array([]),
+        ]
+    )[:n]
 
 
 def place(buf: np.ndarray, sig: np.ndarray, at: float, gain: float = 1.0) -> None:
@@ -124,15 +206,21 @@ def bell(note: float, dur: float) -> np.ndarray:
     n = int(dur * SR)
     t = np.arange(n) / SR
     f = midi(note)
-    sig = (np.sin(2 * np.pi * f * t) + 0.5 * np.sin(2 * np.pi * f * 2.01 * t)
-           + 0.28 * np.sin(2 * np.pi * f * 3.02 * t) + 0.18 * np.sin(2 * np.pi * f * 4.7 * t)
-           + 0.10 * np.sin(2 * np.pi * f * 6.8 * t))
+    sig = (
+        np.sin(2 * np.pi * f * t)
+        + 0.5 * np.sin(2 * np.pi * f * 2.01 * t)
+        + 0.28 * np.sin(2 * np.pi * f * 3.02 * t)
+        + 0.18 * np.sin(2 * np.pi * f * 4.7 * t)
+        + 0.10 * np.sin(2 * np.pi * f * 6.8 * t)
+    )
     return sig * env(n, 0.003, 0.5, 0.10, dur * 0.5)
 
 
 def sub(note: float, dur: float) -> np.ndarray:
     n = int(dur * SR)
-    return np.sin(2 * np.pi * midi(note) * np.arange(n) / SR) * env(n, 0.01, 0.06, 0.9, 0.12)
+    return np.sin(2 * np.pi * midi(note) * np.arange(n) / SR) * env(
+        n, 0.01, 0.06, 0.9, 0.12
+    )
 
 
 def kick(dur: float = 0.42) -> np.ndarray:
@@ -218,7 +306,13 @@ def stab(chord, dur: float = 0.32) -> np.ndarray:
 
 def reverb(x: np.ndarray, amount: float = 0.28) -> np.ndarray:
     out = x.copy()
-    for delay_ms, gain in ((37, 0.34), (61, 0.28), (89, 0.22), (127, 0.16), (173, 0.11)):
+    for delay_ms, gain in (
+        (37, 0.34),
+        (61, 0.28),
+        (89, 0.22),
+        (127, 0.16),
+        (173, 0.11),
+    ):
         d = int(SR * delay_ms / 1000)
         tail = np.zeros_like(x)
         tail[d:] = x[:-d] * gain
@@ -230,10 +324,12 @@ def sidechain(n_total: int, first_bar: int) -> np.ndarray:
     """A smooth pump on every beat from `first_bar`: dip fast, breathe back."""
     g = np.ones(n_total)
     dip, back = int(0.05 * SR), int(0.30 * SR)
-    curve = np.concatenate([
-        1 - 0.55 * np.linspace(0, 1, dip) ** 0.5,
-        0.45 + 0.55 * (0.5 - 0.5 * np.cos(np.pi * np.linspace(0, 1, back))),
-    ])
+    curve = np.concatenate(
+        [
+            1 - 0.55 * np.linspace(0, 1, dip) ** 0.5,
+            0.45 + 0.55 * (0.5 - 0.5 * np.cos(np.pi * np.linspace(0, 1, back))),
+        ]
+    )
     for bar in range(first_bar, BARS):
         for beat in range(4):
             i = int((bar * BAR + beat * BEAT) * SR)
@@ -250,7 +346,7 @@ def compose() -> np.ndarray:
     hook = np.zeros(n_total)
     low = np.zeros(n_total)
     perc = np.zeros(n_total)
-    top = np.zeros(n_total)     # hats, shaker, ride: the mix's air lives here
+    top = np.zeros(n_total)  # hats, shaker, ride: the mix's air lives here
     fx = np.zeros(n_total)
 
     for bar in range(BARS):
@@ -266,8 +362,16 @@ def compose() -> np.ndarray:
                 place(pads, supersaw(note + 24, BAR * 0.99), t0, pad_gain * 0.35)
 
         # 16th-note arp over chord tones plus the octave.
-        seq = [chord[0], chord[1], chord[2], chord[1] + 12,
-               chord[0] + 12, chord[2], chord[1], chord[2] + 12]
+        seq = [
+            chord[0],
+            chord[1],
+            chord[2],
+            chord[1] + 12,
+            chord[0] + 12,
+            chord[2],
+            chord[1],
+            chord[2] + 12,
+        ]
         arp_gain = (0.16, 0.22, 0.26, 0.20)[act]
         for i in range(16):
             note = seq[i % 8] + 12
@@ -325,7 +429,14 @@ def compose() -> np.ndarray:
 
     pump = sidechain(n_total, first_bar=8)
     sustained = reverb(pads, 0.30) * pump + arp * (0.4 + 0.6 * pump)
-    mix = sustained + reverb(hook, 0.24) + low * 0.8 * pump + perc * 0.9 + top * 1.5 + reverb(fx, 0.2)
+    mix = (
+        sustained
+        + reverb(hook, 0.24)
+        + low * 0.8 * pump
+        + perc * 0.9
+        + top * 1.5
+        + reverb(fx, 0.2)
+    )
 
     fade_in = int(0.8 * SR)
     mix[:fade_in] *= np.linspace(0, 1, fade_in)
@@ -348,10 +459,18 @@ def compose() -> np.ndarray:
 
 
 def main() -> int:
-    out = Path(sys.argv[1]) if len(sys.argv) > 1 else Path("composed_score.wav")
+    ap = argparse.ArgumentParser()
+    ap.add_argument("out", nargs="?", default="composed_score.wav")
+    ap.add_argument("--preset", choices=sorted(PRESETS), default="default")
+    args = ap.parse_args()
+
+    _apply_preset(args.preset)
+    out = Path(args.out)
     audio = compose()
     sf.write(out, audio, SR)
-    print(f"wrote {out} {len(audio)/SR:.2f}s @ {BPM:g} BPM, {BARS} bars")
+    print(
+        f"wrote {out} {len(audio) / SR:.2f}s @ {BPM:g} BPM, preset={args.preset!r}, {BARS} bars"
+    )
     return 0
 
 

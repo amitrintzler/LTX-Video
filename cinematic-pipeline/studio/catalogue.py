@@ -520,6 +520,31 @@ KINDS: list[dict[str, Any]] = [
         "sample_len": 5.0,
     },
     {
+        "id": "capabilities-reel",
+        "engine": "All 10 feature trailers + all six engines",
+        "usage": 'The single answer to "show me everything this studio can do" - '
+        "highlights from every feature trailer plus the six-engines showreel, cut "
+        "as one piece",
+        "title": "Studio capabilities reel",
+        "purpose": "A three-act cut (WHY the product, WORLD the game, HOW the six "
+        "engines build it) built from a Hollywood trailer-music-supervisor consult: "
+        "one licensed bed carries the whole reel with per-act volume automation, "
+        "the code-composed synth supplies only three one-shot transition stingers.",
+        "job": "capabilities-reel",
+        "length": "~118s",
+        "kind": "video",
+        "find": lambda: _first(
+            [
+                Path.home()
+                / "LTX-Renders"
+                / "studio-capabilities-reel"
+                / "studio_capabilities_reel.mp4"
+            ]
+        ),
+        "sample_at": 5.0,
+        "sample_len": 5.0,
+    },
+    {
         "id": "cinematic-project",
         "engine": "Motion gfx / parallax / LTX-2",
         "usage": "Openmontage promo projects: Game of Options promo, trader films, "

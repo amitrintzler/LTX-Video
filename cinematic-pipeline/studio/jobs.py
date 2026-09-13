@@ -456,6 +456,16 @@ def build_showreel(p: dict[str, Any], job: Job) -> list[str]:
     ]
 
 
+def build_capabilities_reel(p: dict[str, Any], job: Job) -> list[str]:
+    """The full "everything this studio makes" reel: highlights from all 10
+    feature trailers plus the six-engines showreel, one cut. See
+    scripts/studio_capabilities_reel.py. Needs every source trailer and the
+    showreel's five engine chapters already rendered - it only re-cuts and
+    re-scores existing output, no GPU or Flow session required.
+    """
+    return [sys.executable, str(SCRIPTS / "studio_capabilities_reel.py")]
+
+
 CINEMATIC = REPO / "cinematic-pipeline"
 PROJECTS_DIR = CINEMATIC / "projects"
 
@@ -706,6 +716,13 @@ SPECS: dict[str, JobSpec] = {
             "Build one stage of the six-engine studio showreel",
             build_showreel,
             "~1-35 min per stage",
+        ),
+        JobSpec(
+            "capabilities-reel",
+            False,
+            "Everything this studio makes: all 10 trailers + six engines, one cut",
+            build_capabilities_reel,
+            "~2 min",
         ),
         JobSpec(
             "cinematic-project",

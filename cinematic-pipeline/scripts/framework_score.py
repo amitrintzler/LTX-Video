@@ -728,29 +728,36 @@ class Score:
             r = root + 12 * (lo + 1)
             return [r, r + 7, r + 12, r + 16]
 
-        # the hook is a cinematic build, not a bed: a drone, a war-drum heartbeat, choir,
-        # strings and horns crescendoing into the drop, so the ten seconds before it are
-        # music with a voice on top of it
+        # the hook is a cinematic build, not a bed. The weight (drone, war drums) is
+        # felt, but on laptop speakers only the mid range is heard, so the hook also has
+        # a rhythmic pulse, strings, choir and the staircase theme on horns from the
+        # first bar, all crescendoing into the drop.
         drone = sub_bass(38, 16 * B)
         drone = drone * np.linspace(0.5, 1.0, len(drone)) ** 1.2
         self.add("bass", drone, 0.0, 0.9)
-        for b0, g in ((0, 0.5), (4, 0.6), (8, 0.7)):
+        for b0, g in ((0, 0.6), (4, 0.6), (8, 0.7)):
             self.add("taiko", taiko(1.4, 48), bt(b0), g)
         for k in range(6):  # a pulse on every beat into the drop, growing
             self.add("taiko", taiko(0.7, 54 + k), bt(10 + k), 0.4 + 0.1 * k)
-        for bar, g in ((0, 0.22), (1, 0.3), (2, 0.42), (3, 0.55)):
+        for bar, g in ((0, 0.4), (1, 0.5), (2, 0.65), (3, 0.8)):
             chord = [m + 12 for m in pad_of(bar)[1:]] + [pad_of(bar)[3] + 12]
             self.add("choir", choir_chord(chord, 4 * B), bt(bar * 4), g)
-        for bar in (2, 3):  # strings: eighths, then sixteenths, getting louder
+        for bar, g in ((0, 0.22), (1, 0.28), (2, 0.38), (3, 0.5)):  # strings, eighths then sixteenths
             _, root, _ = self.chord(bar)
-            steps = 8 if bar == 2 else 16
+            steps = 16 if bar == 3 else 8
             for i in range(steps):
                 m = root + 24 + (7 if i % 4 == 2 else 0)
-                self.add("keys", string_stac(m, 0.11), bt(bar * 4 + i * 4 / steps), 0.12 + 0.2 * (i / steps + bar - 2), -0.1)
-        for bar, g in ((2, 0.4), (3, 0.75)):  # horns swell in under the voice
+                self.add("keys", string_stac(m, 0.11), bt(bar * 4 + i * 4 / steps), g * (0.7 + 0.3 * i / steps), -0.1)
+        for bar, g in ((0, 0.55), (1, 0.65), (2, 0.8), (3, 0.9)):  # an arpeggio pulse from beat one
+            _, _, arp = self.chord(bar)
+            for i, idx in enumerate([0, 1, 2, 3, 2, 3, 4, 3]):
+                self.add("keys", marimba(arp[idx], 0.3), bt(bar * 4 + i * 0.5), g * 0.5, -0.35 + 0.1 * i)
+        for bar, g in ((1, 0.5), (2, 0.8), (3, 1.0)):  # horns swell in
             _, root, _ = self.chord(bar)
             for m in (root + 12, root + 19, root + 24):
                 self.add("brass", horn_swell(m, 4 * B), bt(bar * 4), g)
+        for beat, m, d in THEMES[1]:  # the staircase theme, announced on horns
+            self.add("brass", brass_chord([m, m + 7], d * B * 0.95, 0.3), bt(8 + beat), 0.55)
 
         # choir: enters with the drop, thickens as the moves close, carries the portal
         for bar in range(ev["drop"] // 4, ev["struct"] // 4):
@@ -817,7 +824,7 @@ class Score:
             i0, i1 = int(tk * SR), min(self.n, int((tk + 0.32) * SR))
             if i0 < self.n:
                 duck[i0:i1] *= 1 - 0.38 * np.exp(-(t[i0:i1] - tk) / 0.085)
-        levels = {"drums": 1.0, "kick": 0.42, "bass": 0.36, "pad": 1.25, "keys": 1.7, "fx": 0.7, "brass": 1.0, "choir": 1.0, "taiko": 0.9}
+        levels = {"drums": 1.0, "kick": 0.32, "bass": 0.26, "pad": 1.4, "keys": 2.2, "fx": 0.55, "brass": 1.35, "choir": 1.35, "taiko": 0.6}
         ducked = {"pad": 1.0, "bass": 0.7, "keys": 0.5}
         big = reverb_ir(2.4, 100)
         hall = reverb_ir(3.8, 300, 4500)
@@ -839,11 +846,11 @@ class Score:
         ev = self.ev
         kb, kg = zip(
             *[
-                (0, 2.1), (10, 2.1), (ev["drop"] - 0.01, 1.6), (ev["drop"], 1.9),
-                (ev["moves"] + 16, 1.4), (ev["struct"], 1.45),
-                (ev["examples"] - 0.1, 1.45), (ev["examples"], 1.1), (ev["examples"] + 4, 1.35),
-                (portal := ev["portal"], 1.5), (portal + 8, 1.6), (portal + 23, 1.65),
-                (portal + 23.5, 0.6), (ev["cta"] - 0.3, 0.6), (ev["cta"], 1.9), (ev["end"], 1.5),
+                (0, 2.1), (10, 2.1), (ev["drop"] - 0.01, 1.6), (ev["drop"], 2.6),
+                (ev["moves"] + 16, 2.0), (ev["struct"], 2.05),
+                (ev["examples"] - 0.1, 2.05), (ev["examples"], 1.5), (ev["examples"] + 4, 1.9),
+                (portal := ev["portal"], 2.1), (portal + 8, 2.25), (portal + 23, 2.3),
+                (portal + 23.5, 0.8), (ev["cta"] - 0.3, 0.8), (ev["cta"], 2.7), (ev["end"], 2.1),
             ]
         )
         out = out * np.interp(t / self.beat, kb, kg)[:, None]
@@ -853,14 +860,14 @@ class Score:
         # no global saturation: dynamics are the point. Peak-normalise only.
         out = out / (np.max(np.abs(out)) + 1e-9) * 0.9
         # narration on top; the music ducks under it
+        ev0 = self.ev["drop"] * self.beat
         if len(voice):
             g = np.ones(self.n)
-            ev0 = self.ev["drop"] * self.beat
             for at, v in voice:
                 i0 = int(at * SR)
                 if i0 >= self.n:
                     continue
-                depth = 0.72 if at < ev0 else 0.3  # the hook keeps its music under the voice
+                depth = 0.8 if at < ev0 else 0.3  # the hook keeps its music under the voice
                 pts_t = [at - 0.35, at - 0.05, at + len(v) / SR + 0.05, at + len(v) / SR + 0.55]
                 seg = np.interp(t, pts_t, [1, depth, depth, 1])
                 g = np.minimum(g, seg)
@@ -869,7 +876,7 @@ class Score:
                 i0 = int(at * SR)
                 if i0 < self.n:
                     j = min(self.n, i0 + len(v))
-                    out[i0:j] += v[: j - i0] * 0.8
+                    out[i0:j] += v[: j - i0] * (0.62 if at < ev0 else 0.8)
         n = int((self.t_end + 1.0) * SR)
         return out[:n].astype(np.float32)
 

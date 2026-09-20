@@ -27,13 +27,13 @@ pixel of UI is real. The methodology and example beats are motion design, not
 UI mock-ups - they say so by looking like graphics, and contain only the
 page's own text.
 
-Music: one licensed bed (Pixabay Content License, "Cinematic Trailer" by
-NastelBom - see examples/ltx25-optionseducator/LICENSING.md), cut on its own
-beat grid. Measured, not guessed: 97.35 BPM, first beat at 0.003s, and a
-+10.8 dB "drop" at 14.80s. The first 8 beats are skipped so the drop lands at
-9.86s (beat 16 of the video), which is where the hook ends and the 5 moves
-begin. Every scene change starts on a beat. Sound design is one-shots only:
-soft ticks per move, a riser into the drop, a crash on the finale hit.
+Music: an original score written for this film (framework_score.py,
+synthesised with numpy, no third-party audio) on the video's own 97.35 BPM
+beat grid. It is built the way the method is built: one bell note (the idea),
+the drop, then each of the five moves adds a voice, the key lifts a whole tone
+for the portal act, where every format (lesson, video, podcast, story, game,
+open world...) enters in its own timbre, and the loop closes on the tonic.
+Every scene change starts on a beat.
 
 Usage:
     framework_design_video.py --stills 3,8,12,20     # QA frames -> work/stills/
@@ -61,18 +61,9 @@ HERE = Path(__file__).resolve().parent
 OUT_DIR = Path.home() / "LTX-Renders" / "framework-design"
 WORK = OUT_DIR / "work"
 FONTS = Path.home() / "LTX-Studio" / "fonts"
-MUSIC = (
-    Path.home()
-    / "LTX-Renders"
-    / "ltx25-optionseducator-trailer60"
-    / "music-candidates"
-    / "2_main_title_nastelbom.mp3"
-)
-
 # ---- music grid (measured; see module docstring) ---------------------------
 BPM = 97.35
 BEAT = 60.0 / BPM
-SKIP_BEATS = 8  # music beats dropped from the start so the drop lands at video beat 16
 
 
 def bt(b: float) -> float:
@@ -1393,106 +1384,44 @@ def frame_at(t: float, scenes) -> Image.Image:
     return fr
 
 
-# ---- sound design + mix -----------------------------------------------------
-def build_sfx() -> Path:
-    import soundfile as sf
-
+# ---- score + mix -------------------------------------------------------------
+def build_score() -> Path:
     sys.path.insert(0, str(HERE))
-    import compose_trailer_score as cts
+    import framework_score
 
-    cts._apply_preset("default")
-    sr = 48000
-    buf = np.zeros((int(T_END * sr) + sr, 2), np.float32)
-
-    def put(sig, at, gain):
-        sig = np.asarray(sig, np.float32)
-        if sig.ndim == 1:
-            sig = np.stack([sig, sig], 1)
-        i = int(at * sr)
-        j = min(len(buf), i + len(sig))
-        if i < len(buf):
-            buf[i:j] += sig[: j - i] * gain
-
-    def tick():
-        n = int(0.16 * sr)
-        tt = np.arange(n) / sr
-        return (
-            np.sin(2 * np.pi * 1320 * tt) * 0.8 + np.sin(2 * np.pi * 2640 * tt) * 0.25
-        ) * np.exp(-tt * 34)
-
-    def whoosh(dur=0.55):
-        n = int(dur * sr)
-        rng = np.random.default_rng(5)
-        noise = rng.normal(0, 1, n)
-        k = np.linspace(0.05, 0.6, n)
-        out = np.zeros(n)
-        lp = 0.0
-        for i in range(n):
-            lp += k[i] * (noise[i] - lp)
-            out[i] = lp
-        env = np.sin(np.pi * np.linspace(0, 1, n)) ** 2
-        return out * env * 1.6
-
-    for i in range(5):  # one soft tick as each move begins
-        put(tick(), bt(B_MOVES + 8 * i), 0.22)
-    for b in (B_STRUCT, B_EXAMPLES, B_PORTAL, B_CTA):
-        put(whoosh(), bt(b) - 0.12, 0.11)
-    for b in (B_EXAMPLES + 8, B_PORTAL + 7, B_PORTAL + 11, B_PORTAL + 15, B_PORTAL + 19, B_PORTAL + 23):
-        put(tick(), bt(b), 0.16)
-    riser = cts.riser(2 * BEAT)
-    put(riser / (np.max(np.abs(riser)) + 1e-9), bt(B_DROP) - 2 * BEAT, 0.55)
-    imp = cts.kick(0.5)
-    put(imp / (np.max(np.abs(imp)) + 1e-9), bt(B_DROP), 0.7)
-    cr = cts.crash(1.6)
-    put(cr / (np.max(np.abs(cr)) + 1e-9), bt(B_DROP), 0.32)
-    fin = cts.crash(2.2)
-    put(fin / (np.max(np.abs(fin)) + 1e-9), bt(114.8), 0.42)
-    path = WORK / "sfx.wav"
-    sf.write(path, buf, sr)
+    path = WORK / "score.wav"
+    ev = dict(
+        drop=B_DROP,
+        moves=B_MOVES,
+        struct=B_STRUCT,
+        examples=B_EXAMPLES,
+        portal=B_PORTAL,
+        cta=B_CTA,
+        end=B_END,
+        finale=114.8,
+    )
+    framework_score.build_score(BPM, T_END, ev, path)
     return path
 
 
-def mix_and_mux(video: Path, sfx: Path, out: Path) -> None:
-    """Inputs: 0 = silent video, 1 = licensed bed (first SKIP_BEATS beats
-    skipped so its drop lands on video beat 16), 2 = one-shot sound design."""
-    skip = SKIP_BEATS * BEAT
+def mix_and_mux(video: Path, score: Path, out: Path) -> None:
+    """Inputs: 0 = silent video (copied, never re-encoded), 1 = the score."""
     fc = (
-        f"[1:a]atrim=0:{T_END:.3f},asetpts=PTS-STARTPTS,afade=t=in:d=0.9,"
-        f"afade=t=out:st={T_END - 2.6:.3f}:d=2.6[m];"
-        "[m][2:a]amix=inputs=2:duration=first:dropout_transition=0:normalize=0,"
+        f"[1:a]atrim=0:{T_END:.3f},asetpts=PTS-STARTPTS,afade=t=in:d=0.25,"
+        f"afade=t=out:st={T_END - 2.6:.3f}:d=2.6,"
         "aresample=48000,loudnorm=I=-16.5:TP=-2:LRA=8,aresample=48000,"
         "alimiter=limit=0.7:level=0[a]"
     )
     subprocess.run(
         [
-            "ffmpeg",
-            "-y",
-            "-loglevel",
-            "error",
-            "-i",
-            str(video),
-            "-ss",
-            f"{skip:.4f}",
-            "-i",
-            str(MUSIC),
-            "-i",
-            str(sfx),
-            "-filter_complex",
-            fc,
-            "-map",
-            "0:v",
-            "-map",
-            "[a]",
-            "-c:v",
-            "copy",
-            "-c:a",
-            "aac_at",
-            "-b:a",
-            "224k",
-            "-t",
-            f"{T_END:.3f}",
-            "-movflags",
-            "+faststart",
+            "ffmpeg", "-y", "-loglevel", "error",
+            "-i", str(video),
+            "-i", str(score),
+            "-filter_complex", fc,
+            "-map", "0:v", "-map", "[a]",
+            "-c:v", "copy", "-c:a", "aac_at", "-b:a", "224k",
+            "-t", f"{T_END:.3f}",
+            "-movflags", "+faststart",
             str(out),
         ],
         check=True,
@@ -1572,9 +1501,9 @@ def main() -> int:
     if not args.no_render:
         print(f"rendering {T_END:.2f}s @ {FPS}fps ...", flush=True)
         render_video(scenes, video_only)
-    sfx = build_sfx()
+    score = build_score()
     final = OUT_DIR / "framework-demo.mp4"
-    mix_and_mux(video_only, sfx, final)
+    mix_and_mux(video_only, score, final)
     poster = OUT_DIR / "framework-demo.jpg"
     poster_frame().save(poster, quality=90)
     print(f"final={final}  poster={poster}  ({T_END:.1f}s)", flush=True)

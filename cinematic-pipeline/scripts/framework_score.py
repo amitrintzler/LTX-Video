@@ -301,6 +301,46 @@ def whoosh(dur=0.6):
     )
 
 
+def taiko(dur=1.3, pitch=50):
+    """A big war drum: pitched skin with a long body, felt more than heard."""
+    n = int(dur * SR)
+    t = tvec(n)
+    ph = TAU * np.cumsum(pitch + 75 * np.exp(-t * 20)) / SR
+    body = np.sin(ph) * np.exp(-t * 3.6)
+    skin = bp(noise(n, 21), 160, 1100) * np.exp(-t * 26) * 0.55
+    return (body + skin) * (1 - np.exp(-t * 900))
+
+
+def brass_chord(notes, dur, rel=0.8):
+    """Section brass: detuned saw stack, a bright blat on the attack settling darker."""
+    n = int((dur + rel) * SR)
+    t = tvec(n)
+    x = np.zeros(n)
+    for i, m in enumerate(notes):
+        f = hz(m)
+        x += saw(f * 0.9993, n, ph=0.11 * i) + saw(f * 1.0007, n, ph=0.29 * i)
+    x /= 2 * len(notes)
+    dark, bright = lp(x, 1200), lp(x, 4200)
+    blat = np.exp(-t * 2.6) * 0.9 + 0.3
+    y = dark + (bright - dark) * blat
+    return y * adsr(n, 0.09, 0.3, 0.85, dur, rel)
+
+
+def choir_chord(notes, dur):
+    """Wordless choir: every note a slightly detuned breathy vowel."""
+    out = None
+    for i, m in enumerate(notes):
+        v = voice_ah(m + 0.07 * (i - len(notes) / 2), dur)
+        out = v if out is None else out[: min(len(out), len(v))] + v[: min(len(out), len(v))]
+    return out / (len(notes) ** 0.6)
+
+
+def string_stac(m, dur=0.13):
+    n = int((dur + 0.05) * SR)
+    x = (saw(hz(m), n) + saw(hz(m) * 1.004, n, ph=0.3)) / 2
+    return lp(x, 2600) * adsr(n, 0.006, 0.05, 0.45, dur, 0.05) * 0.8
+
+
 # ---- the arrangement --------------------------------------------------------
 # One chord per bar. Rows: (pad voicing, bass root, 5-tone arp ladder).
 PROG = [
@@ -341,7 +381,7 @@ class Score:
         self.ev = ev
         self.n = int((t_end + 1.5) * SR)
         self.bus = {
-            k: np.zeros((self.n, 2)) for k in ("drums", "kick", "bass", "pad", "keys", "fx")
+            k: np.zeros((self.n, 2)) for k in ("drums", "kick", "bass", "pad", "keys", "fx", "brass", "choir", "taiko")
         }
         self.kicks: list[float] = []
 
@@ -672,8 +712,80 @@ class Score:
                 -0.3 + 0.2 * j,
             )
 
-    def render(self):
+    def epic(self):
+        """Scale: war drums, brass, choir and a driving string ostinato laid over
+        the arrangement, so the film grows from an idea into something that
+        feels big. Same key and chords, so nothing here can clash."""
+        ev, bt, B = self.ev, self.bt, self.beat
+        m3, m4 = ev["moves"] + 16, ev["moves"] + 24
+        portal, cta, end_bar = ev["portal"], ev["cta"], int(ev["finale"] // 4 + 1) * 4
+
+        def pad_of(bar):
+            return self.chord(bar)[0]
+
+        def fifth_stack(bar, lo=1):  # root, fifth, octave, in brass range
+            pad, root, _ = self.chord(bar)
+            r = root + 12 * (lo + 1)
+            return [r, r + 7, r + 12, r + 16]
+
+        # choir: enters with the drop, thickens as the moves close, carries the portal
+        for bar in range(ev["drop"] // 4, ev["struct"] // 4):
+            g = 0.32 if bar * 4 < m3 else 0.42
+            chord = [m + 12 for m in pad_of(bar)[1:]] + [pad_of(bar)[3] + 12]
+            self.add("choir", choir_chord(chord, 4 * B), bt(bar * 4), g)
+        for bar in range(portal // 4 + 1, ev["portal"] // 4 + 6):
+            chord = [m + 12 for m in pad_of(bar)[1:]] + [pad_of(bar)[3] + 12]
+            self.add("choir", choir_chord(chord, 4 * B), bt(bar * 4), 0.5)
+
+        # war drums: a heartbeat under the moves, then every bar of the portal
+        b = m3
+        while b < ev["portal"] + 23:
+            if not (ev["examples"] <= b < ev["examples"] + 4):
+                if int(b) % 4 == 0:
+                    self.add("taiko", taiko(1.5, 48), bt(b), 0.9)
+                elif int(b) % 4 == 2 and b >= ev["struct"]:
+                    self.add("taiko", taiko(0.9, 56), bt(b + 0.5), 0.55)
+            b += 1
+        # drum rolls into each new act: sixteenths crescendoing over the last beat
+        for boundary in (ev["struct"], ev["examples"], portal, cta):
+            for k in range(8):
+                self.add("taiko", taiko(0.35, 60 + 2 * k), bt(boundary - 2 + k * 0.25), 0.25 + 0.09 * k)
+            self.add("taiko", taiko(2.0, 44), bt(boundary), 1.0)
+            self.add("fx", boom(3.0), bt(boundary), 0.7)
+
+        # strings: a driving 16th ostinato from the reps onward
+        for bar in range(m4 // 4, ev["examples"] // 4):
+            _, root, _ = self.chord(bar)
+            for i in range(16):
+                m = root + 24 + (7 if i % 4 == 2 else 0)
+                self.add("keys", string_stac(m, 0.11), bt(bar * 4 + i * 0.25), 0.2, -0.15 + 0.02 * (i % 4))
+        for bar in range(ev["examples"] // 4 + 1, ev["examples"] // 4 + 4):
+            _, root, _ = self.chord(bar)
+            for i in range(16):
+                m = root + 24 + (7 if i % 4 == 2 else 0)
+                self.add("keys", string_stac(m, 0.11), bt(bar * 4 + i * 0.25), 0.2 + 0.03 * (bar - ev["examples"] // 4), 0.1)
+
+        # brass: fanfare chords at each act, and the staircase theme carried by horns
+        for boundary, bars in ((ev["struct"], 2), (portal, 6), (cta, 1)):
+            for bar in range(boundary // 4, boundary // 4 + bars):
+                self.add("brass", brass_chord(fifth_stack(bar), 4 * B), bt(bar * 4), 0.6 if bars > 1 else 0.85)
+        for u0, unit in ((portal + 8, THEMES[0]), (portal + 16, THEMES[1])):
+            for beat, m, d in unit:
+                mm = m + LIFT
+                self.add("brass", brass_chord([mm, mm + 7], d * B * 0.95, 0.3), bt(u0 + beat), 0.42)
+
+        # the finale: everything at once, then one long tonic
+        c0 = bt(cta)
+        self.add("choir", choir_chord([64 + LIFT + 12, 68 + LIFT + 12, 71 + LIFT + 12, 76 + LIFT], 3.6), c0, 0.6)
+        self.add("brass", brass_chord([52 + LIFT, 59 + LIFT, 64 + LIFT, 68 + LIFT], 2.8), bt(ev["finale"]), 0.9)
+        self.add("taiko", taiko(2.4, 44), bt(ev["finale"]), 1.0)
+        self.add("choir", choir_chord([64 + LIFT + 12, 68 + LIFT + 12, 71 + LIFT + 12, 76 + LIFT + 12], 6.0), bt(end_bar), 0.62)
+        self.add("brass", brass_chord([40 + LIFT + 12, 47 + LIFT + 12, 52 + LIFT + 12, 56 + LIFT + 12], 5.0), bt(end_bar), 0.6)
+        self.add("taiko", taiko(3.0, 42), bt(end_bar), 1.0)
+
+    def render(self, voice=()):
         self.compose()
+        self.epic()
         # sidechain: every kick ducks pad, bass and keys so the groove breathes
         t = np.arange(self.n) / SR
         duck = np.ones(self.n)
@@ -681,9 +793,10 @@ class Score:
             i0, i1 = int(tk * SR), min(self.n, int((tk + 0.32) * SR))
             if i0 < self.n:
                 duck[i0:i1] *= 1 - 0.38 * np.exp(-(t[i0:i1] - tk) / 0.085)
-        levels = {"drums": 1.0, "kick": 0.42, "bass": 0.36, "pad": 1.25, "keys": 1.7, "fx": 0.7}
+        levels = {"drums": 1.0, "kick": 0.42, "bass": 0.36, "pad": 1.25, "keys": 1.7, "fx": 0.7, "brass": 1.0, "choir": 1.0, "taiko": 0.9}
         ducked = {"pad": 1.0, "bass": 0.7, "keys": 0.5}
         big = reverb_ir(2.4, 100)
+        hall = reverb_ir(3.8, 300, 4500)
         room = reverb_ir(0.6, 200, 4000)
         out = np.zeros((self.n, 2))
         for name, x in self.bus.items():
@@ -691,6 +804,8 @@ class Score:
                 x = x * (1 - ducked[name] * (1 - duck))[:, None]
             if name in ("pad", "keys", "fx"):
                 x = apply_reverb(x, big, {"pad": 0.55, "keys": 0.45, "fx": 0.35}[name])
+            elif name in ("brass", "choir", "taiko"):
+                x = apply_reverb(x, hall, {"brass": 0.55, "choir": 0.8, "taiko": 0.4}[name])
             elif name == "drums":
                 x = apply_reverb(x, room, 0.18)
             out += x * levels[name]
@@ -698,21 +813,43 @@ class Score:
         # the film's own dynamics: quiet idea, building moves, the portal as the peak,
         # a hush for the closing line, then the call to action
         ev = self.ev
-        kb = [0, ev["drop"] - 0.01, ev["drop"], ev["moves"] + 40, ev["struct"] + 12, ev["examples"] + 16,
-              ev["portal"] + 8, ev["portal"] + 23, ev["portal"] + 23.5, ev["cta"] - 0.3, ev["cta"], ev["end"]]
-        kg = [0.9, 0.9, 0.9, 1.0, 1.0, 0.98, 1.3, 1.3, 0.85, 0.85, 1.32, 1.15]
+        kb, kg = zip(
+            *[
+                (0, 0.55), (ev["drop"] - 0.01, 0.55), (ev["drop"], 1.0),
+                (ev["moves"] + 16, 0.95), (ev["struct"], 1.08),
+                (ev["examples"] - 0.1, 1.08), (ev["examples"], 0.8), (ev["examples"] + 4, 1.0),
+                (portal := ev["portal"], 1.2), (portal + 8, 1.3), (portal + 23, 1.35),
+                (portal + 23.5, 0.5), (ev["cta"] - 0.3, 0.5), (ev["cta"], 1.6), (ev["end"], 1.25),
+            ]
+        )
         out = out * np.interp(t / self.beat, kb, kg)[:, None]
         # a breath of silence just before the drop, so it hits instead of arriving
         d0 = ev["drop"] * self.beat
         out = out * np.interp(t, [d0 - 0.13, d0 - 0.115, d0 - 0.01, d0], [1, 0.05, 0.05, 1])[:, None]
-        peak = np.max(np.abs(out)) + 1e-9
-        out = np.tanh(out / peak * 1.25) / np.tanh(1.25) * 0.85
+        # no global saturation: dynamics are the point. Peak-normalise only.
+        out = out / (np.max(np.abs(out)) + 1e-9) * 0.9
+        # narration on top; the music ducks under it
+        if len(voice):
+            g = np.ones(self.n)
+            for at, v in voice:
+                i0 = int(at * SR)
+                if i0 >= self.n:
+                    continue
+                pts_t = [at - 0.35, at - 0.05, at + len(v) / SR + 0.05, at + len(v) / SR + 0.55]
+                seg = np.interp(t, pts_t, [1, 0.3, 0.3, 1])
+                g = np.minimum(g, seg)
+            out = out * g[:, None]
+            for at, v in voice:
+                i0 = int(at * SR)
+                if i0 < self.n:
+                    j = min(self.n, i0 + len(v))
+                    out[i0:j] += v[: j - i0] * 0.8
         n = int((self.t_end + 1.0) * SR)
         return out[:n].astype(np.float32)
 
 
-def build_score(bpm: float, t_end: float, ev: dict, path) -> str:
+def build_score(bpm: float, t_end: float, ev: dict, path, voice=()) -> str:
     import soundfile as sf
 
-    sf.write(str(path), Score(bpm, t_end, ev).render(), SR)
+    sf.write(str(path), Score(bpm, t_end, ev).render(voice), SR)
     return str(path)

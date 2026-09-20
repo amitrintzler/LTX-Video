@@ -45,6 +45,7 @@ from __future__ import annotations
 import argparse
 import json
 import math
+import re
 import subprocess
 import sys
 from functools import lru_cache
@@ -1385,9 +1386,25 @@ def frame_at(t: float, scenes) -> Image.Image:
 
 
 # ---- score + mix -------------------------------------------------------------
+def voice_script():
+    """The narration: (text, speed, start seconds). Every phrase is the page's own
+    copy, placed on the on-screen text and kept out of the dense passages."""
+    cl, c0 = bt(B_PORTAL + 23), bt(B_CTA)
+    return [
+        ("One idea.", 0.92, 2.85),
+        ("A whole learning portal.", 0.92, 4.1),
+        ("Lessons, videos, podcasts, stories, games, and an open world.", 1.0, bt(B_PORTAL) + 0.2),
+        ("One idea.", 0.92, cl + 0.05),
+        ("A full learning portal.", 0.92, cl + 1.05),
+        ("For you only.", 0.9, cl + 2.45),
+        ("Ready to design your own framework?", 0.95, c0 + 0.65),
+    ]
+
+
 def build_score() -> Path:
     sys.path.insert(0, str(HERE))
     import framework_score
+    import framework_voice
 
     path = WORK / "score.wav"
     ev = dict(
@@ -1400,17 +1417,34 @@ def build_score() -> Path:
         end=B_END,
         finale=114.8,
     )
-    framework_score.build_score(BPM, T_END, ev, path)
+    script = voice_script()
+    clips = framework_voice.render_lines([(t, sp) for t, sp, _ in script], WORK / "vo")
+    voice = [(at, y) for (_, _, at), y in zip(script, clips)]
+    for (text, _, at), (_, y) in zip(script, voice):
+        print(f"  vo {at:6.2f}-{at + len(y) / 48000 - 0.9:6.2f}s  {text}", flush=True)
+    framework_score.build_score(BPM, T_END, ev, path, voice=voice)
     return path
 
 
-def mix_and_mux(video: Path, score: Path, out: Path) -> None:
-    """Inputs: 0 = silent video (copied, never re-encoded), 1 = the score."""
+def _measure_lufs(path: Path) -> float:
+    r = subprocess.run(
+        ["ffmpeg", "-hide_banner", "-nostats", "-i", str(path), "-af",
+         "loudnorm=I=-16:TP=-1.5:LRA=11:print_format=json", "-f", "null", "-"],
+        capture_output=True, text=True, check=True,
+    )
+    blob = re.search(r"\{[^{}]*\}", r.stderr, re.S).group(0)
+    return float(json.loads(blob)["input_i"])
+
+
+def mix_and_mux(video: Path, score: Path, out: Path, target_lufs: float = -16.0) -> None:
+    """Inputs: 0 = silent video (copied, never re-encoded), 1 = the score.
+    Loudness is a single static gain to the target, then a ceiling limiter:
+    an adaptive loudnorm would flatten the dynamics the score is built on."""
+    gain = target_lufs - _measure_lufs(score)
     fc = (
         f"[1:a]atrim=0:{T_END:.3f},asetpts=PTS-STARTPTS,afade=t=in:d=0.25,"
-        f"afade=t=out:st={T_END - 2.6:.3f}:d=2.6,"
-        "aresample=48000,loudnorm=I=-16.5:TP=-2:LRA=8,aresample=48000,"
-        "alimiter=limit=0.7:level=0[a]"
+        f"afade=t=out:st={T_END - 2.6:.3f}:d=2.6,volume={gain:.2f}dB,"
+        "alimiter=limit=0.8:attack=3:release=60:level=0,aresample=48000[a]"
     )
     subprocess.run(
         [
@@ -1426,6 +1460,7 @@ def mix_and_mux(video: Path, score: Path, out: Path) -> None:
         ],
         check=True,
     )
+    print(f"static gain {gain:+.2f} dB to reach {target_lufs} LUFS", flush=True)
 
 
 def render_video(scenes, out: Path) -> None:

@@ -1444,7 +1444,7 @@ def mix_and_mux(video: Path, score: Path, out: Path, target_lufs: float = -16.0)
     fc = (
         f"[1:a]atrim=0:{T_END:.3f},asetpts=PTS-STARTPTS,afade=t=in:d=0.25,"
         f"afade=t=out:st={T_END - 2.6:.3f}:d=2.6,volume={gain:.2f}dB,"
-        "alimiter=limit=0.8:attack=3:release=60:level=0,aresample=48000[a]"
+        "alimiter=limit=0.78:attack=3:release=60:level=0,aresample=48000[a]"
     )
     subprocess.run(
         [

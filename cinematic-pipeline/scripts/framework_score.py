@@ -728,6 +728,30 @@ class Score:
             r = root + 12 * (lo + 1)
             return [r, r + 7, r + 12, r + 16]
 
+        # the hook is a cinematic build, not a bed: a drone, a war-drum heartbeat, choir,
+        # strings and horns crescendoing into the drop, so the ten seconds before it are
+        # music with a voice on top of it
+        drone = sub_bass(38, 16 * B)
+        drone = drone * np.linspace(0.5, 1.0, len(drone)) ** 1.2
+        self.add("bass", drone, 0.0, 0.9)
+        for b0, g in ((0, 0.5), (4, 0.6), (8, 0.7)):
+            self.add("taiko", taiko(1.4, 48), bt(b0), g)
+        for k in range(6):  # a pulse on every beat into the drop, growing
+            self.add("taiko", taiko(0.7, 54 + k), bt(10 + k), 0.4 + 0.1 * k)
+        for bar, g in ((0, 0.22), (1, 0.3), (2, 0.42), (3, 0.55)):
+            chord = [m + 12 for m in pad_of(bar)[1:]] + [pad_of(bar)[3] + 12]
+            self.add("choir", choir_chord(chord, 4 * B), bt(bar * 4), g)
+        for bar in (2, 3):  # strings: eighths, then sixteenths, getting louder
+            _, root, _ = self.chord(bar)
+            steps = 8 if bar == 2 else 16
+            for i in range(steps):
+                m = root + 24 + (7 if i % 4 == 2 else 0)
+                self.add("keys", string_stac(m, 0.11), bt(bar * 4 + i * 4 / steps), 0.12 + 0.2 * (i / steps + bar - 2), -0.1)
+        for bar, g in ((2, 0.4), (3, 0.75)):  # horns swell in under the voice
+            _, root, _ = self.chord(bar)
+            for m in (root + 12, root + 19, root + 24):
+                self.add("brass", horn_swell(m, 4 * B), bt(bar * 4), g)
+
         # choir: enters with the drop, thickens as the moves close, carries the portal
         for bar in range(ev["drop"] // 4, ev["struct"] // 4):
             g = 0.32 if bar * 4 < m3 else 0.42
@@ -747,7 +771,7 @@ class Score:
                     self.add("taiko", taiko(0.9, 56), bt(b + 0.5), 0.55)
             b += 1
         # drum rolls into each new act: sixteenths crescendoing over the last beat
-        for boundary in (ev["struct"], ev["examples"], portal, cta):
+        for boundary in (ev["drop"], ev["struct"], ev["examples"], portal, cta):
             for k in range(8):
                 self.add("taiko", taiko(0.35, 60 + 2 * k), bt(boundary - 2 + k * 0.25), 0.25 + 0.09 * k)
             self.add("taiko", taiko(2.0, 44), bt(boundary), 1.0)
@@ -815,11 +839,11 @@ class Score:
         ev = self.ev
         kb, kg = zip(
             *[
-                (0, 0.55), (ev["drop"] - 0.01, 0.55), (ev["drop"], 1.0),
-                (ev["moves"] + 16, 0.95), (ev["struct"], 1.08),
-                (ev["examples"] - 0.1, 1.08), (ev["examples"], 0.8), (ev["examples"] + 4, 1.0),
-                (portal := ev["portal"], 1.2), (portal + 8, 1.3), (portal + 23, 1.35),
-                (portal + 23.5, 0.5), (ev["cta"] - 0.3, 0.5), (ev["cta"], 1.6), (ev["end"], 1.25),
+                (0, 2.1), (10, 2.1), (ev["drop"] - 0.01, 1.6), (ev["drop"], 1.9),
+                (ev["moves"] + 16, 1.4), (ev["struct"], 1.45),
+                (ev["examples"] - 0.1, 1.45), (ev["examples"], 1.1), (ev["examples"] + 4, 1.35),
+                (portal := ev["portal"], 1.5), (portal + 8, 1.6), (portal + 23, 1.65),
+                (portal + 23.5, 0.6), (ev["cta"] - 0.3, 0.6), (ev["cta"], 1.9), (ev["end"], 1.5),
             ]
         )
         out = out * np.interp(t / self.beat, kb, kg)[:, None]
@@ -831,12 +855,14 @@ class Score:
         # narration on top; the music ducks under it
         if len(voice):
             g = np.ones(self.n)
+            ev0 = self.ev["drop"] * self.beat
             for at, v in voice:
                 i0 = int(at * SR)
                 if i0 >= self.n:
                     continue
+                depth = 0.72 if at < ev0 else 0.3  # the hook keeps its music under the voice
                 pts_t = [at - 0.35, at - 0.05, at + len(v) / SR + 0.05, at + len(v) / SR + 0.55]
-                seg = np.interp(t, pts_t, [1, 0.3, 0.3, 1])
+                seg = np.interp(t, pts_t, [1, depth, depth, 1])
                 g = np.minimum(g, seg)
             out = out * g[:, None]
             for at, v in voice:

@@ -12,10 +12,13 @@ What this makes instead - every word of on-screen copy is the page's own:
   HOOK        logo, then the real page hero with a glide-to-subheading
   5 MOVES     designed motion graphics, one move per 8 beats, a progress
               spine that builds as the method builds
-  STRUCTURE   the real Course-blueprint / Simulator-structure cards, camera
-              and spotlight gliding card to card
-  EXAMPLES    three designed diagrams built from the page's example templates
-  TEMPLATES   the real game-template cards (the four OPTIONS ones)
+  STRUCTURE   the real Course-blueprint / Simulator-structure columns, one
+              spotlit sweep each
+  EXAMPLES    two designed diagrams built from the page's example templates
+  PORTAL      the payoff: one idea fans out into every format (lessons, videos,
+              podcasts, stories, games, open world, simulator, assistant), then
+              REAL proof of four of them - a lesson page with every format
+              tab, the daily podcast + video, the games arcade, the open world
   CTA         "Ready to design your own framework?"
 
 Real vs drawn, stated plainly: page beats are a virtual camera over ONE real
@@ -79,8 +82,8 @@ def bt(b: float) -> float:
 B_DROP = 16
 B_MOVES = 16
 B_STRUCT = 56
-B_EXAMPLES = 80
-B_TEMPL = 104
+B_EXAMPLES = 68
+B_PORTAL = 84
 B_CTA = 112
 B_END = 120.5
 T_END = bt(B_END)
@@ -466,7 +469,7 @@ def lower_third(frame, lt, tin, tout, kicker, title, sub, pos="bottom"):
     alpha = min(a_in, a_out)
     if alpha <= 0.003:
         return
-    sub_lines = wrap(sub, "qs", 30, 1180)
+    sub_lines = wrap(sub, "qs", 30, 1320)
     h = 34 + 30 + 74 + 14 + len(sub_lines) * 40 + 30
     w = int(
         max(
@@ -533,32 +536,16 @@ class PageCam:
 def spotlight(frame, rect_screen, dim, pad=18, radius=20):
     if dim <= 0.01:
         return frame
+    fw, fh = frame.size
     x, y, w, h = rect_screen
     box = [x - pad, y - pad, x + w + pad, y + h + pad]
-    m = Image.new("L", (W // 2, H // 2), 0)
-    ImageDraw.Draw(m).rounded_rectangle(
-        [c / 2 for c in box], radius=radius / 2, fill=255
-    )
-    m = m.filter(ImageFilter.GaussianBlur(7)).resize((W, H), RS.BILINEAR)
-    dark = Image.blend(frame, Image.new("RGB", (W, H), (3, 5, 12)), dim)
+    m = Image.new("L", (fw // 2, fh // 2), 0)
+    ImageDraw.Draw(m).rounded_rectangle([c / 2 for c in box], radius=radius / 2, fill=255)
+    m = m.filter(ImageFilter.GaussianBlur(7)).resize((fw, fh), RS.BILINEAR)
+    dark = Image.blend(frame, Image.new("RGB", (fw, fh), (3, 5, 12)), dim)
     out = Image.composite(frame, dark, m)
-    aa = AA(
-        (
-            max(0, int(box[0]) - 8),
-            max(0, int(box[1]) - 8),
-            min(W, int(box[2]) + 8),
-            min(H, int(box[3]) + 8),
-        )
-    )
-    aa.rrect(
-        box[0],
-        box[1],
-        box[2] - box[0],
-        box[3] - box[1],
-        radius,
-        outline=(*ACC_A, int(230 * min(1, dim / 0.4))),
-        width=3,
-    )
+    aa = AA((max(0, int(box[0]) - 8), max(0, int(box[1]) - 8), min(fw, int(box[2]) + 8), min(fh, int(box[3]) + 8)))
+    aa.rrect(box[0], box[1], box[2] - box[0], box[3] - box[1], radius, outline=(*ACC_A, int(230 * min(1, dim / 0.4))), width=3)
     aa.composite_onto(out)
     return out
 
@@ -966,7 +953,7 @@ def draw_chain(fr, lt, t, ch):
 def examples_scene(t: float) -> Image.Image:
     lt_all = t - bt(B_EXAMPLES)
     per = bt(8)
-    i = min(2, int(lt_all // per))
+    i = min(1, int(lt_all // per))
     lt = lt_all - i * per
     fr = designed_bg(t)
     if i == 0:
@@ -981,7 +968,239 @@ def examples_scene(t: float) -> Image.Image:
     return fr
 
 
-# ---- scenes: hook / structure / templates / cta -----------------------------
+# ---- "what you get": one idea -> every format, then real proof ---------------
+PORTAL_TILES = ["Lessons", "Videos", "Podcasts", "Stories", "Games", "Open world", "Simulator", "AI assistant", "and more"]
+REPO_ASSETS = HERE.parent / "trailers"
+
+
+@lru_cache(maxsize=16)
+def tile_icon(kind: int) -> Image.Image:
+    px = 56
+    aa = AA((0, 0, px, px))
+    c, dim, ac = (255, 255, 255, 235), (255, 255, 255, 110), (*ACC_A, 255)
+    if kind == 0:  # lessons: open book
+        aa.rrect(8, 12, 18, 32, 3, outline=c, width=3)
+        aa.rrect(30, 12, 18, 32, 3, outline=ac, width=3)
+    elif kind == 1:  # videos: play
+        aa.rrect(6, 14, 44, 28, 6, outline=c, width=3)
+        aa.polygon([(22, 21), (22, 35), (36, 28)], ac)
+    elif kind == 2:  # podcasts: microphone
+        aa.rrect(21, 5, 14, 24, 7, fill=c)
+        aa.line([(14, 26), (14, 30), (20, 38), (28, 40), (36, 38), (42, 30), (42, 26)], ac, 3)
+        aa.line([(28, 40), (28, 50)], c, 3)
+    elif kind == 3:  # stories: a page with lines
+        aa.rrect(11, 7, 34, 42, 4, outline=c, width=3)
+        for yy in (19, 27, 35):
+            aa.line([(18, yy), (38, yy)], ac if yy == 19 else dim, 3)
+    elif kind == 4:  # games: pad
+        aa.rrect(5, 15, 46, 28, 14, outline=c, width=3)
+        aa.line([(13, 29), (23, 29)], ac, 3)
+        aa.line([(18, 24), (18, 34)], ac, 3)
+        aa.dot(36, 26, 3, ac)
+        aa.dot(42, 32, 3, ac)
+    elif kind == 5:  # open world: city blocks
+        aa.rrect(7, 27, 13, 22, 2, fill=dim)
+        aa.rrect(22, 12, 14, 37, 2, fill=c)
+        aa.rrect(38, 22, 11, 27, 2, fill=dim)
+        aa.dot(29, 20, 2.5, ac)
+    elif kind == 6:  # simulator: candles
+        for x, top, bot, col in ((16, 24, 44, (34, 197, 94, 255)), (28, 14, 36, (34, 197, 94, 255)), (40, 26, 46, (239, 68, 68, 255))):
+            aa.line([(x, top - 6), (x, bot + 6)], col, 2)
+            aa.rrect(x - 5, top, 10, bot - top, 2, fill=col)
+    elif kind == 7:  # assistant: speech bubble
+        aa.rrect(6, 9, 44, 30, 9, outline=c, width=3)
+        aa.polygon([(15, 38), (15, 50), (28, 38)], c)
+        for x in (19, 28, 37):
+            aa.dot(x, 24, 2.5, ac)
+    else:  # and more
+        for x in (13, 28, 43):
+            aa.dot(x, 28, 4.5, ac)
+    return aa.img.resize((px, px), RS.LANCZOS)
+
+
+def draw_portal_hub(fr, lt, t):
+    by = 4 * math.sin(t * 1.25)
+    a_h = e_out((lt - 0.1) / 0.5)
+    chip(fr, 96, 84, "What you get", alpha=a_h)
+    paste(fr, text_img("One idea. A whole learning portal.", "eb", 74, TXT), (90, 160 + (1 - a_h) * 24), alpha=a_h)
+    a_s = e_out((lt - 0.35) / 0.5)
+    paste(fr, text_img("Lessons, videos, podcasts, stories, games and an open world, all fitted to your idea.", "qs", 36, MUTED), (96, 262 + (1 - a_s) * 16), alpha=a_s)
+    aa = AA((120, 372, 1830, 800))
+    idea = (120, 513 + by, 520, 130)
+    a_idea = e_out((lt - 0.4) / 0.5)
+    node_card(aa, idea[0], idea[1], idea[2], idea[3], a_idea, ACC_A)
+    p0 = (idea[0] + idea[2], idea[1] + idea[3] / 2)
+    geo = []
+    for k, label in enumerate(PORTAL_TILES):
+        col, row = k % 3, k // 3
+        x, y = 730 + col * 364, 400 + row * 126 + by
+        st = 0.9 + k * 0.2
+        end = (x, y + 52)
+        c1, c2 = (p0[0] + 50, p0[1]), (end[0] - 50, end[1])
+        geo.append((k, label, x, y, st))
+        p_line = clamp((lt - st) / 0.55)
+        if p_line > 0:
+            pts = [bezier(p0, c1, c2, end, u) for u in np.linspace(0, e_io(p_line), 24)]
+            aa.line(pts, (*ACC_A, 215), 3)
+        if lt > st + 1.4:
+            u = (t * 0.55 + k * 0.17) % 1.0
+            px_, py_ = bezier(p0, c1, c2, end, u)
+            aa.dot(px_, py_, 5, (255, 255, 255, 230))
+    labels = []
+    for k, label, x, y, st in geo:  # tiles drawn after every line so lines pass behind them
+        a = e_out((lt - st - 0.45) / 0.35)
+        if a > 0:
+            node_card(aa, x + (1 - a) * 24, y, 340, 104, a, ACC_B if k % 2 else ACC_A)
+            labels.append((k, x + (1 - a) * 24, y, a, label))
+    aa.composite_onto(fr)
+    paste(fr, text_img("YOUR IDEA", "sb", 22, ACC_A), (idea[0] + 34, idea[1] + 24), alpha=a_idea)
+    paste(fr, text_img("How to trade earnings", "eb", 36, TXT), (idea[0] + 34, idea[1] + 62), alpha=a_idea)
+    for k, x, y, a, label in labels:
+        paste(fr, tile_icon(k), (x + 22, y + 24), alpha=a)
+        paste(fr, text_img(label, "b", 30, TXT), (x + 96 - 6, y + 34 - 6), alpha=a)
+
+
+PROOFS = [
+    dict(
+        src="lesson", crop=(236, 190, 1448, 469), scale=1.19,
+        kicker="EVERY LESSON", title="Every format, one lesson",
+        sub="Listen / Watch · Storybook explanation · Games · Story · Quiz · Ask assistant",
+        spots=[(0.5, (934, 284, 712, 44)), (1.5, (276, 500, 1368, 58))],
+    ),
+    dict(
+        src="daily", crop=(488, 335, 944, 470), scale=1.3,
+        kicker="EVERY DAY", title="Podcasts and videos",
+        sub="Every trading day, one real market event taken apart.",
+        spots=[(0.5, (553, 458, 395, 256)), (1.2, (972, 458, 395, 256)), (1.9, (553, 736, 571, 62))],
+    ),
+    dict(
+        src="games", crop=(236, 420, 1448, 571), scale=1.19,
+        kicker="GAMES", title="Practice you can play",
+        sub="Fast playable drills for options mechanics, strategy, and market-making.",
+        spots=[(0.5, (276, 436, 1368, 244)), (1.5, (276, 697, 910, 242))],
+    ),
+    dict(
+        src="city", crop=(0, 60, 1920, 800), scale=0.9,
+        kicker="OPEN WORLD", title="A city you can trade in",
+        sub="Walk the city, take missions, make options decisions.",
+        spots=[],
+    ),
+]
+
+
+@lru_cache(maxsize=8)
+def proof_src(name: str) -> Image.Image:
+    path = {
+        "lesson": WORK / "portal" / "lesson.png",
+        "daily": WORK / "portal" / "daily.png",
+        "games": REPO_ASSETS / "mini-games" / "assets" / "games_a.png",
+        "city": REPO_ASSETS / "open-world" / "assets" / "city_a.png",
+    }[name]
+    return Image.open(path).convert("RGB")
+
+
+@lru_cache(maxsize=8)
+def round_mask(size: tuple, r: int) -> Image.Image:
+    m = Image.new("L", (size[0] * 2, size[1] * 2), 0)
+    ImageDraw.Draw(m).rounded_rectangle([0, 0, size[0] * 2 - 1, size[1] * 2 - 1], radius=r * 2, fill=255)
+    return m.resize(size, RS.LANCZOS)
+
+
+@lru_cache(maxsize=8)
+def card_shadow(size: tuple) -> Image.Image:
+    pad = 60
+    m = Image.new("L", (size[0] + 2 * pad, size[1] + 2 * pad), 0)
+    ImageDraw.Draw(m).rounded_rectangle([pad, pad + 16, pad + size[0], pad + 16 + size[1]], radius=24, fill=150)
+    return m.filter(ImageFilter.GaussianBlur(26))
+
+
+def spot_state(spots, lt):
+    if not spots:
+        return None, 0.0
+    rect = spots[0][1]
+    for k in range(1, len(spots)):
+        t0, r1 = spots[k]
+        p = e_io((lt - t0) / 0.5)
+        if lt < t0:
+            break
+        rect = tuple(lerp(a, b, p) for a, b in zip(spots[k - 1][1], r1))
+        if p < 1:
+            break
+        rect = r1
+    return rect, 0.72 * e_out((lt - 0.3) / 0.4)
+
+
+def proof_frame(i: int, lt: float, t: float) -> Image.Image:
+    P = PROOFS[i]
+    src = proof_src(P["src"])
+    cx0, cy0, cw, ch = P["crop"]
+    dw, dh = int(cw * P["scale"]), int(ch * P["scale"])
+    z = 1 + 0.012 * lt
+    cw2, ch2 = cw / z, ch / z
+    x0 = cx0 + (cw - cw2) / 2 + 8 * math.sin(lt * 0.55)
+    y0 = cy0 + (ch - ch2) / 2 + 5 * math.cos(lt * 0.45)
+    card = src.transform((dw, dh), Image.Transform.AFFINE, (cw2 / dw, 0, x0, 0, ch2 / dh, y0), resample=RS.BICUBIC, fillcolor=(9, 11, 20))
+    rect, dim = spot_state(P["spots"], lt)
+    if rect is not None:
+        rc = ((rect[0] - x0) * dw / cw2, (rect[1] - y0) * dh / ch2, rect[2] * dw / cw2, rect[3] * dh / ch2)
+        card = spotlight(card, rc, dim, pad=10, radius=14)
+    fr = designed_bg(t)
+    a = e_out(lt / 0.4)
+    chip(fr, 96, 84, P["kicker"], alpha=a)
+    paste(fr, text_img(P["title"], "eb", 64, TXT), (90, 150 + (1 - a) * 20), alpha=a)
+    paste(fr, text_img(P["sub"], "qs", 34, MUTED), (96, 236 + (1 - a) * 14), alpha=e_out((lt - 0.15) / 0.4))
+    x, y = (W - dw) // 2, min(330, 1050 - dh) + int(5 * math.sin(t * 1.2)) + int((1 - a) * 26)
+    sh = card_shadow((dw, dh))
+    fr.paste(Image.new("RGB", sh.size, (2, 3, 8)), (x - 60, y - 60), ImageChops.multiply(sh, Image.new("L", sh.size, int(255 * a))))
+    m = round_mask((dw, dh), 22)
+    if a < 0.999:
+        m = ImageChops.multiply(m, Image.new("L", m.size, int(255 * a)))
+    fr.paste(card, (x, y), m)
+    aa = AA((x - 4, y - 4, x + dw + 4, y + dh + 4))
+    aa.rrect(x, y, dw, dh, 22, outline=(255, 255, 255, int(46 * a)), width=1)
+    aa.composite_onto(fr)
+    return fr
+
+
+def portal_close(lt: float, t: float) -> Image.Image:
+    fr = designed_bg(t)
+    paste(fr, logo_mark(88), (W // 2 - 44, 170), alpha=e_out(lt / 0.5))
+    rows = [("One idea.", "eb", 150, True, 0.0, 300), ("A full learning portal", "eb", 92, False, 0.55, 500), ("for you only.", "eb", 92, True, 1.1, 616)]
+    for txt, fn, sz, grad, st, y in rows:
+        a = e_out((lt - st) / 0.5)
+        lay = gradient_text(txt, fn, sz) if grad else text_img(txt, fn, sz, TXT)
+        paste(fr, lay, (W // 2 - lay.width // 2, y + (1 - a) * 30), alpha=a)
+    return fr
+
+
+def portal_scene(t: float) -> Image.Image:
+    lt_all = t - bt(B_PORTAL)
+    hub_end, close_start, per = bt(7), bt(23), bt(4)
+    if lt_all < hub_end:
+        fr = designed_bg(t)
+        draw_portal_hub(fr, lt_all, t)
+        return fr
+    if lt_all < close_start:
+        rel = lt_all - hub_end
+        i = min(3, int(rel // per))
+        lt = rel - i * per
+        fr = proof_frame(i, lt, t)
+        if lt < 0.25:
+            if i == 0:
+                prev = designed_bg(t)
+                draw_portal_hub(prev, lt_all, t)
+            else:
+                prev = proof_frame(i - 1, lt + per, t)
+            fr = Image.blend(prev, fr, e_io(lt / 0.25))
+        return fr
+    fr = portal_close(lt_all - close_start, t)
+    x = lt_all - close_start
+    if x < 0.25:
+        fr = Image.blend(proof_frame(3, x + bt(4), t), fr, e_io(x / 0.25))
+    return fr
+
+
+# ---- scenes: hook / structure / cta ----------------------------------------
 def logo_card(t: float) -> Image.Image:
     fr = designed_bg(t)
     a = e_out(t / 0.9)
@@ -1014,8 +1233,8 @@ def poster_frame() -> Image.Image:
     chip(fr, 150, 150, "Framework design")
     for i, line in enumerate(["Turn any idea into a", "course + simulator blueprint"]):
         paste(fr, gradient_text(line, "eb", 104) if i else text_img(line, "eb", 104, TXT), (144, 250 + i * 128))
-    paste(fr, text_img("A repeatable 5-move method: map the path, build practice loops,", "qs", 40, (196, 206, 226)), (150, 540))
-    paste(fr, text_img("connect every lesson to a hands-on scenario.", "qs", 40, (196, 206, 226)), (150, 594))
+    paste(fr, text_img("One idea becomes a full learning portal, for you only:", "qs", 40, (196, 206, 226)), (150, 540))
+    paste(fr, text_img("lessons, videos, podcasts, stories, games and an open world.", "qs", 40, (196, 206, 226)), (150, 594))
     aa = AA((150, 800, 1770, 1000))
     aa.line([(SPINE_X[0], SPINE_Y - 100), (SPINE_X[-1], SPINE_Y - 100)], (*ACC_A, 255), 5)
     for x in SPINE_X:
@@ -1047,75 +1266,44 @@ def build_scenes(cam: PageCam):
                 4.4,
                 15.4,
                 "FRAMEWORK DESIGN",
-                "A repeatable method",
-                "Map a clear learning path, build practice loops, and connect every lesson to a hands-on scenario.",
+                "One idea. A whole learning portal.",
+                "Lessons, videos, podcasts, stories, games and an open world, all fitted to your idea.",
             )
         ],
     )
     c = lambda name, tag="h3": cam.find(name, tag, card=True)  # noqa: E731
 
-    def focus(beat, rect, z, dim=0.72, sy=700):
-        """Camera stop that centres `rect` horizontally and at screen row `sy`
-        (below the top-set lower third), spotlit."""
+    def column(names):
+        rs = [c(n) for n in names]
+        x0 = min(r[0] for r in rs)
+        y0 = min(r[1] for r in rs)
+        x1 = max(r[0] + r[2] for r in rs)
+        y1 = max(r[1] + r[3] for r in rs)
+        return (x0, y0, x1 - x0, y1 - y0)
+
+    def focus(beat, rect, z, dim=0.72, sy=670):
         cx = rect[0] + rect[2] / 2
         cy = rect[1] + rect[3] / 2 - (sy - H / 2) / z
         return (beat, cx, cy, z, rect, dim)
 
-    zs = 1.75  # structure cards
+    left = column(["Module overview", "Lesson sequence", "Reinforcement assets"])
+    right = column(["Scenario setup", "Decision path", "Debrief"])
     struct = PageScene(
         cam,
         B_STRUCT,
         [
             (0, 960, 1290, 0.95, None, 0.0),
-            focus(1.5, c("Module overview"), zs),
-            focus(5.5, c("Lesson sequence"), zs),
-            focus(9.0, c("Reinforcement assets"), zs),
-            focus(12.5, c("Scenario setup"), zs),
-            focus(16.5, c("Decision path"), zs),
-            focus(20.5, c("Debrief"), zs),
+            focus(1.0, left, 1.3),
+            focus(6.0, right, 1.3),
         ],
         [
-            (
-                1.0,
-                11.6,
-                "COURSE BLUEPRINT STRUCTURE",
-                "Every module, the same shape",
-                "A consistent format keeps every module easy to follow and easy to scale.",
-                "top",
-            ),
-            (
-                12.4,
-                23.4,
-                "SIMULATOR STRUCTURE",
-                "Every run, one milestone",
-                "Each simulator run should reinforce a specific milestone.",
-                "top",
-            ),
+            (0.4, 5.6, "COURSE BLUEPRINT STRUCTURE", "Every module, the same shape",
+             "A consistent format keeps every module easy to follow and easy to scale.", "top"),
+            (6.3, 11.6, "SIMULATOR STRUCTURE", "Every run, one milestone",
+             "Each simulator run should reinforce a specific milestone.", "top"),
         ],
     )
-    zt = 1.9  # template cards
-    templ = PageScene(
-        cam,
-        B_TEMPL,
-        [
-            (0, 960, 2560, 0.98, None, 0.0),
-            focus(0.6, c("Sim Challenge"), zt),
-            focus(2.6, c("Strategy Builder"), zt),
-            focus(4.4, c("Risk Ladder"), zt),
-            focus(6.0, c("Scenario Sprint"), zt),
-        ],
-        [
-            (
-                0.4,
-                7.6,
-                "FRAMEWORK GAME TEMPLATES",
-                "Practice templates, ready to launch",
-                "Sim Challenge · Strategy Builder · Risk Ladder · Scenario Sprint",
-                "top",
-            )
-        ],
-    )
-    return hook, struct, templ
+    return hook, struct
 
 
 def cta_scene(t: float) -> Image.Image:
@@ -1169,49 +1357,39 @@ def cta_scene(t: float) -> Image.Image:
 
 # ---- top-level frame --------------------------------------------------------
 def frame_at(t: float, scenes) -> Image.Image:
-    hook, struct, templ = scenes
+    hook, struct = scenes
     t_drop = bt(B_DROP)
-    if t < t_drop:
-        fr = hook.render(t)
-        if t < 2.4:  # logo card resolves into the real page
-            lg = logo_card(t)
-            a = 1.0 if t < 1.7 else 1 - e_io((t - 1.7) / 0.7)
+
+    def hook_fn(tt):
+        fr = hook.render(tt)
+        if tt < 2.4:  # logo card resolves into the real page
+            lg = logo_card(tt)
+            a = 1.0 if tt < 1.7 else 1 - e_io((tt - 1.7) / 0.7)
             fr = Image.blend(fr, lg, a)
-    elif t < bt(B_STRUCT):
-        fr = moves_scene(t)
-    elif t < bt(B_EXAMPLES):
-        fr = struct.render(t)
-        x = t - bt(B_STRUCT)
-        if x < 0.3:  # dip in from the designed scene
-            fr = Image.blend(moves_scene(t), fr, e_io(x / 0.3))
-    elif t < bt(B_TEMPL):
-        fr = examples_scene(t)
-        x = t - bt(B_EXAMPLES)
-        if x < 0.3:
-            fr = Image.blend(struct.render(t), fr, e_io(x / 0.3))
-    elif t < bt(B_CTA):
-        fr = templ.render(t)
-        x = t - bt(B_TEMPL)
-        if x < 0.3:
-            fr = Image.blend(examples_scene(t), fr, e_io(x / 0.3))
+        return fr
+
+    chain = [
+        (B_DROP, moves_scene),
+        (B_STRUCT, struct.render),
+        (B_EXAMPLES, examples_scene),
+        (B_PORTAL, portal_scene),
+        (B_CTA, cta_scene),
+    ]
+    if t < t_drop:
+        fr = hook_fn(t)
     else:
-        fr = cta_scene(t)
-        x = t - bt(B_CTA)
-        if x < 0.3:
-            fr = Image.blend(templ.render(t), fr, e_io(x / 0.3))
+        idx = max(i for i, (b, _) in enumerate(chain) if t >= bt(b))
+        fr = chain[idx][1](t)
+        x = t - bt(chain[idx][0])
+        if idx > 0 and x < 0.3:  # dip in from the previous scene
+            fr = Image.blend(chain[idx - 1][1](t), fr, e_io(x / 0.3))
     # the drop: a brief white flash
     if 0 <= t - t_drop < 0.2:
-        fr = Image.blend(
-            fr,
-            Image.new("RGB", (W, H), (255, 255, 255)),
-            0.55 * (1 - (t - t_drop) / 0.2),
-        )
+        fr = Image.blend(fr, Image.new("RGB", (W, H), (255, 255, 255)), 0.55 * (1 - (t - t_drop) / 0.2))
     if t < 0.5:
         fr = Image.blend(Image.new("RGB", (W, H), (0, 0, 0)), fr, e_out(t / 0.5))
     if t > T_END - 1.3:
-        fr = Image.blend(
-            fr, Image.new("RGB", (W, H), (0, 0, 0)), e_in((t - (T_END - 1.3)) / 1.3)
-        )
+        fr = Image.blend(fr, Image.new("RGB", (W, H), (0, 0, 0)), e_in((t - (T_END - 1.3)) / 1.3))
     return fr
 
 
@@ -1257,9 +1435,9 @@ def build_sfx() -> Path:
 
     for i in range(5):  # one soft tick as each move begins
         put(tick(), bt(B_MOVES + 8 * i), 0.22)
-    for b in (B_STRUCT, B_EXAMPLES, B_TEMPL, B_CTA):
+    for b in (B_STRUCT, B_EXAMPLES, B_PORTAL, B_CTA):
         put(whoosh(), bt(b) - 0.12, 0.11)
-    for b in (B_EXAMPLES + 8, B_EXAMPLES + 16):
+    for b in (B_EXAMPLES + 8, B_PORTAL + 7, B_PORTAL + 11, B_PORTAL + 15, B_PORTAL + 19, B_PORTAL + 23):
         put(tick(), bt(b), 0.16)
     riser = cts.riser(2 * BEAT)
     put(riser / (np.max(np.abs(riser)) + 1e-9), bt(B_DROP) - 2 * BEAT, 0.55)

@@ -266,7 +266,7 @@ def vignette() -> Image.Image:
     out = np.zeros((H, W, 4), np.uint8)
     out[..., 0], out[..., 1], out[..., 2] = 3, 4, 10
     out[..., 3] = a.astype(np.uint8)
-    return Image.fromarray(out, "RGBA")
+    return Image.fromarray(out)
 
 
 def with_particles(frame: Image.Image, t: float, n=26, strength=1.0):
@@ -374,7 +374,7 @@ def gradient_fill(size, c1, c2) -> Image.Image:
     arr = np.zeros((h, w, 3), np.float32)
     for i in range(3):
         arr[..., i] = c1[i] + (c2[i] - c1[i]) * t
-    return Image.fromarray(arr.astype(np.uint8), "RGB")
+    return Image.fromarray(arr.astype(np.uint8))
 
 
 @lru_cache(maxsize=32)

@@ -132,7 +132,7 @@
   <div id="tab-dash">
     <h2>What this studio can make</h2>
     <p class="grouphint">Every kind of output, each with a small low-quality sample so the page stays light.
-      Click a sample to watch it full size above. “Make one” starts the job that produces it.</p>
+      Click a sample to watch it full size above. “Make one” opens Create with that job selected, so you can set options before starting it.</p>
     <div class="viewtoggle">
       <button id="vCards" class="on">Cards</button>
       <button id="vTable">Full view</button>
@@ -350,6 +350,9 @@ const FIELDS = {
   "remotion":[["comp","Template","choice:PayoffDiagramVideo,GreekCurveVideo,GreekCurveVegaVideo,GreekCurveRhoVideo,GreekVisualizerVideo,StrategyBuilderVideo,MarketMechanicsVideo,TechnicalChartVideo,FundamentalDashboardVideo,CoreConceptVideo,OptionTicketVideo,PersonalFinanceVideo,StocksSlideVideo,BasicsFlowVideo,LessonWalkthrough,CityPulse60,OpenWorldGameSim90,OpenWorldGameplayProof90,OptionsEducatorDemo,FrameworkDemo"],["frames","Frame range (blank = all, e.g. 0-89)","text"]],
   "openworld-montage":[["profile","Which render","choice:preview,final"]],
   "regenerate-montage-clip":[["clip","Which act","choice:01_city_reveal,02_old_town_crowd,03_reading_the_storm,04_the_first_trade,05_one_open_city"],["profile","Which render","choice:preview,final"]],
+  "site-video":[["lane","What to do","choice:full render (~7 min),re-score only (seconds),QA stills only"],["stills","Stills at these seconds (QA stills lane)","text:3,8,60"]],
+  "narration":[["text","Line to speak","text"],["speed","Speed (0.8 slow - 1.1 fast)","number:0.92"],["output","Save wav to (optional)","text"]],
+  "capture-page":[["which","Which pages","choice:framework,portal"]],
 };
 const chip=(on,label,detail)=>`<div class="chip" title="${detail||''}"><span class="dot ${on?'on':'off'}"></span>${label}</div>`;
 
@@ -402,6 +405,12 @@ async function pick(name){
 $('#run').onclick = async()=>{
   const params={};
   document.querySelectorAll('#params [data-k]').forEach(el=>{ if(el.value) params[el.dataset.k]=el.value; });
+  // site-video's three lanes are one readable dropdown; the job takes flags.
+  if(picked==='site-video'){
+    const lane=params.lane||''; delete params.lane;
+    if(lane.startsWith('re-score')) params.audio_only='1';
+    if(!lane.startsWith('QA stills')) delete params.stills;
+  }
   try{
     const job=await api('/api/jobs',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({type:picked,params})});
     document.querySelector('nav button[data-tab="jobs"]').click();

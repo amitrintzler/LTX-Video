@@ -470,6 +470,57 @@ CINEMATIC = REPO / "cinematic-pipeline"
 PROJECTS_DIR = CINEMATIC / "projects"
 
 
+def build_site_video(p: dict[str, Any], job: Job) -> list[str]:
+    """The site's Framework Design video: one retina capture of the live page
+    driven by a virtual camera, designed motion graphics for the method, a
+    portal act proving every format with real captures, an original score and
+    Kokoro narration. See scripts/framework_design_video.py.
+
+    Three lanes, cheapest first, because the video stream is only ever encoded
+    once:
+      stills=3,8,60   QA frames only, seconds - check a composition
+      audio_only      remux work/video_only.mp4 with a fresh score, seconds -
+                      this is how the music and narration were iterated
+      (default)       full render, ~7 min, then mix and poster
+    """
+    cmd = [sys.executable, str(SCRIPTS / "framework_design_video.py")]
+    if p.get("stills"):
+        return cmd + ["--stills", str(p["stills"])]
+    if p.get("audio_only"):
+        cmd.append("--no-render")
+    return cmd
+
+
+def build_narration(p: dict[str, Any], job: Job) -> list[str]:
+    """One narrated line via Kokoro-82M (Apache-2.0 weights, offline, no API
+    and no per-word cost), treated for trailer use: pitched down, EQ'd,
+    doubled and put in a hall. See scripts/framework_voice.py.
+    """
+    text = p.get("text")
+    if not text:
+        raise ValueError("narration needs text")
+    out = p.get("output") or str(RENDER_ROOT / "narration" / f"{job.id}.wav")
+    cmd = [sys.executable, str(SCRIPTS / "framework_voice.py"), text, out]
+    if p.get("speed"):
+        cmd += ["--speed", str(p["speed"])]
+    return cmd
+
+
+def build_capture_page(p: dict[str, Any], job: Job) -> list[str]:
+    """Re-capture the live pages the site video is built from: the framework
+    page itself, or the daily-brief and lesson pages behind the portal act's
+    proof cards. Run this when the site's UI changes, then re-render.
+    """
+    which = p.get("which", "framework")
+    script = {
+        "framework": "capture_framework_design.py",
+        "portal": "capture_framework_portal.py",
+    }.get(which)
+    if not script:
+        raise ValueError("which must be 'framework' or 'portal'")
+    return [sys.executable, str(SCRIPTS / script)]
+
+
 def build_cinematic_project(p: dict[str, Any], job: Job) -> list[str]:
     """Run one cinematic-pipeline project (project.json -> keyframes ->
     LTX-2 generate -> audio -> edit/grade). This is the openmontage promo
@@ -716,6 +767,27 @@ SPECS: dict[str, JobSpec] = {
             "Build one stage of the six-engine studio showreel",
             build_showreel,
             "~1-35 min per stage",
+        ),
+        JobSpec(
+            "site-video",
+            False,
+            "The site's Framework Design video (full render, or seconds to re-score)",
+            build_site_video,
+            "~7 min / seconds",
+        ),
+        JobSpec(
+            "narration",
+            False,
+            "Narrate a line with Kokoro (offline, rights-clear)",
+            build_narration,
+            "~5s",
+        ),
+        JobSpec(
+            "capture-page",
+            False,
+            "Re-capture the live pages the site video is built from",
+            build_capture_page,
+            "~1 min",
         ),
         JobSpec(
             "capabilities-reel",

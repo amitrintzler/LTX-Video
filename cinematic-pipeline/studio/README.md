@@ -23,11 +23,12 @@ default.
 | **Remotion** | 20 React lesson/promo templates | Node | `cd remotion-videos && npm install` |
 | **Promo engine** | Motion-gfx promos, SDXL parallax films | `cinematic-pipeline/pipeline.py` + `projects/*.json` | none (ffmpeg only) |
 | **Composed score** | Original rights-clear music cues | `scripts/compose_trailer_score.py` | none |
+| **Narration** | Spoken voice-over, offline | `scripts/framework_voice.py` (Kokoro-82M, Apache-2.0) | weights cached in `~/.cache/huggingface` |
 
 The dashboard's status chips tell you live which engines are ready and exactly
 why one isn't. Trust the chip, not memory.
 
-## Jobs (20)
+## Jobs (34)
 
 | Job | GPU lane | Typical time | Use it for |
 |---|---|---|---|
@@ -50,6 +51,9 @@ why one isn't. Trust the chip, not memory.
 | `compose-score` | no | seconds | A fresh music cue |
 | `qa` | no | ~30 s | duration/freeze/dupes/silence/loudness verdict |
 | `capture-screenshots` | no | ~1 min | Re-capture the live site for UI shots |
+| `site-video` | no | ~7 min / **seconds** | The video embedded on a real site page (see below) |
+| `narration` | no | ~5 s | A spoken line via Kokoro, offline and rights-clear |
+| `capture-page` | no | ~1 min | Re-capture the pages `site-video` is built from |
 
 \* still authenticates against / talks to LTX Desktop.
 
@@ -61,6 +65,15 @@ why one isn't. Trust the chip, not memory.
 music, HUDs, grading are all post. Only touch `render-*` / `regenerate-*` when
 the *footage itself* must change. The reuse guard compares the payload, so an
 edited prompt regenerates exactly the clips it invalidates and nothing else.
+
+**1b. `site-video` encodes its picture once.** Its three lanes cost wildly
+different amounts, so pick the one that answers your question:
+`QA stills only` (seconds, one frame), `re-score only` (seconds - rebuilds the
+score and narration and remuxes `work/video_only.mp4` with `-c:v copy`, so the
+picture is never re-encoded), or a full render (~7 min). The music and
+narration on the shipped site video were iterated entirely in the re-score
+lane. The score is deterministic: the same inputs remux to byte-identical
+output, which is how a re-score is verified.
 
 **2. Iterate at the cheapest tier that answers your question.**
 - Timing/titles/pacing → `offline-cut` (20 s, placeholder footage).

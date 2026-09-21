@@ -20,6 +20,7 @@ PROXY_DIR.mkdir(parents=True, exist_ok=True)
 FINAL = RENDER_ROOT / "ltx25-optionseducator-trailer60"
 PREVIEW = RENDER_ROOT / "ltx25-optionseducator-trailer60-preview"
 VIDEO_PIPELINE_OUT = Path(__file__).resolve().parents[2] / "video-pipeline" / "output"
+FRAMEWORK = RENDER_ROOT / "framework-design"
 
 # id, title, what it is for, the job that makes one, how to find a sample
 KINDS: list[dict[str, Any]] = [
@@ -518,6 +519,36 @@ KINDS: list[dict[str, Any]] = [
         ),
         "sample_at": 4.0,
         "sample_len": 5.0,
+    },
+    {
+        "id": "site-video",
+        "engine": "Real page capture + motion design + original score",
+        "usage": "The video embedded on a real site page - shipped to "
+        "gameofoptions.netlify.app/framework-design",
+        "title": "Site page video",
+        "purpose": "One retina capture of the live page under a virtual camera, "
+        "the method as motion design, then a portal act proving every format "
+        "(lesson, podcast, video, game, open world) with real captures. Original "
+        "score and narration, no third-party audio.",
+        "job": "site-video",
+        "length": "~74s",
+        "kind": "video",
+        "find": lambda: _first([FRAMEWORK / "framework-demo.mp4"]),
+        "sample_at": 60.0,
+        "sample_len": 5.0,
+    },
+    {
+        "id": "narration",
+        "engine": "Kokoro-82M (offline, Apache-2.0)",
+        "usage": "Voice-over for any cut - trailers, lessons, explainers",
+        "title": "Narration",
+        "purpose": "A spoken line, treated for trailer use: pitched down, EQ'd, "
+        "doubled and put in a hall. Runs locally, so no API, no per-word cost "
+        "and no licence to clear.",
+        "job": "narration",
+        "length": "per line",
+        "kind": "audio",
+        "find": lambda: _glob(FRAMEWORK / "work" / "vo", "*.wav"),
     },
     {
         "id": "capabilities-reel",

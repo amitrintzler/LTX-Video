@@ -122,3 +122,30 @@ def render_lines(lines, cache_dir: Path):
         assert sr == SR
         out.append(y)
     return out
+
+
+def main() -> int:
+    """CLI so the studio can narrate a line without a Python import.
+
+        framework_voice.py "One idea. A whole learning portal." out.wav [speed]
+    """
+    import argparse
+
+    import soundfile as sf
+
+    ap = argparse.ArgumentParser(description="Narrate a line with Kokoro (offline).")
+    ap.add_argument("text")
+    ap.add_argument("output", nargs="?", default=str(Path.home() / "LTX-Studio" / "narration.wav"))
+    ap.add_argument("--speed", type=float, default=0.92)
+    a = ap.parse_args()
+
+    out = Path(a.output)
+    out.parent.mkdir(parents=True, exist_ok=True)
+    y = trailer_voice(synth(a.text, a.speed))
+    sf.write(out, y, SR)
+    print(f"narration={out}  {len(y) / SR:.2f}s  voice={VOICE}  pitch={PITCH_ST:+g} st", flush=True)
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

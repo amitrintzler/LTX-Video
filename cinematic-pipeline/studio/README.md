@@ -28,7 +28,7 @@ default.
 The dashboard's status chips tell you live which engines are ready and exactly
 why one isn't. Trust the chip, not memory.
 
-## Jobs (34)
+## Jobs (35)
 
 | Job | GPU lane | Typical time | Use it for |
 |---|---|---|---|
@@ -54,6 +54,7 @@ why one isn't. Trust the chip, not memory.
 | `site-video` | no | ~7 min / **seconds** | The video embedded on a real site page (see below) |
 | `narration` | no | ~5 s | A spoken line via Kokoro, offline and rights-clear |
 | `capture-page` | no | ~1 min | Re-capture the pages `site-video` is built from |
+| `deliver-site-video` | no | ~15 s | QA the site video and stage it in the site repo |
 
 \* still authenticates against / talks to LTX Desktop.
 
@@ -74,6 +75,29 @@ picture is never re-encoded), or a full render (~7 min). The music and
 narration on the shipped site video were iterated entirely in the re-score
 lane. The score is deterministic: the same inputs remux to byte-identical
 output, which is how a re-score is verified.
+
+**1c. Delivery is a job, and it is a gate.** `deliver-site-video` refuses to
+hand over a render that fails QA - wrong duration or resolution, a missing
+audio stream, loudness or true peak out of range, an audio dropout, the music
+drop off its beat, clipping, a repeated frame, or more than three seconds with
+no visible movement. Only then does it stage the file in a **dedicated git
+worktree off `origin/main`**, so that repo's working checkout (usually on an
+unrelated branch, often dirty) is never touched. It rewrites the
+music-provenance entry, commits, and re-reads the committed blob to prove the
+bytes in git are the bytes that passed QA.
+
+Two things it will not do: it **never merges**, because a merge there is a paid
+production deploy, and it only pushes when the mode says so. It also tells the
+truth about what changed - if `origin/main` already holds those exact bytes,
+the commit says it updated the provenance record, not that it replaced a video.
+
+Note on the two QA opinions: `studio_qa.py` runs for the record but two of its
+generic rules do not fit this film, so they report rather than block -
+`freezedetect` reads deliberate slow camera drifts as freezes (the delivery job
+proves separately that no frame is ever repeated), and its "loudness lurches"
+rule fails any spread above 4.5 LU, which is exactly the dynamic arc this score
+is built on. Its duplicate-frame and silence checks are real, and those still
+block.
 
 **2. Iterate at the cheapest tier that answers your question.**
 - Timing/titles/pacing → `offline-cut` (20 s, placeholder footage).

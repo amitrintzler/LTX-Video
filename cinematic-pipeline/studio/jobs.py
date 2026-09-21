@@ -470,6 +470,26 @@ CINEMATIC = REPO / "cinematic-pipeline"
 PROJECTS_DIR = CINEMATIC / "projects"
 
 
+def build_deliver_site_video(p: dict[str, Any], job: Job) -> list[str]:
+    """Deliver the rendered site video to the Options Educator repo: QA gates
+    first, then stage it in a dedicated git worktree off origin/main, update
+    the music-provenance record, commit, and prove the committed bytes are the
+    bytes that passed QA. See scripts/deliver_site_video.py.
+
+    It never merges - a merge there is a paid production Netlify deploy - and
+    it only pushes when asked, because a push can trigger a preview build.
+    """
+    cmd = [sys.executable, str(SCRIPTS / "deliver_site_video.py")]
+    # A dashboard choice list is comma-separated, so those labels carry no
+    # commas; match a distinctive word rather than a whole label.
+    mode = p.get("mode", "")
+    if mode.startswith("check"):
+        cmd.append("--dry-run")
+    elif "push" in mode:
+        cmd.append("--push")
+    return cmd
+
+
 def build_site_video(p: dict[str, Any], job: Job) -> list[str]:
     """The site's Framework Design video: one retina capture of the live page
     driven by a virtual camera, designed motion graphics for the method, a
@@ -776,6 +796,13 @@ SPECS: dict[str, JobSpec] = {
             "~7 min / seconds",
         ),
         JobSpec(
+            "deliver-site-video",
+            False,
+            "QA the site video and stage it in the site repo (never merges)",
+            build_deliver_site_video,
+            "~40s",
+        ),
+        JobSpec(
             "narration",
             False,
             "Narrate a line with Kokoro (offline, rights-clear)",
@@ -940,7 +967,7 @@ class Runner:
         text = job.log_path.read_text(errors="replace")
         found = []
         for line in text.splitlines():
-            for key in ("final=", "config=", "wrote ", "thumbnail:"):
+            for key in ("final=", "config=", "wrote ", "thumbnail:", "delivered="):
                 if line.startswith(key) or line.startswith(key.strip()):
                     found.append(
                         line.split("=", 1)[-1].strip() if "=" in line else line.strip()

@@ -485,8 +485,12 @@ def build_deliver_site_video(p: dict[str, Any], job: Job) -> list[str]:
     mode = p.get("mode", "")
     if mode.startswith("check"):
         cmd.append("--dry-run")
+    if "PR" in mode:
+        cmd.append("--pr")  # implies a push
     elif "push" in mode:
         cmd.append("--push")
+    if p.get("signoff"):
+        cmd += ["--signoff", str(p["signoff"])]
     return cmd
 
 

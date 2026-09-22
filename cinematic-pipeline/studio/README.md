@@ -54,7 +54,7 @@ why one isn't. Trust the chip, not memory.
 | `site-video` | no | ~7 min / **seconds** | The video embedded on a real site page (see below) |
 | `narration` | no | ~5 s | A spoken line via Kokoro, offline and rights-clear |
 | `capture-page` | no | ~1 min | Re-capture the pages `site-video` is built from |
-| `deliver-site-video` | no | ~15 s | QA the site video and stage it in the site repo |
+| `deliver-site-video` | no | ~15 s | QA the site video, stage it in the site repo, and open the PR |
 
 \* still authenticates against / talks to LTX Desktop.
 
@@ -98,6 +98,19 @@ proves separately that no frame is ever repeated), and its "loudness lurches"
 rule fails any spread above 4.5 LU, which is exactly the dynamic arc this score
 is built on. Its duplicate-frame and silence checks are real, and those still
 block.
+
+**1d. The pull request is part of that job, and it only writes facts.** The
+PR mode pushes the branch and opens or refreshes the request. Its description
+carries a table of what this run actually measured - duration, picture, audio,
+loudness, true peak, where the music drop landed, dropouts, motion, the mp4
+sha1 - so the description cannot drift from the file. On an existing request it
+rewrites only its own delimited block and leaves every other word alone, so a
+decision or a reply to a reviewer written by a person survives.
+
+It does not argue a case. The `AGENTS.md` workflow question is reported as
+**still open** unless a sign-off is passed in, and then that text is quoted
+verbatim; the job never invents an approval. It never merges and never enables
+auto-merge, because merging there is a paid production deploy.
 
 **2. Iterate at the cheapest tier that answers your question.**
 - Timing/titles/pacing → `offline-cut` (20 s, placeholder footage).

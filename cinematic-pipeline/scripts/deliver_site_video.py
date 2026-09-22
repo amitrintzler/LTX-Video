@@ -189,14 +189,17 @@ def motion() -> dict:
     }
 
 
-def qa() -> list[str]:
-    """Every check, with the failures named. Empty list means deliverable."""
+def qa() -> tuple[list[str], dict[str, str]]:
+    """Every check, with the failures named. No failures means deliverable.
+
+    The measurements come back as well, so the delivery report and the pull
+    request quote the same numbers this run actually took."""
     bad: list[str] = []
     for p in (VIDEO, POSTER):
         if not p.is_file() or p.stat().st_size == 0:
             bad.append(f"missing or empty: {p}")
     if bad:
-        return bad
+        return bad, {}
 
     p = probe()
     if not p["video"]:
@@ -277,7 +280,18 @@ def qa() -> list[str]:
     print("  studio_qa (informational): " +
           "; ".join(l.strip() for l in report.splitlines()
                     if l.startswith(("freeze", "spread", "VERDICT"))), flush=True)
-    return bad
+    measured = {
+        "duration": f"{p['duration']:.2f}s (want 74.0-74.6)",
+        "picture": f"{p['video']['width']}x{p['video']['height']} {p['video']['r_frame_rate'].split('/')[0]}fps {p['video']['codec_name']}",
+        "audio": p["audio"]["codec_name"] if p["audio"] else "MISSING",
+        "loudness": f"{lufs} LUFS (want -17.5..-14.5)",
+        "true peak": f"{tp} dBTP (ceiling -1.0)",
+        "sample peak": f"{a['peak']:.3f} (no clipping)",
+        "music drop": f"{a['drop_at']:.2f}s, +{a['drop_db']:.0f} dB (lands on the 5-move beat)",
+        "audio dropouts": str(a["dropout_frames"]),
+        "motion": f"no repeated frames; longest still run {m['longest_static']:.1f}s",
+    }
+    return bad, measured
 
 
 # ---- gate 2: a worktree that cannot disturb anyone ---------------------------
@@ -338,10 +352,140 @@ def update_readme(readme: Path, duration: float, sha: str) -> bool:
     return True
 
 
+BEGIN = "<!-- studio:facts -->"
+END = "<!-- /studio:facts -->"
+TITLE = "Framework Design demo video: production rebuild from the studio"
+
+PR_INTRO = """## What
+
+Replaces `public/assets/videos/framework-demo.mp4` and its poster (used by
+`src/pages/FrameworkDesign.tsx`). Assets and the provenance README only - no code change.
+
+Built by the LTX-Video studio's `site-video` job from live captures of `/framework-design`,
+`/daily-brief` and a lesson page. It states the outcome, not only the method: one idea becomes a
+full personal learning portal - lessons, videos, podcasts, stories, games and an open world -
+with real captures as proof. Score and narration are original; no third-party audio.
+"""
+
+
+def facts_block(measured: dict, sha: str, changed: bool, signoff: str | None) -> str:
+    """Only things this run measured, so the table cannot drift from the file."""
+    rows = "\n".join(f"| {k} | {v} |" for k, v in measured.items())
+    scope = (
+        "the video, its poster and the provenance entry"
+        if changed
+        else "the provenance entry only - `main` already holds these exact video bytes"
+    )
+    decision = (
+        f"**Workflow sign-off:** {signoff}"
+        if signoff
+        else (
+            "**Workflow sign-off: still open.** `AGENTS.md` (Video and Media Formats) asks for "
+            "approved non-Remotion workflows and for options to be presented before a new video "
+            "tool is adopted. This asset comes from the external LTX-Video studio (PIL + FFmpeg, "
+            "no Remotion) rather than this repo's `scripts/video-gen` pipeline, and it replaces a "
+            "Remotion-rendered file. A maintainer needs to either accept it as an externally "
+            "produced asset or ask for it to be rebuilt in `scripts/video-gen`."
+        )
+    )
+    return f"""{BEGIN}
+### Measured on delivery
+
+This table and the rest of this block are written by
+`cinematic-pipeline/scripts/deliver_site_video.py`, which refuses to deliver a render that fails
+any of these checks. Everything here was measured from the committed file.
+
+| Check | Value |
+| --- | --- |
+{rows}
+| mp4 sha1 | `{sha}` |
+
+This change touches {scope}.
+
+### Before merging
+
+- **Merging is a production Netlify deploy** and that account has been over its deploy budget
+  (`docs/NETLIFY_DEPLOY_BUDGET.md`). This job never merges and never enables auto-merge; pick the
+  moment deliberately.
+- **Listen to it.** The score and narration were verified by measurement - levels, key, clicks,
+  drop alignment, voice intelligibility - not by ear.
+- `tsx scripts/render-demo-video.ts --id FrameworkDemo` (the old Remotion composition) would
+  overwrite these files with the old version.
+- If `assets/videos` is later offloaded to R2, this file needs uploading there too.
+- English only. The podcast and video surfaces are shown from the real `/daily-brief` page;
+  nothing plays inside them.
+
+{decision}
+{END}"""
+
+
+def upsert_pr(wt: Path, block: str, dry: bool) -> None:
+    """Create the PR, or refresh only this job's block in an existing one.
+
+    A person may have written in that description - a decision, a reply to a
+    reviewer - so an update rewrites the delimited block and nothing else.
+    Merging is never automated here, and neither is auto-merge.
+    """
+    slug = sh(["gh", "repo", "view", "--json", "nameWithOwner", "-q", ".nameWithOwner"], cwd=wt)
+    base = sh(["gh", "repo", "view", "--json", "defaultBranchRef",
+               "-q", ".defaultBranchRef.name"], cwd=wt)
+    open_prs = json.loads(
+        sh(["gh", "pr", "list", "--repo", slug, "--head", BRANCH, "--state", "open",
+            "--json", "number,body,url"], cwd=wt)
+        or "[]"
+    )
+
+    if open_prs:
+        pr = open_prs[0]
+        body = pr["body"] or ""
+        if BEGIN in body and END in body:
+            head, _, rest = body.partition(BEGIN)
+            _, _, tail = rest.partition(END)
+            new_body = head + block + tail
+            note = f"refreshed the measured block in PR #{pr['number']}, kept the rest"
+        else:
+            new_body = (body.rstrip() + "\n\n" + block + "\n") if body.strip() else block
+            note = f"added a measured block to PR #{pr['number']}"
+        if dry:
+            print(f"dry run: would have {note}", flush=True)
+            print("--- body that would be written ---\n" + new_body, flush=True)
+            return
+        f = Path(wt) / ".pr-body.md"
+        f.write_text(new_body)
+        sh(["gh", "pr", "edit", str(pr["number"]), "--repo", slug, "--body-file", str(f)], cwd=wt)
+        f.unlink(missing_ok=True)
+        print(f"{note}: {pr['url']}", flush=True)
+        print(f"delivered={pr['url']} (PR updated)", flush=True)
+        return
+
+    body = PR_INTRO + "\n" + block + "\n\n🤖 Generated with [Claude Code](https://claude.com/claude-code)\n"
+    if dry:
+        print(f"dry run: would open a PR on {slug} ({BRANCH} -> {base}) titled:\n  {TITLE}", flush=True)
+        print("--- body that would be written ---\n" + body, flush=True)
+        return
+    f = Path(wt) / ".pr-body.md"
+    f.write_text(body)
+    url = sh(["gh", "pr", "create", "--repo", slug, "--base", base, "--head", BRANCH,
+              "--title", TITLE, "--body-file", str(f)], cwd=wt).splitlines()[-1]
+    f.unlink(missing_ok=True)
+    print(f"opened {url}", flush=True)
+    print(f"delivered={url} (PR opened)", flush=True)
+
+
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument(
         "--dry-run", action="store_true", help="QA and report, write nothing"
+    )
+    ap.add_argument(
+        "--pr",
+        action="store_true",
+        help="also open or refresh the pull request (implies --push); never merges",
+    )
+    ap.add_argument(
+        "--signoff",
+        help="record an approval verbatim in the PR (e.g. 'accepted by @owner 2026-09-20'); "
+        "without it the PR states the workflow decision is still open",
     )
     ap.add_argument(
         "--push",
@@ -351,7 +495,7 @@ def main() -> int:
     a = ap.parse_args()
 
     print("QA of the render:", flush=True)
-    failures = qa()
+    failures, measured = qa()
     if failures:
         print("\nNOT DELIVERABLE:", flush=True)
         for f in failures:
@@ -363,11 +507,11 @@ def main() -> int:
     duration = probe()["duration"]
 
     if a.dry_run:
-        print(
-            f"\ndry run: would deliver mp4 {sha_video[:12]} / jpg {sha_poster[:12]}"
-            f" to {SITE_REPO} on {BRANCH}; nothing written.",
-            flush=True,
-        )
+        print(f"\ndry run: would deliver mp4 {sha_video[:12]} / jpg {sha_poster[:12]}"
+              f" to {SITE_REPO} on {BRANCH}; nothing written.", flush=True)
+        if a.pr:
+            wt = WORKTREE if WORKTREE.exists() else SITE_REPO
+            upsert_pr(wt, facts_block(measured, sha_video, True, a.signoff), dry=True)
         return 0
 
     wt = ensure_worktree()
@@ -431,18 +575,15 @@ def main() -> int:
     # A line the studio recognises, so the job reports what it produced.
     print(f"delivered={wt} {BRANCH} {head} ({what})", flush=True)
 
-    if a.push:
+    if a.push or a.pr:
         sh(["git", "push", "--force-with-lease", "-u", "origin", BRANCH], cwd=wt)
-        print(
-            f"pushed {BRANCH}. Open or update the PR, then merge yourself when the "
-            "Netlify deploy budget allows - this job never merges.",
-            flush=True,
-        )
+        print(f"pushed {BRANCH}", flush=True)
+        if a.pr:
+            upsert_pr(wt, facts_block(measured, sha_video, video_changed, a.signoff), dry=False)
+        print("Merging is a production deploy and this job never does it - merge yourself when "
+              "the Netlify deploy budget allows.", flush=True)
     else:
-        print(
-            f"\nNot pushed. To publish:  git -C {wt} push -u origin {BRANCH}",
-            flush=True,
-        )
+        print(f"\nNot pushed. To publish:  git -C {wt} push -u origin {BRANCH}", flush=True)
         print("Merging is a production deploy; do that deliberately.", flush=True)
     return 0
 

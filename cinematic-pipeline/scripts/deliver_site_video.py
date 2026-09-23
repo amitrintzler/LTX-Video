@@ -18,6 +18,13 @@ What it will not do, by design:
   * It refuses to deliver a render that fails QA. Copying a broken file into a
     live site quickly is worse than not copying it at all.
 
+Since 2026-09, `public/assets/videos` is served from Cloudflare R2 and is no
+longer in git (docs/MEDIA_OFFLOAD.md), so there is usually nothing to commit.
+The job discovers which shape applies rather than assuming: when the prefix is
+gone it compares the render against what the media host is actually serving and
+reports that, and when the render differs it says plainly that no upload path
+exists for it to take.
+
 Usage:
     deliver_site_video.py                  # QA, stage, commit, stop
     deliver_site_video.py --dry-run        # QA and report only, write nothing
@@ -71,6 +78,74 @@ def digest(p: Path) -> str:
         for block in iter(lambda: f.read(1 << 20), b""):
             h.update(block)
     return h.hexdigest()
+
+
+# The site moved its media to Cloudflare R2 (docs/MEDIA_OFFLOAD.md) and then
+# deleted the local copies, so `public/assets/videos` no longer exists in git.
+# Delivery therefore has two shapes, and which one applies is discovered rather
+# than assumed.
+R2_BASE = "https://pub-9daa374bbc794f90a57f6bd9ee0f92f3.r2.dev"
+R2_PREFIX = "assets/videos"
+
+
+def prefix_in_git() -> bool:
+    """Does origin/main still carry this directory, or has it been offloaded?"""
+    listing = sh(
+        ["git", "ls-tree", "origin/main", f"{REL_DIR.as_posix()}/"],
+        cwd=SITE_REPO,
+        check=False,
+    )
+    return bool(listing.strip())
+
+
+def live_digests() -> dict[str, str | None]:
+    """sha1 of what the media host is serving right now, or None if unreachable."""
+    out: dict[str, str | None] = {}
+    for f in (VIDEO, POSTER):
+        url = f"{R2_BASE}/{R2_PREFIX}/{f.name}"
+        r = subprocess.run(
+            ["curl", "-sfL", "--max-time", "180", url], capture_output=True
+        )
+        out[f.name] = hashlib.sha1(r.stdout).hexdigest() if r.returncode == 0 and r.stdout else None
+    return out
+
+
+def report_offloaded(sha_video: str, sha_poster: str) -> int:
+    """`assets/videos` is served from R2 and is no longer in git, so there is
+    nothing to commit. Say what is live, and be exact about the gap if the
+    render differs from it."""
+    print(f"\n{REL_DIR} is no longer in git: it was offloaded to R2 and the local copy "
+          "deleted (docs/MEDIA_OFFLOAD.md). Comparing the render with what is live instead.",
+          flush=True)
+    live = live_digests()
+    want = {VIDEO.name: sha_video, POSTER.name: sha_poster}
+    unreachable = [n for n, d in live.items() if d is None]
+    if unreachable:
+        print(f"could not read {', '.join(unreachable)} from {R2_BASE} - "
+              "cannot say what is live, so nothing is claimed here.", flush=True)
+        return 1
+
+    differing = [n for n in want if live[n] != want[n]]
+    for n in want:
+        state = "matches the render" if live[n] == want[n] else "DIFFERS from the render"
+        print(f"  live {n}: {live[n][:12]} {state}", flush=True)
+    if not differing:
+        print("\nAlready delivered: the media host is serving exactly this render. "
+              "Nothing to upload, nothing to commit.", flush=True)
+        print(f"delivered={R2_BASE}/{R2_PREFIX}/{VIDEO.name} (already live, verified by sha1)",
+              flush=True)
+        return 0
+
+    print(f"\nNOT DELIVERED - {', '.join(differing)} would need uploading to R2, and there is "
+          "currently no path this job can take:", flush=True)
+    print("  - the repo no longer holds public/assets/videos, so there is nothing to commit;", flush=True)
+    print("  - .github/workflows/upload-media-to-r2.yml uploads from a repo checkout and fails "
+          'with "already migrated and deleted" for this prefix;', flush=True)
+    print("  - no R2 credentials are present here, and the site's own notes say these sandboxes "
+          "cannot reach the R2 write endpoint.", flush=True)
+    print("Someone has to choose one: extend that workflow to take an uploaded artifact, run an "
+          "authenticated upload by hand, or restore the prefix to git.", flush=True)
+    return 1
 
 
 # ---- gate 1: the render is what it claims to be -----------------------------
@@ -513,6 +588,9 @@ def main() -> int:
             wt = WORKTREE if WORKTREE.exists() else SITE_REPO
             upsert_pr(wt, facts_block(measured, sha_video, True, a.signoff), dry=True)
         return 0
+
+    if not prefix_in_git():
+        return report_offloaded(sha_video, sha_poster)
 
     wt = ensure_worktree()
     print(f"\nstaging in {wt} on {BRANCH} (off origin/main)", flush=True)

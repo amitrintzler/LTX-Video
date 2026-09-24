@@ -23,11 +23,12 @@ default.
 | **Remotion** | 20 React lesson/promo templates | Node | `cd remotion-videos && npm install` |
 | **Promo engine** | Motion-gfx promos, SDXL parallax films | `cinematic-pipeline/pipeline.py` + `projects/*.json` | none (ffmpeg only) |
 | **Composed score** | Original rights-clear music cues | `scripts/compose_trailer_score.py` | none |
+| **Narration** | Spoken voice-over, offline | `scripts/framework_voice.py` (Kokoro-82M, Apache-2.0) | weights cached in `~/.cache/huggingface` |
 
 The dashboard's status chips tell you live which engines are ready and exactly
 why one isn't. Trust the chip, not memory.
 
-## Jobs (20)
+## Jobs (35)
 
 | Job | GPU lane | Typical time | Use it for |
 |---|---|---|---|
@@ -50,6 +51,10 @@ why one isn't. Trust the chip, not memory.
 | `compose-score` | no | seconds | A fresh music cue |
 | `qa` | no | ~30 s | duration/freeze/dupes/silence/loudness verdict |
 | `capture-screenshots` | no | ~1 min | Re-capture the live site for UI shots |
+| `site-video` | no | ~7 min / **seconds** | The video embedded on a real site page (see below) |
+| `narration` | no | ~5 s | A spoken line via Kokoro, offline and rights-clear |
+| `capture-page` | no | ~1 min | Re-capture the pages `site-video` is built from |
+| `deliver-site-video` | no | ~15 s | QA the site video, stage it in the site repo, and open the PR |
 
 \* still authenticates against / talks to LTX Desktop.
 
@@ -61,6 +66,66 @@ why one isn't. Trust the chip, not memory.
 music, HUDs, grading are all post. Only touch `render-*` / `regenerate-*` when
 the *footage itself* must change. The reuse guard compares the payload, so an
 edited prompt regenerates exactly the clips it invalidates and nothing else.
+
+**1b. `site-video` encodes its picture once.** Its three lanes cost wildly
+different amounts, so pick the one that answers your question:
+`QA stills only` (seconds, one frame), `re-score only` (seconds - rebuilds the
+score and narration and remuxes `work/video_only.mp4` with `-c:v copy`, so the
+picture is never re-encoded), or a full render (~7 min). The music and
+narration on the shipped site video were iterated entirely in the re-score
+lane. The score is deterministic: the same inputs remux to byte-identical
+output, which is how a re-score is verified.
+
+**1c. Delivery is a job, and it is a gate.** `deliver-site-video` refuses to
+hand over a render that fails QA - wrong duration or resolution, a missing
+audio stream, loudness or true peak out of range, an audio dropout, the music
+drop off its beat, clipping, a repeated frame, or more than three seconds with
+no visible movement. Only then does it stage the file in a **dedicated git
+worktree off `origin/main`**, so that repo's working checkout (usually on an
+unrelated branch, often dirty) is never touched. It rewrites the
+music-provenance entry, commits, and re-reads the committed blob to prove the
+bytes in git are the bytes that passed QA.
+
+Two things it will not do: it **never merges**, because a merge there is a paid
+production deploy, and it only pushes when the mode says so. It also tells the
+truth about what changed - if `origin/main` already holds those exact bytes,
+the commit says it updated the provenance record, not that it replaced a video.
+
+Note on the two QA opinions: `studio_qa.py` runs for the record but two of its
+generic rules do not fit this film, so they report rather than block -
+`freezedetect` reads deliberate slow camera drifts as freezes (the delivery job
+proves separately that no frame is ever repeated), and its "loudness lurches"
+rule fails any spread above 4.5 LU, which is exactly the dynamic arc this score
+is built on. Its duplicate-frame and silence checks are real, and those still
+block.
+
+**1d. The pull request is part of that job, and it only writes facts.** The
+PR mode pushes the branch and opens or refreshes the request. Its description
+carries a table of what this run actually measured - duration, picture, audio,
+loudness, true peak, where the music drop landed, dropouts, motion, the mp4
+sha1 - so the description cannot drift from the file. On an existing request it
+rewrites only its own delimited block and leaves every other word alone, so a
+decision or a reply to a reviewer written by a person survives.
+
+It does not argue a case. The `AGENTS.md` workflow question is reported as
+**still open** unless a sign-off is passed in, and then that text is quoted
+verbatim; the job never invents an approval. It never merges and never enables
+auto-merge, because merging there is a paid production deploy.
+
+**1e. Delivery discovers where the file actually goes, and can ship it.** The
+site serves `assets/videos` from Cloudflare R2 and deleted the directory from
+git, so committing a video there is no longer how it ships. The job checks
+`origin/main` for the prefix instead of assuming. If the prefix is gone it
+fetches what the media host is serving and compares sha1s, and either reports
+"already live" or uploads.
+
+Uploading goes through the site repo's own `upload-media-to-r2.yml`: the two
+files travel on a short-lived `media/framework-demo` branch, the workflow
+uploads them from that checkout, the live bytes are re-fetched and verified by
+sha1, and the branch is deleted. **R2 credentials stay in GitHub's secrets and
+never touch this machine.** Start with the dry-run mode - it pushes the branch
+and dispatches the workflow in preview mode, so it proves the whole path
+without writing a single object.
 
 **2. Iterate at the cheapest tier that answers your question.**
 - Timing/titles/pacing → `offline-cut` (20 s, placeholder footage).
@@ -128,3 +193,11 @@ curl -s localhost:8765/api/catalogue  # what the studio can make, with samples
 - **Statue detection**: fine-tolerance freezedetect passes grain-statues and
   YDIF averages can't separate a statue from a smooth camera move — use
   freezedetect at coarse tolerance (`n=0.01:d=1.5`).
+- **Known upstream bug (open, filed with Lightricks, 2026-09-02)**: local LTX
+  generation reports success but decodes to a flat RGB(0,76,0) frame, every
+  time, regardless of prompt/seed/duration/app version. Reproduced 7x;
+  redownloading every model weight file and a full reboot did not fix it —
+  see `~/LTX-Renders/diag/lightricks_bug_report.md`. The studio's readiness
+  chip still shows LTX as connected (the backend genuinely is healthy) but
+  flags this in its tooltip. Check for an LTX Desktop update before trusting
+  any LTX-generated clip; always eyeball the frames.

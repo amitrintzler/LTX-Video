@@ -338,6 +338,60 @@ def build_image(p: dict[str, Any], job: Job) -> list[str]:
     ]
 
 
+def build_openworld_trailer(p: dict[str, Any], job: Job) -> list[str]:
+    """The Open-World Options City feature trailer: real product screenshots
+    (no LTX, no Flow), drawn cards/lower-thirds, real music. See
+    scripts/openworld_trailer.py.
+    """
+    return [sys.executable, str(SCRIPTS / "openworld_trailer.py")]
+
+
+def build_options_chain_trailer(p: dict[str, Any], job: Job) -> list[str]:
+    """The Options Chain feature trailer. See scripts/options_chain_trailer.py."""
+    return [sys.executable, str(SCRIPTS / "options_chain_trailer.py")]
+
+
+def build_lesson_hub_trailer(p: dict[str, Any], job: Job) -> list[str]:
+    """The Lesson Hub feature trailer. See scripts/lesson_hub_trailer.py."""
+    return [sys.executable, str(SCRIPTS / "lesson_hub_trailer.py")]
+
+
+def build_insight_engine_trailer(p: dict[str, Any], job: Job) -> list[str]:
+    """The Insight Engine feature trailer. See scripts/insight_engine_trailer.py."""
+    return [sys.executable, str(SCRIPTS / "insight_engine_trailer.py")]
+
+
+def build_simulator_trailer(p: dict[str, Any], job: Job) -> list[str]:
+    """The Guided Simulator feature trailer. See scripts/simulator_trailer.py."""
+    return [sys.executable, str(SCRIPTS / "simulator_trailer.py")]
+
+
+def build_lesson_library_trailer(p: dict[str, Any], job: Job) -> list[str]:
+    """The Lesson Library feature trailer. See scripts/lesson_library_trailer.py."""
+    return [sys.executable, str(SCRIPTS / "lesson_library_trailer.py")]
+
+
+def build_assistant_trailer(p: dict[str, Any], job: Job) -> list[str]:
+    """The AI Assistant feature trailer. See scripts/assistant_trailer.py."""
+    return [sys.executable, str(SCRIPTS / "assistant_trailer.py")]
+
+
+def build_trade_demos_trailer(p: dict[str, Any], job: Job) -> list[str]:
+    """The Trade Demo Timeline Lab feature trailer. See scripts/trade_demos_trailer.py."""
+    return [sys.executable, str(SCRIPTS / "trade_demos_trailer.py")]
+
+
+def build_mini_games_trailer(p: dict[str, Any], job: Job) -> list[str]:
+    """The Mini-Games Arcade feature trailer. See scripts/mini_games_trailer.py."""
+    return [sys.executable, str(SCRIPTS / "mini_games_trailer.py")]
+
+
+def build_market_maker_defense_trailer(p: dict[str, Any], job: Job) -> list[str]:
+    """The Market Maker Defense feature trailer. See
+    scripts/market_maker_defense_trailer.py."""
+    return [sys.executable, str(SCRIPTS / "market_maker_defense_trailer.py")]
+
+
 def build_animate_image(p: dict[str, Any], job: Job) -> list[str]:
     """Animate any still image via Veo image-to-video (Flow's frames tab):
     the image is the start frame, the prompt directs the motion. ~20 credits
@@ -402,8 +456,97 @@ def build_showreel(p: dict[str, Any], job: Job) -> list[str]:
     ]
 
 
+def build_capabilities_reel(p: dict[str, Any], job: Job) -> list[str]:
+    """The full "everything this studio makes" reel: highlights from all 10
+    feature trailers plus the six-engines showreel, one cut. See
+    scripts/studio_capabilities_reel.py. Needs every source trailer and the
+    showreel's five engine chapters already rendered - it only re-cuts and
+    re-scores existing output, no GPU or Flow session required.
+    """
+    return [sys.executable, str(SCRIPTS / "studio_capabilities_reel.py")]
+
+
 CINEMATIC = REPO / "cinematic-pipeline"
 PROJECTS_DIR = CINEMATIC / "projects"
+
+
+def build_deliver_site_video(p: dict[str, Any], job: Job) -> list[str]:
+    """Deliver the rendered site video to the Options Educator repo: QA gates
+    first, then stage it in a dedicated git worktree off origin/main, update
+    the music-provenance record, commit, and prove the committed bytes are the
+    bytes that passed QA. See scripts/deliver_site_video.py.
+
+    It never merges - a merge there is a paid production Netlify deploy - and
+    it only pushes when asked, because a push can trigger a preview build.
+    """
+    cmd = [sys.executable, str(SCRIPTS / "deliver_site_video.py")]
+    # A dashboard choice list is comma-separated, so those labels carry no
+    # commas; match a distinctive word rather than a whole label.
+    mode = p.get("mode", "")
+    if mode.startswith("check"):
+        cmd.append("--dry-run")
+    if "media host" in mode:
+        # assets/videos is served from R2 and is not in git, so a changed
+        # render ships through the repo's own upload workflow instead.
+        cmd.append("--upload-dry-run" if "dry run" in mode else "--upload")
+    elif "PR" in mode:
+        cmd.append("--pr")  # implies a push
+    elif "push" in mode:
+        cmd.append("--push")
+    if p.get("signoff"):
+        cmd += ["--signoff", str(p["signoff"])]
+    return cmd
+
+
+def build_site_video(p: dict[str, Any], job: Job) -> list[str]:
+    """The site's Framework Design video: one retina capture of the live page
+    driven by a virtual camera, designed motion graphics for the method, a
+    portal act proving every format with real captures, an original score and
+    Kokoro narration. See scripts/framework_design_video.py.
+
+    Three lanes, cheapest first, because the video stream is only ever encoded
+    once:
+      stills=3,8,60   QA frames only, seconds - check a composition
+      audio_only      remux work/video_only.mp4 with a fresh score, seconds -
+                      this is how the music and narration were iterated
+      (default)       full render, ~7 min, then mix and poster
+    """
+    cmd = [sys.executable, str(SCRIPTS / "framework_design_video.py")]
+    if p.get("stills"):
+        return cmd + ["--stills", str(p["stills"])]
+    if p.get("audio_only"):
+        cmd.append("--no-render")
+    return cmd
+
+
+def build_narration(p: dict[str, Any], job: Job) -> list[str]:
+    """One narrated line via Kokoro-82M (Apache-2.0 weights, offline, no API
+    and no per-word cost), treated for trailer use: pitched down, EQ'd,
+    doubled and put in a hall. See scripts/framework_voice.py.
+    """
+    text = p.get("text")
+    if not text:
+        raise ValueError("narration needs text")
+    out = p.get("output") or str(RENDER_ROOT / "narration" / f"{job.id}.wav")
+    cmd = [sys.executable, str(SCRIPTS / "framework_voice.py"), text, out]
+    if p.get("speed"):
+        cmd += ["--speed", str(p["speed"])]
+    return cmd
+
+
+def build_capture_page(p: dict[str, Any], job: Job) -> list[str]:
+    """Re-capture the live pages the site video is built from: the framework
+    page itself, or the daily-brief and lesson pages behind the portal act's
+    proof cards. Run this when the site's UI changes, then re-render.
+    """
+    which = p.get("which", "framework")
+    script = {
+        "framework": "capture_framework_design.py",
+        "portal": "capture_framework_portal.py",
+    }.get(which)
+    if not script:
+        raise ValueError("which must be 'framework' or 'portal'")
+    return [sys.executable, str(SCRIPTS / script)]
 
 
 def build_cinematic_project(p: dict[str, Any], job: Job) -> list[str]:
@@ -562,6 +705,76 @@ SPECS: dict[str, JobSpec] = {
             "~1 min",
         ),
         JobSpec(
+            "openworld-trailer",
+            False,
+            "Open-World Options City feature trailer (real product screenshots)",
+            build_openworld_trailer,
+            "~1 min",
+        ),
+        JobSpec(
+            "options-chain-trailer",
+            False,
+            "Options Chain feature trailer (real product screenshots)",
+            build_options_chain_trailer,
+            "~1 min",
+        ),
+        JobSpec(
+            "lesson-hub-trailer",
+            False,
+            "Lesson Hub feature trailer (real product screenshots)",
+            build_lesson_hub_trailer,
+            "~1 min",
+        ),
+        JobSpec(
+            "insight-engine-trailer",
+            False,
+            "Insight Engine feature trailer (real product screenshots)",
+            build_insight_engine_trailer,
+            "~1 min",
+        ),
+        JobSpec(
+            "simulator-trailer",
+            False,
+            "Guided Simulator feature trailer (real product screenshots)",
+            build_simulator_trailer,
+            "~1 min",
+        ),
+        JobSpec(
+            "lesson-library-trailer",
+            False,
+            "Lesson Library feature trailer (real product screenshots)",
+            build_lesson_library_trailer,
+            "~1 min",
+        ),
+        JobSpec(
+            "assistant-trailer",
+            False,
+            "AI Assistant feature trailer (real product screenshots)",
+            build_assistant_trailer,
+            "~1 min",
+        ),
+        JobSpec(
+            "trade-demos-trailer",
+            False,
+            "Trade Demo Timeline Lab feature trailer (real product screenshots)",
+            build_trade_demos_trailer,
+            "~1 min",
+        ),
+        JobSpec(
+            "mini-games-trailer",
+            False,
+            "Mini-Games Arcade feature trailer (real product screenshots)",
+            build_mini_games_trailer,
+            "~1 min",
+        ),
+        JobSpec(
+            "market-maker-defense-trailer",
+            False,
+            "Market Maker Defense feature trailer (real product screenshots)",
+            build_market_maker_defense_trailer,
+            "~1 min",
+        ),
+        JobSpec(
             "animate-image",
             False,
             "Animate any still via Veo image-to-video (~20 credits)",
@@ -582,6 +795,41 @@ SPECS: dict[str, JobSpec] = {
             "Build one stage of the six-engine studio showreel",
             build_showreel,
             "~1-35 min per stage",
+        ),
+        JobSpec(
+            "site-video",
+            False,
+            "The site's Framework Design video (full render, or seconds to re-score)",
+            build_site_video,
+            "~7 min / seconds",
+        ),
+        JobSpec(
+            "deliver-site-video",
+            False,
+            "QA the site video, then ship it (R2 upload or a repo PR); never merges",
+            build_deliver_site_video,
+            "~40s",
+        ),
+        JobSpec(
+            "narration",
+            False,
+            "Narrate a line with Kokoro (offline, rights-clear)",
+            build_narration,
+            "~5s",
+        ),
+        JobSpec(
+            "capture-page",
+            False,
+            "Re-capture the live pages the site video is built from",
+            build_capture_page,
+            "~1 min",
+        ),
+        JobSpec(
+            "capabilities-reel",
+            False,
+            "Everything this studio makes: all 10 trailers + six engines, one cut",
+            build_capabilities_reel,
+            "~2 min",
         ),
         JobSpec(
             "cinematic-project",
@@ -727,7 +975,7 @@ class Runner:
         text = job.log_path.read_text(errors="replace")
         found = []
         for line in text.splitlines():
-            for key in ("final=", "config=", "wrote ", "thumbnail:"):
+            for key in ("final=", "config=", "wrote ", "thumbnail:", "delivered="):
                 if line.startswith(key) or line.startswith(key.strip()):
                     found.append(
                         line.split("=", 1)[-1].strip() if "=" in line else line.strip()

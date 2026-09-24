@@ -10,3 +10,4 @@ projects/*/output/
 *.wav
 # keep example project.json and committed assets
 !projects/*/project.json
+!trailers/**/cinematic/*.mp4

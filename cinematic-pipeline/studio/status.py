@@ -65,10 +65,18 @@ def ltx_state() -> dict[str, Any]:
             return {"ok": False, "detail": "LTX 2.5 Fast is not present in LTX Desktop"}
         if not model.get("installed"):
             return {"ok": False, "detail": "LTX 2.5 Fast is not fully installed"}
-        return {
-            "ok": True,
-            "detail": f"connected, model {'active' if model.get('active') else 'installed'}",
-        }
+        detail = f"connected, model {'active' if model.get('active') else 'installed'}"
+        # The backend reports healthy and every generation "completes", but the
+        # decoded output has been a flat RGB(0,76,0) frame since 2026-08-30 -
+        # reproduced 7x across every app version and every model weight file
+        # (see LTX-Renders/diag/lightricks_bug_report.md, filed with
+        # Lightricks). Ready-check can't catch this without running a real
+        # generation, so it's surfaced here instead of silently claiming health.
+        if (
+            Path.home() / "LTX-Renders" / "diag" / "lightricks_bug_report.md"
+        ).is_file():
+            detail += " - KNOWN BUG: output may be blank (see LTX-Renders/diag/lightricks_bug_report.md)"
+        return {"ok": True, "detail": detail}
     except SystemExit as exc:
         return {"ok": False, "detail": str(exc)}
     except Exception as exc:  # noqa: BLE001
@@ -154,22 +162,48 @@ def has_numpy() -> bool:
 
 
 _flow_cache: dict[str, Any] = {"at": 0.0, "state": None}
-_FLOW_CACHE_S = 120  # the dashboard polls status every 6s; a real browser launch
-# on every poll would make Flow's readiness check cost more
-# than the jobs it is guarding
+_FLOW_CACHE_S = 1800  # deep check (opens a tab in the user's Chrome) at most
+# every 30 min - the 120s cadence made the Flow window
+# visibly flicker with tabs opening and closing
+
+
+def _flow_quick_check() -> dict[str, Any] | None:
+    """Passive liveness via CDP's HTTP endpoint - opens NO tabs, so it can
+    run on every poll without the user's Chrome window flickering. Returns a
+    failure state, or None meaning "Chrome is up; trust the cached deep
+    check for signed-in state"."""
+    import json as _json
+    import urllib.request
+
+    try:
+        with urllib.request.urlopen(f"{flow_session.CDP_URL}/json", timeout=3) as r:
+            targets = _json.load(r)
+    except Exception:  # noqa: BLE001
+        return {
+            "ok": False,
+            "detail": "not connected - run engine/providers/flow_login.py "
+            "to launch the dedicated Flow Chrome, sign in, and leave it open",
+            **_quota_info(),
+        }
+    if not any(t.get("type") == "page" for t in targets):
+        return {"ok": False, "detail": "Flow Chrome has no open tabs", **_quota_info()}
+    return None
 
 
 def flow_state() -> dict[str, Any]:
     """Whether the dedicated Flow Chrome is up and actually signed in.
 
-    Google blocks a browser Playwright launches itself from signing in at
-    all, so there's no profile this project owns to launch headlessly -
-    instead this attaches (connect_over_cdp) to a Chrome the user started
-    and signed into themselves (flow_login.py). Cached, since the check
-    itself opens a real connection and a throwaway tab in that browser and
-    the dashboard polls status every 6s.
+    Two tiers: a passive HTTP liveness check on every poll (no tabs opened,
+    no flicker), and the real signed-in check - which must open a throwaway
+    tab in the user's Chrome - at most every 30 minutes or when liveness
+    just came back.
     """
     import time
+
+    quick = _flow_quick_check()
+    if quick is not None:
+        _flow_cache["at"], _flow_cache["state"] = 0.0, None  # force deep re-check
+        return quick
 
     if (
         time.time() - _flow_cache["at"] < _FLOW_CACHE_S
@@ -309,9 +343,28 @@ def snapshot() -> dict[str, Any]:
             ltx["ok"], ltx["detail"] if not ltx["ok"] else ""
         ),
         "showreel": ready(ffmpeg, "" if ffmpeg else "ffmpeg is not on PATH"),
+        "capabilities-reel": ready(ffmpeg, "" if ffmpeg else "ffmpeg is not on PATH"),
         # Image generations are free, so these gate only on the Flow session
         # itself, never on the credit quota.
         "image": ready(flow["ok"], flow["detail"] if not flow["ok"] else ""),
+        "openworld-trailer": ready(ffmpeg, "" if ffmpeg else "ffmpeg is not on PATH"),
+        "options-chain-trailer": ready(
+            ffmpeg, "" if ffmpeg else "ffmpeg is not on PATH"
+        ),
+        "lesson-hub-trailer": ready(ffmpeg, "" if ffmpeg else "ffmpeg is not on PATH"),
+        "insight-engine-trailer": ready(
+            ffmpeg, "" if ffmpeg else "ffmpeg is not on PATH"
+        ),
+        "simulator-trailer": ready(ffmpeg, "" if ffmpeg else "ffmpeg is not on PATH"),
+        "lesson-library-trailer": ready(
+            ffmpeg, "" if ffmpeg else "ffmpeg is not on PATH"
+        ),
+        "assistant-trailer": ready(ffmpeg, "" if ffmpeg else "ffmpeg is not on PATH"),
+        "trade-demos-trailer": ready(ffmpeg, "" if ffmpeg else "ffmpeg is not on PATH"),
+        "mini-games-trailer": ready(ffmpeg, "" if ffmpeg else "ffmpeg is not on PATH"),
+        "market-maker-defense-trailer": ready(
+            ffmpeg, "" if ffmpeg else "ffmpeg is not on PATH"
+        ),
         "animate-image": ready(
             flow["ok"] and not flow.get("quota_exceeded"),
             flow["detail"] if not flow["ok"] else "",

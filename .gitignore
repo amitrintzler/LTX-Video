@@ -171,6 +171,7 @@ runs/
 *.png
 !tests/utils/car.png
 !cinematic-pipeline/examples/ltx25-desktop-openworld/keyframes/*.png
+!cinematic-pipeline/trailers/**/assets/*.png
 .DS_Store
 .worktrees/
 

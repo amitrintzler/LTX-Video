@@ -289,6 +289,48 @@ VIDEO_PIPELINE = REPO / "video-pipeline"
 ANIM_PYTHON = "/opt/homebrew/bin/python3.11"
 
 
+def llm_choices() -> list[str]:
+    """"provider:model" for every language model this machine can reach, probed
+    live. See scripts/llm_capabilities.py."""
+    try:
+        out = subprocess.run(
+            [sys.executable, str(SCRIPTS / "llm_capabilities.py"), "--json"],
+            capture_output=True, text=True, timeout=40,
+        )
+        return json.loads(out.stdout).get("choices", [])
+    except (subprocess.SubprocessError, OSError, ValueError):
+        return []
+
+
+def _animation_config(p: dict[str, Any], job: Job) -> Path:
+    """The pipeline is configured by a JSON file and has no provider flag, so a
+    chosen model becomes a per-job overlay on top of the committed config
+    rather than an edit to it. Nothing is chosen, nothing is overridden.
+    """
+    base_path = VIDEO_PIPELINE / "config.json"
+    choice = (p.get("model") or "").strip()
+    if not choice or ":" not in choice:
+        return base_path
+    provider, model = choice.split(":", 1)
+    cfg = json.loads(base_path.read_text())
+    cfg["llm_provider"] = provider
+    # Each backend reads its own key for the model name.
+    if provider == "lmstudio":
+        cfg["llm_model"] = model
+    elif provider == "claude":
+        cfg["claude_model"] = model
+    elif provider == "codex":
+        cfg["codex_model"] = model
+    # A backup that is the same broken provider just fails twice.
+    cfg["script_backup_providers"] = [
+        b for b in cfg.get("script_backup_providers", []) if b != provider
+    ]
+    out = RENDER_ROOT / "studio-configs" / f"animation-{job.id}.json"
+    out.parent.mkdir(parents=True, exist_ok=True)
+    out.write_text(json.dumps(cfg, indent=1))
+    return out
+
+
 def build_animation(p: dict[str, Any], job: Job) -> list[str]:
     """The programmatic-animation pipeline (video-pipeline/): Manim math
     animations, HTML/hyperframes scenes, D3 charts and slides - the non-LTX
@@ -309,7 +351,7 @@ def build_animation(p: dict[str, Any], job: Job) -> list[str]:
         str(VIDEO_PIPELINE / "pipeline.py"),
         src,
         "--config",
-        str(VIDEO_PIPELINE / "config.json"),
+        str(_animation_config(p, job)),
     ]
     if p.get("stage"):
         cmd += ["--stage", p["stage"]]

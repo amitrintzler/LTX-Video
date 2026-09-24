@@ -367,7 +367,7 @@ const FIELDS = {
   "vertical-cut":[["video","Video","masters"],["square","Also make square 1:1","bool"]],
   "flow":[["prompt","Prompt","text"],["kind","Media","choice:video,image"],["seconds","Seconds (video only)","number:8"]],
   "flow-hero-shots":[["only","Which clips","choice:both,city_reveal,pantheon_night"]],
-  "animation":[["input","Topic or script JSON path","text"],["stage","Stage","choice:,research,script,render,video,tts,stitch,all,validate"],["max_scenes","Max scenes (blank = all)","number:"]],
+  "animation":[["input","Topic or script JSON path","text"],["model","Language model for the script","llm"],["stage","Stage","choice:,research,script,render,video,tts,stitch,all,validate"],["max_scenes","Max scenes (blank = all)","number:"]],
   "showreel":[["stage","Stage","choice:ltx,flow,manim,remotion,promo,score,assemble"]],
   "image":[["prompt","Prompt","text"]],
   "story-reel":[["stage","Stage","choice:all,pages,animate,reel"],["engine","Animation engine","choice:veo,repo,desktop"],["pages","Pages (e.g. 1 or 2,3 - blank = all)","text"],["story","Story spec path (blank = First Trade fable)","text"]],
@@ -381,6 +381,7 @@ const FIELDS = {
   "narration":[["text","Line to speak","text"],["speed","Speed (0.8 slow - 1.1 fast)","number:0.92"],["output","Save wav to (optional)","text"]],
   "capture-page":[["which","Which pages","choice:framework,portal"]],
 };
+let LLMS=[];
 const chip=(on,label,detail)=>`<div class="chip" title="${detail||''}"><span class="dot ${on?'on':'off'}"></span>${label}</div>`;
 
 async function loadStatus(){
@@ -420,6 +421,8 @@ async function pick(name){
   $('#params').innerHTML = (FIELDS[name]||[]).map(([k,label,kind])=>{
     if(kind==='select') return `<label>${label}</label><select data-k="${k}"><option value="">Tuned defaults (delivered master)</option>${cfgs.map(c=>`<option>${c}</option>`).join('')}</select>`;
     if(kind==='clips')  return `<label>${label}</label><select data-k="${k}">${STATUS.clip_ids.map(c=>`<option>${c}</option>`).join('')}</select>`;
+    if(kind==='llm')    return `<label>${label}</label><select data-k="${k}"><option value="">Whatever the config says</option>${(LLMS||[]).map(c=>`<option>${c}</option>`).join('')}</select>`
+                             + `<div class="hint">Probed live. "lmstudio:" runs free on this Mac; "claude:" and "codex:" are metered. A model that is not loaded in LM Studio loads on first use, which is slow.</div>`;
     if(kind==='masters')return `<label>${label}</label><select data-k="${k}">${STATUS.masters.map(m=>`<option value="${m}">${m.split('/').pop()}</option>`).join('')||'<option value="">(nothing rendered yet)</option>'}</select>`;
     if(kind==='bool')   return `<label>${label}</label><select data-k="${k}"><option value="">No</option><option value="1">Yes</option></select>`;
     if(kind.startsWith('choice:')) return `<label>${label}</label><select data-k="${k}">${kind.slice(7).split(',').map(o=>`<option>${o}</option>`).join('')}</select>`;
@@ -485,6 +488,8 @@ $('#cfgSave').onclick=async()=>{
 (async()=>{
   SPECS=await api('/api/job-types');
   await loadStatus(); await pick('offline-cut');
+  api('/api/llm-models').then(d=>{ LLMS = d.choices||[]; if(picked==='animation') pick('animation'); })
+                        .catch(()=>{});
   await loadCatalogue(); await loadGallery(); refresh(); loadConfigs();
   setInterval(()=>{refresh();loadStatus();},6000);
 })();

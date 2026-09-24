@@ -503,9 +503,12 @@ def qa() -> tuple[list[str], dict[str, str]]:
             key, _, value = line.partition(":")
             if value.strip() not in ("0", "0s"):
                 bad.append(f"studio_qa: {key.strip()} = {value.strip()}")
-    print("  studio_qa (informational): " +
-          "; ".join(l.strip() for l in report.splitlines()
-                    if l.startswith(("freeze", "spread", "VERDICT"))), flush=True)
+    summary = "; ".join(
+        line.strip()
+        for line in report.splitlines()
+        if line.startswith(("freeze", "spread", "VERDICT"))
+    )
+    print(f"  studio_qa (informational): {summary}", flush=True)
     measured = {
         "duration": f"{p['duration']:.2f}s (want 74.0-74.6)",
         "picture": f"{p['video']['width']}x{p['video']['height']} {p['video']['r_frame_rate'].split('/')[0]}fps {p['video']['codec_name']}",

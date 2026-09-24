@@ -209,7 +209,6 @@ def sub_bass(m, dur):
 
 
 def pluck_bass(m, dur):
-    n = int((dur + 0.06) * SR)
     x = sub_bass(m, dur)
     t = tvec(len(x))
     return x + 0.25 * lp(saw(hz(m), len(x)), 900) * np.exp(-t * 14)
@@ -391,8 +390,8 @@ class Score:
     def add(self, bus, sig, at, gain=1.0, pan=0.0):
         sig = np.asarray(sig, float)
         if sig.ndim == 1:
-            l, r = np.cos((pan + 1) * np.pi / 4), np.sin((pan + 1) * np.pi / 4)
-            sig = np.stack([sig * l * 1.414, sig * r * 1.414], 1)
+            gl, gr = np.cos((pan + 1) * np.pi / 4), np.sin((pan + 1) * np.pi / 4)
+            sig = np.stack([sig * gl * 1.414, sig * gr * 1.414], 1)
         f = min(int(0.012 * SR), len(sig))  # no note ends on a step
         sig = sig.copy()
         sig[len(sig) - f :] *= np.linspace(1, 0, f)[:, None]

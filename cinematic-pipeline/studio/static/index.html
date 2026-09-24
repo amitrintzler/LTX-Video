@@ -367,7 +367,7 @@ const FIELDS = {
   "vertical-cut":[["video","Video","masters"],["square","Also make square 1:1","bool"]],
   "flow":[["prompt","Prompt","text"],["kind","Media","choice:video,image"],["seconds","Seconds (video only)","number:8"]],
   "flow-hero-shots":[["only","Which clips","choice:both,city_reveal,pantheon_night"]],
-  "animation":[["input","Topic or script JSON path","text"],["model","Language model for the script","llm"],["stage","Stage","choice:,research,script,render,video,tts,stitch,all,validate"],["max_scenes","Max scenes (blank = all)","number:"]],
+  "animation":[["input","Topic or script JSON path","text"],["model","Language model for the script","llm"],["stage","Stage","choice:,research,script,render,video,tts,stitch,all,validate"],["max_scenes","Max scenes (blank = all)","number:"],["skip_validation","Skip the brief-coverage check","bool"]],
   "showreel":[["stage","Stage","choice:ltx,flow,manim,remotion,promo,score,assemble"]],
   "image":[["prompt","Prompt","text"]],
   "story-reel":[["stage","Stage","choice:all,pages,animate,reel"],["engine","Animation engine","choice:veo,repo,desktop"],["pages","Pages (e.g. 1 or 2,3 - blank = all)","text"],["story","Story spec path (blank = First Trade fable)","text"]],

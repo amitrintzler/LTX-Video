@@ -198,7 +198,28 @@ def test_script_suggests_renderer_from_topic_and_research():
     assert stage._suggest_renderer("option pricing", "This topic uses formulas and diagrams.", "") == "manim"
     assert stage._suggest_renderer("quarterly earnings deck", "summary comparison table and bullet list", "") == "d3"
     assert stage._suggest_renderer("market data trends", "chart and histogram analysis", "") == "d3"
-    assert stage._suggest_renderer("product walkthrough", "browser UI click interaction", "") == "motion-canvas"
+    # "slides", not "motion-canvas": there is no Motion Canvas renderer, the
+    # name was aliased to the static slides renderer, and a walkthrough asking
+    # for motion silently got frozen frames.
+    assert stage._suggest_renderer("product walkthrough", "browser UI click interaction", "") == "slides"
+
+
+def test_suggest_renderer_ignores_a_brief_that_says_it_has_no_content():
+    """research.py's placeholder brief is headed "## Research Summary", and
+    "summary" is a slides keyword - so a failed research stage used to pick the
+    static renderer for any topic at all."""
+    import logging
+
+    from config import PipelineConfig
+    from stages.script import ScriptStage
+
+    stage = ScriptStage(PipelineConfig(), logging.getLogger("test"))
+    placeholder = (
+        "# What is implied volatility\n## Research Summary\n"
+        "No live evidence was collected for this seed, so this draft preserves "
+        "the broad lesson context for downstream script generation."
+    )
+    assert stage._suggest_renderer("What is implied volatility", placeholder, "") == "manim"
 
 
 def test_script_ensure_primary_renderer_sets_root_and_scene_defaults():

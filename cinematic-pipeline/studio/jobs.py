@@ -325,6 +325,14 @@ def _animation_config(p: dict[str, Any], job: Job) -> Path:
     cfg["script_backup_providers"] = [
         b for b in cfg.get("script_backup_providers", []) if b != provider
     ]
+    # The pipeline asks an LLM twice: once to plan the scenes, once to write
+    # each scene's render code. Leaving the second on a default that does not
+    # answer would fail an hour into a run that looked fine, so the choice
+    # applies to both. Render codegen only speaks claude and lmstudio, so a
+    # codex choice leaves it alone rather than setting something unsupported.
+    if provider in ("claude", "lmstudio"):
+        cfg["render_llm_provider"] = provider
+        cfg["render_llm_model"] = model
     out = RENDER_ROOT / "studio-configs" / f"animation-{job.id}.json"
     out.parent.mkdir(parents=True, exist_ok=True)
     out.write_text(json.dumps(cfg, indent=1))
@@ -357,6 +365,14 @@ def build_animation(p: dict[str, Any], job: Job) -> list[str]:
         cmd += ["--stage", p["stage"]]
     if p.get("max_scenes"):
         cmd += ["--max-scenes", str(p["max_scenes"])]
+    if p.get("skip_validation"):
+        # The validator scores scenes against the research brief. When the
+        # research stage collected nothing it writes a placeholder ("no live
+        # evidence was collected for this seed"), and the validator then
+        # demands the scenes contain that placeholder's own vocabulary -
+        # "seed", "draft", "preserves" - which correct scenes never will. This
+        # is the way past that until the brief itself is fixed.
+        cmd.append("--skip-validation")
     return cmd
 
 

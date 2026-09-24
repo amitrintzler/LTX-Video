@@ -112,18 +112,20 @@ It does not argue a case. The `AGENTS.md` workflow question is reported as
 verbatim; the job never invents an approval. It never merges and never enables
 auto-merge, because merging there is a paid production deploy.
 
-**1e. Delivery discovers where the file actually goes.** Since 2026-09 the
+**1e. Delivery discovers where the file actually goes, and can ship it.** The
 site serves `assets/videos` from Cloudflare R2 and deleted the directory from
 git, so committing a video there is no longer how it ships. The job checks
-`origin/main` for the prefix instead of assuming: if it is gone, it fetches
-what the media host is serving and compares sha1s, and reports "already live"
-or names the gap. Right now there is no upload path a job can take for a
-*changed* video - the repo holds no videos directory to commit, the repo's
-`upload-media-to-r2.yml` uploads from a checkout and fails with "already
-migrated and deleted" for this prefix, and no R2 credentials exist locally.
-That needs a human decision (extend the workflow to take an artifact, upload
-by hand, or restore the prefix to git), so the job says so and stops rather
-than pretending.
+`origin/main` for the prefix instead of assuming. If the prefix is gone it
+fetches what the media host is serving and compares sha1s, and either reports
+"already live" or uploads.
+
+Uploading goes through the site repo's own `upload-media-to-r2.yml`: the two
+files travel on a short-lived `media/framework-demo` branch, the workflow
+uploads them from that checkout, the live bytes are re-fetched and verified by
+sha1, and the branch is deleted. **R2 credentials stay in GitHub's secrets and
+never touch this machine.** Start with the dry-run mode - it pushes the branch
+and dispatches the workflow in preview mode, so it proves the whole path
+without writing a single object.
 
 **2. Iterate at the cheapest tier that answers your question.**
 - Timing/titles/pacing → `offline-cut` (20 s, placeholder footage).

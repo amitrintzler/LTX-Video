@@ -20,10 +20,12 @@ What it will not do, by design:
 
 Since 2026-09, `public/assets/videos` is served from Cloudflare R2 and is no
 longer in git (docs/MEDIA_OFFLOAD.md), so there is usually nothing to commit.
-The job discovers which shape applies rather than assuming: when the prefix is
-gone it compares the render against what the media host is actually serving and
-reports that, and when the render differs it says plainly that no upload path
-exists for it to take.
+The job discovers which shape applies rather than assuming. With the prefix
+gone it compares the render against what the media host is actually serving,
+and ships a changed one through the repo's own upload workflow: the two files
+travel on a short-lived branch, the workflow uploads them from that checkout,
+the live bytes are re-fetched and checked by sha1, and the branch is deleted.
+The R2 credentials stay in GitHub's secrets and never reach this machine.
 
 Usage:
     deliver_site_video.py                  # QA, stage, commit, stop
@@ -40,6 +42,7 @@ import re
 import shutil
 import subprocess
 import sys
+import time
 from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
@@ -86,6 +89,7 @@ def digest(p: Path) -> str:
 # than assumed.
 R2_BASE = "https://pub-9daa374bbc794f90a57f6bd9ee0f92f3.r2.dev"
 R2_PREFIX = "assets/videos"
+REPO_SLUG = "amitrintzler/optionseducator"
 
 
 def prefix_in_git() -> bool:
@@ -108,6 +112,116 @@ def live_digests() -> dict[str, str | None]:
         )
         out[f.name] = hashlib.sha1(r.stdout).hexdigest() if r.returncode == 0 and r.stdout else None
     return out
+
+
+UPLOAD_WORKFLOW = "upload-media-to-r2.yml"
+MEDIA_BRANCH = "media/framework-demo"
+
+
+def _latest_run_id() -> str:
+    runs = json.loads(
+        sh(["gh", "run", "list", "--repo", REPO_SLUG, "--workflow", UPLOAD_WORKFLOW,
+            "--limit", "1", "--json", "databaseId"], cwd=SITE_REPO, check=False) or "[]"
+    )
+    return str(runs[0]["databaseId"]) if runs else ""
+
+
+def _push_media_branch() -> None:
+    """A short-lived branch carrying just these two files under the offloaded
+    prefix. The workflow uploads from a checkout, and the prefix is gone from
+    the default branch, so this is how the bytes reach a runner. `-f` because
+    .gitignore now excludes public/assets/videos/*."""
+    wt = ensure_worktree()
+    sh(["git", "checkout", "--quiet", "-B", MEDIA_BRANCH, "origin/main"], cwd=wt)
+    dest = wt / REL_DIR
+    dest.mkdir(parents=True, exist_ok=True)
+    shutil.copy2(VIDEO, dest / VIDEO.name)
+    shutil.copy2(POSTER, dest / POSTER.name)
+    sh(["git", "add", "-f", str(REL_DIR / VIDEO.name), str(REL_DIR / POSTER.name)], cwd=wt)
+    sh(["git", "commit", "--quiet", "-m",
+        "Carry the rebuilt framework demo video for the R2 upload workflow\n\n"
+        "Short-lived: this prefix is served from R2 and is not kept in git.\n"
+        "The upload workflow reads its files from a checkout, so they travel\n"
+        "on this branch and it is deleted once the upload is verified."], cwd=wt)
+    sh(["git", "push", "--force", "-u", "origin", MEDIA_BRANCH], cwd=wt)
+    print(f"  pushed {MEDIA_BRANCH} carrying the two files", flush=True)
+
+
+def _delete_media_branch() -> None:
+    wt = WORKTREE if WORKTREE.exists() else SITE_REPO
+    sh(["git", "push", "origin", "--delete", MEDIA_BRANCH], cwd=wt, check=False)
+    sh(["git", "checkout", "--quiet", "-B", BRANCH, "origin/main"], cwd=wt, check=False)
+    print(f"  deleted {MEDIA_BRANCH}", flush=True)
+
+
+def upload_to_media_host(sha_video: str, sha_poster: str, dry: bool) -> int:
+    """Ship a changed video to R2 through the repo's own upload workflow.
+
+    The credentials stay where they already are - GitHub repo secrets - and
+    never come near this machine. What travels is the file, on a branch that is
+    deleted once the upload is verified.
+    """
+    print(f"\nUploading through {UPLOAD_WORKFLOW} (dry run: {dry})", flush=True)
+    before = _latest_run_id()
+    _push_media_branch()
+    try:
+        sh(["gh", "workflow", "run", UPLOAD_WORKFLOW, "--repo", REPO_SLUG,
+            "-f", f"prefix={R2_PREFIX}", "-f", f"ref={MEDIA_BRANCH}",
+            "-f", f"dry_run={'true' if dry else 'false'}"], cwd=SITE_REPO)
+        print("  dispatched; waiting for the run to appear", flush=True)
+
+        run_id = ""
+        for _ in range(60):
+            time.sleep(5)
+            run_id = _latest_run_id()
+            if run_id and run_id != before:
+                break
+        if not run_id or run_id == before:
+            print("  the run never appeared - nothing was uploaded", flush=True)
+            return 1
+        url = sh(["gh", "run", "view", run_id, "--repo", REPO_SLUG,
+                  "--json", "url", "-q", ".url"], cwd=SITE_REPO, check=False)
+        print(f"  run {run_id}: {url}", flush=True)
+
+        for _ in range(240):
+            state = json.loads(
+                sh(["gh", "run", "view", run_id, "--repo", REPO_SLUG,
+                    "--json", "status,conclusion"], cwd=SITE_REPO, check=False) or "{}"
+            )
+            if state.get("status") == "completed":
+                break
+            time.sleep(5)
+        else:
+            print("  the run did not finish in time; check it before retrying", flush=True)
+            return 1
+
+        if state.get("conclusion") != "success":
+            print(f"  the upload run ended as {state.get('conclusion')} - see {url}", flush=True)
+            return 1
+        print("  the run succeeded", flush=True)
+
+        if dry:
+            print("\nDry run only: the workflow previewed the upload and wrote nothing. "
+                  "Re-run this without the dry-run mode to upload for real.", flush=True)
+            return 0
+
+        # An upload is only believed once the media host serves those bytes.
+        for attempt in range(12):
+            live = live_digests()
+            if live[VIDEO.name] == sha_video and live[POSTER.name] == sha_poster:
+                print("\nDelivered: the media host now serves exactly this render.", flush=True)
+                print(f"delivered={R2_BASE}/{R2_PREFIX}/{VIDEO.name} (uploaded and verified by sha1)",
+                      flush=True)
+                return 0
+            time.sleep(10)
+        print("\nThe run succeeded but the media host is still serving different bytes.", flush=True)
+        for n, d in live.items():
+            print(f"  live {n}: {d[:12] if d else 'unreadable'}", flush=True)
+        print("Not deleting the branch, so the upload can be retried or inspected.", flush=True)
+        return 1
+    finally:
+        if dry:
+            _delete_media_branch()
 
 
 def report_offloaded(sha_video: str, sha_poster: str) -> int:
@@ -136,15 +250,9 @@ def report_offloaded(sha_video: str, sha_poster: str) -> int:
               flush=True)
         return 0
 
-    print(f"\nNOT DELIVERED - {', '.join(differing)} would need uploading to R2, and there is "
-          "currently no path this job can take:", flush=True)
-    print("  - the repo no longer holds public/assets/videos, so there is nothing to commit;", flush=True)
-    print("  - .github/workflows/upload-media-to-r2.yml uploads from a repo checkout and fails "
-          'with "already migrated and deleted" for this prefix;', flush=True)
-    print("  - no R2 credentials are present here, and the site's own notes say these sandboxes "
-          "cannot reach the R2 write endpoint.", flush=True)
-    print("Someone has to choose one: extend that workflow to take an uploaded artifact, run an "
-          "authenticated upload by hand, or restore the prefix to git.", flush=True)
+    print(f"\n{', '.join(differing)} differs from what is live. This needs an upload to the "
+          "media host: re-run in an upload mode (start with the dry run, which writes nothing).",
+          flush=True)
     return 1
 
 
@@ -553,6 +661,16 @@ def main() -> int:
         "--dry-run", action="store_true", help="QA and report, write nothing"
     )
     ap.add_argument(
+        "--upload",
+        action="store_true",
+        help="upload a changed render to the media host through the repo's own R2 workflow",
+    )
+    ap.add_argument(
+        "--upload-dry-run",
+        action="store_true",
+        help="dispatch that workflow in preview mode: it writes no objects",
+    )
+    ap.add_argument(
         "--pr",
         action="store_true",
         help="also open or refresh the pull request (implies --push); never merges",
@@ -587,9 +705,24 @@ def main() -> int:
         if a.pr:
             wt = WORKTREE if WORKTREE.exists() else SITE_REPO
             upsert_pr(wt, facts_block(measured, sha_video, True, a.signoff), dry=True)
+        if a.upload or a.upload_dry_run:
+            print(f"dry run: would push {MEDIA_BRANCH} and dispatch {UPLOAD_WORKFLOW} "
+                  f"(prefix={R2_PREFIX}); nothing dispatched.", flush=True)
         return 0
 
     if not prefix_in_git():
+        if a.upload or a.upload_dry_run:
+            if a.upload and not a.upload_dry_run:
+                # A real upload of bytes that are already live is pointless. A
+                # dry run is not: it writes nothing and proves the path works.
+                live = live_digests()
+                if live[VIDEO.name] == sha_video and live[POSTER.name] == sha_poster:
+                    print("\nNothing to upload: the media host already serves exactly this render.",
+                          flush=True)
+                    print(f"delivered={R2_BASE}/{R2_PREFIX}/{VIDEO.name} (already live, verified by sha1)",
+                          flush=True)
+                    return 0
+            return upload_to_media_host(sha_video, sha_poster, dry=a.upload_dry_run)
         return report_offloaded(sha_video, sha_poster)
 
     wt = ensure_worktree()

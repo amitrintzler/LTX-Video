@@ -485,7 +485,11 @@ def build_deliver_site_video(p: dict[str, Any], job: Job) -> list[str]:
     mode = p.get("mode", "")
     if mode.startswith("check"):
         cmd.append("--dry-run")
-    if "PR" in mode:
+    if "media host" in mode:
+        # assets/videos is served from R2 and is not in git, so a changed
+        # render ships through the repo's own upload workflow instead.
+        cmd.append("--upload-dry-run" if "dry run" in mode else "--upload")
+    elif "PR" in mode:
         cmd.append("--pr")  # implies a push
     elif "push" in mode:
         cmd.append("--push")
@@ -802,7 +806,7 @@ SPECS: dict[str, JobSpec] = {
         JobSpec(
             "deliver-site-video",
             False,
-            "QA the site video and stage it in the site repo (never merges)",
+            "QA the site video, then ship it (R2 upload or a repo PR); never merges",
             build_deliver_site_video,
             "~40s",
         ),

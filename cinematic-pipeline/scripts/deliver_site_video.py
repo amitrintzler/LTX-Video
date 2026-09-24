@@ -114,6 +114,35 @@ def live_digests() -> dict[str, str | None]:
     return out
 
 
+def live_cache_headers() -> dict[str, str]:
+    """The Cache-Control each file is actually served with."""
+    out: dict[str, str] = {}
+    for f in (VIDEO, POSTER):
+        head = subprocess.run(
+            ["curl", "-sfSI", "--max-time", "60", f"{R2_BASE}/{R2_PREFIX}/{f.name}"],
+            capture_output=True, text=True,
+        ).stdout
+        value = ""
+        for line in head.splitlines():
+            if line.lower().startswith("cache-control:"):
+                value = line.split(":", 1)[1].strip()
+        out[f.name] = value
+    return out
+
+
+def stale_cache(headers: dict[str, str]) -> list[str]:
+    """These two files are re-rendered in place at the same URL, so an
+    immutable year-long cache is wrong for them however the bytes compare: a
+    viewer can hold an old cut long after a new one is live. The site's upload
+    workflow gives them a short max-age instead, and until a real upload has
+    happened the objects still carry whatever the migration set."""
+    return [
+        n
+        for n, v in headers.items()
+        if "immutable" in v.lower() or "max-age=31536000" in v.replace(" ", "")
+    ]
+
+
 UPLOAD_WORKFLOW = "upload-media-to-r2.yml"
 MEDIA_BRANCH = "media/framework-demo"
 
@@ -162,6 +191,9 @@ def upload_to_media_host(sha_video: str, sha_poster: str, dry: bool) -> int:
     deleted once the upload is verified.
     """
     print(f"\nUploading through {UPLOAD_WORKFLOW} (dry run: {dry})", flush=True)
+    # The branch is scaffolding: it goes away once the upload is verified, and
+    # only stays when something went wrong and is worth inspecting.
+    keep_branch = False
     before = _latest_run_id()
     _push_media_branch()
     try:
@@ -178,6 +210,7 @@ def upload_to_media_host(sha_video: str, sha_poster: str, dry: bool) -> int:
                 break
         if not run_id or run_id == before:
             print("  the run never appeared - nothing was uploaded", flush=True)
+            keep_branch = True
             return 1
         url = sh(["gh", "run", "view", run_id, "--repo", REPO_SLUG,
                   "--json", "url", "-q", ".url"], cwd=SITE_REPO, check=False)
@@ -193,10 +226,12 @@ def upload_to_media_host(sha_video: str, sha_poster: str, dry: bool) -> int:
             time.sleep(5)
         else:
             print("  the run did not finish in time; check it before retrying", flush=True)
+            keep_branch = True
             return 1
 
         if state.get("conclusion") != "success":
             print(f"  the upload run ended as {state.get('conclusion')} - see {url}", flush=True)
+            keep_branch = True
             return 1
         print("  the run succeeded", flush=True)
 
@@ -209,6 +244,13 @@ def upload_to_media_host(sha_video: str, sha_poster: str, dry: bool) -> int:
         for attempt in range(12):
             live = live_digests()
             if live[VIDEO.name] == sha_video and live[POSTER.name] == sha_poster:
+                heads = live_cache_headers()
+                for n, v in heads.items():
+                    print(f"  live {n}: Cache-Control: {v}", flush=True)
+                if stale_cache(heads):
+                    print("\nThe bytes are right but the immutable cache header is still being "
+                          "served; the edge may take a moment. Re-check before assuming it failed.",
+                          flush=True)
                 print("\nDelivered: the media host now serves exactly this render.", flush=True)
                 print(f"delivered={R2_BASE}/{R2_PREFIX}/{VIDEO.name} (uploaded and verified by sha1)",
                       flush=True)
@@ -218,9 +260,10 @@ def upload_to_media_host(sha_video: str, sha_poster: str, dry: bool) -> int:
         for n, d in live.items():
             print(f"  live {n}: {d[:12] if d else 'unreadable'}", flush=True)
         print("Not deleting the branch, so the upload can be retried or inspected.", flush=True)
+        keep_branch = True
         return 1
     finally:
-        if dry:
+        if not keep_branch:
             _delete_media_branch()
 
 
@@ -713,10 +756,17 @@ def main() -> int:
     if not prefix_in_git():
         if a.upload or a.upload_dry_run:
             if a.upload and not a.upload_dry_run:
-                # A real upload of bytes that are already live is pointless. A
-                # dry run is not: it writes nothing and proves the path works.
+                # A real upload of bytes that are already live is pointless -
+                # unless they are served with the wrong Cache-Control, which is
+                # also part of being delivered. A dry run always proceeds: it
+                # writes nothing and proves the path works.
                 live = live_digests()
-                if live[VIDEO.name] == sha_video and live[POSTER.name] == sha_poster:
+                stale = stale_cache(live_cache_headers())
+                if stale:
+                    print("\n" + ", ".join(stale) + " are served with an immutable year-long "
+                          "cache, which is wrong for files re-rendered in place. Re-uploading to "
+                          "correct the header.", flush=True)
+                if not stale and live[VIDEO.name] == sha_video and live[POSTER.name] == sha_poster:
                     print("\nNothing to upload: the media host already serves exactly this render.",
                           flush=True)
                     print(f"delivered={R2_BASE}/{R2_PREFIX}/{VIDEO.name} (already live, verified by sha1)",

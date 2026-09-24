@@ -466,6 +466,9 @@ def main() -> int:
 
     _apply_preset(args.preset)
     out = Path(args.out)
+    # The studio lets you type any path here, and soundfile's failure for a
+    # missing directory is an opaque "System error" - so make the directory.
+    out.parent.mkdir(parents=True, exist_ok=True)
     audio = compose()
     sf.write(out, audio, SR)
     print(

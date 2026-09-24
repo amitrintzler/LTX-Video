@@ -89,7 +89,9 @@
   .eng.post{color:var(--ok);border-color:var(--ok)}
   .eng.audio{color:var(--violet);border-color:var(--violet)}
   .miniplay{width:104px;border-radius:5px;border:1px solid var(--line);cursor:pointer;display:block}
-  .kgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(268px,1fr));gap:14px}
+  .kgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(268px,1fr));gap:14px;margin-bottom:26px}
+  .ghead{font-size:15px;letter-spacing:.14em;text-transform:uppercase;color:#cfe4ff;margin:26px 0 2px}
+  .gcount{color:#5d7590;font-size:12px;letter-spacing:0}
   .kcard{background:var(--panel);border:1px solid var(--line);border-radius:10px;overflow:hidden;
          display:flex;flex-direction:column}
   .kcard.off{opacity:.62}
@@ -137,7 +139,7 @@
       <button id="vCards" class="on">Cards</button>
       <button id="vTable">Full view</button>
     </div>
-    <div class="kgrid" id="kinds"></div>
+    <div id="kinds"></div>
     <table class="full hidden" id="kindsTable"><thead><tr>
       <th></th><th>Output</th><th>Engine</th><th>Length</th><th>What it is for</th><th></th>
     </tr></thead><tbody></tbody></table>
@@ -239,18 +241,23 @@ function cards(list, kind, target){
     show(c.dataset.k, decodeURIComponent(c.dataset.p), c.dataset.n, c.dataset.s));
 }
 
-async function loadCatalogue(){
-  const kinds = await api('/api/catalogue');
-  $('#kinds').innerHTML = kinds.map(k=>{
+const GROUPS = [
+  ['sound',     'Sounds',     'Music and voice, composed and spoken here — nothing licensed.'],
+  ['image',     'Images',     'Stills: posters, title cards, diagrams, generated art.'],
+  ['animation', 'Animations', 'Drawn motion — maths, charts, slides, React templates.'],
+  ['film',      'Films',      'Finished cuts with a beginning and an end.'],
+  ['shot',      'Shots',      'Single pieces, made to drop inside a film.'],
+  ['ship',      'Ship it',    'Put a finished render on the live site, with proof.'],
+];
+
+function kindCard(k){
     let prev;
     if(!k.proxy) prev = `<div class="noprev">${k.why||'no sample yet'}</div>`;
     else if(k.kind==='image')
       prev = `<img class="prev" loading="lazy" src="${posterUrl(k.proxy, 0)}" data-k="image" data-p="${encodeURIComponent(k.source)}" data-n="${k.title}">`;
     else if(k.kind==='audio')
-      prev = `<div class="noprev prev" style="cursor:pointer;letter-spacing:2px" data-k="audio" data-p="${encodeURIComponent(k.source)}" data-n="${k.title}">▶ PLAY SCORE</div>`;
-    else
-      // poster so the card shows a picture immediately; the clip only loads on hover
-      prev = `<video class="prev" muted loop playsinline preload="none"
+      prev = `<div class="noprev prev" style="cursor:pointer;letter-spacing:2px" data-k="audio" data-p="${encodeURIComponent(k.source)}" data-n="${k.title}">▶ PLAY</div>`;
+    else prev = `<video class="prev" muted loop preload="none" playsinline
                     poster="${posterUrl(k.proxy, 0.4)}" src="${fileUrl(k.proxy)}"
                     data-k="video" data-p="${encodeURIComponent(k.source)}" data-n="${k.title}"></video>`;
     return `<div class="kcard ${k.available?'':'off'}">
@@ -259,9 +266,28 @@ async function loadCatalogue(){
         <div class="kt">${k.title}</div>
         <div class="kp">${k.purpose}</div>
         <div class="kmeta"><span>${k.kind}</span><span>${k.length}</span>
-          ${k.job?`<button class="kmake" data-job="${k.job}">Make one</button>`:''}</div>
+          ${k.job?`<button class="kmake" data-job="${k.job}">Make one</button>`:''}
+        </div>
       </div></div>`;
-  }).join('');
+}
+
+async function loadCatalogue(){
+  const kinds = await api('/api/catalogue');
+  const seen = new Set();
+  let html = '';
+  for(const [cat, title, blurb] of GROUPS){
+    const mine = kinds.filter(k=>k.category===cat);
+    if(!mine.length) continue;
+    mine.forEach(k=>seen.add(k.id));
+    html += `<h3 class="ghead">${title} <span class="gcount">${mine.length}</span></h3>
+             <p class="grouphint">${blurb}</p>
+             <div class="kgrid">${mine.map(kindCard).join('')}</div>`;
+  }
+  const rest = kinds.filter(k=>!seen.has(k.id));
+  if(rest.length) html += `<h3 class="ghead">Everything else</h3>
+             <div class="kgrid">${rest.map(kindCard).join('')}</div>`;
+  $('#kinds').innerHTML = html;
+
   // hover to preview, click to open full size in the stage
   document.querySelectorAll('#kinds video.prev').forEach(v=>{
     v.onmouseenter=()=>v.play().catch(()=>{}); v.onmouseleave=()=>{v.pause();v.currentTime=0;};

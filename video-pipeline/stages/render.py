@@ -20,6 +20,9 @@ class RenderStage:
     def __init__(self, cfg: PipelineConfig, log: logging.Logger):
         self.cfg = cfg
         self.log = log.getChild("render")
+        # Scenes that fell back to static slides. Set here, not in run(), so a
+        # direct _render_scene call still has somewhere to record.
+        self.degraded: list[dict] = []
 
     def run(self, script: dict, scenes: list[dict], title: str) -> None:
         safe_title = safe_slug(title)
@@ -38,6 +41,7 @@ class RenderStage:
                 self._render_scene(i, scene, clips_dir, movie_renderer)
             return
 
+        self.degraded = []
         with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as pool:
             futures = [
                 pool.submit(self._render_scene, i, scene, clips_dir, movie_renderer)
@@ -45,6 +49,12 @@ class RenderStage:
             ]
             for fut in concurrent.futures.as_completed(futures):
                 fut.result()
+        if self.degraded:
+            names = ", ".join(d["scene"] for d in self.degraded)
+            self.log.warning(
+                f"  {len(self.degraded)} of {len(scenes)} scenes fell back to static slides: {names}. "
+                "The film will play, but those scenes do not animate."
+            )
 
     def _render_scene(self, i: int, scene: dict, clips_dir: Path, default_renderer: Optional[str] = None) -> None:
         scene_id = f"scene_{i+1:03d}"
@@ -68,7 +78,27 @@ class RenderStage:
 
         self.log.info(f"  [{scene_id}] renderer={renderer_name} -> {resolved_name}")
         render_scene = self._scene_for_renderer(scene, resolved_name)
-        renderer.render(render_scene, self.cfg, out_path)
+        try:
+            renderer.render(render_scene, self.cfg, out_path)
+        except Exception as exc:  # noqa: BLE001 - any renderer failure, not one kind
+            if resolved_name == "slides":
+                raise
+            # A scene that exhausts its renderer's retries used to raise
+            # straight out of the thread pool and end the whole run, so a
+            # single stubborn scene threw away every other scene's work - an
+            # hour of rendering for no file at all. It falls back to slides
+            # instead, which always renders.
+            #
+            # Loudly, because slides do not move: a silent fallback here is
+            # how "animations" became a slideshow in the first place. The
+            # scene is recorded so the stage can say which ones are static.
+            self.log.error(
+                f"  [{scene_id}] {resolved_name} failed ({exc.__class__.__name__}: {exc}); "
+                "falling back to slides - THIS SCENE WILL NOT MOVE"
+            )
+            self.degraded.append({"scene": scene_id, "renderer": resolved_name, "error": str(exc)})
+            slides = get_renderer("slides")
+            slides.render(self._scene_for_renderer(scene, "slides"), self.cfg, out_path)
         self.log.info(f"  [{scene_id}] saved -> {out_path}")
 
     def _scene_for_renderer(self, scene: dict, renderer_name: str) -> dict:

@@ -827,6 +827,68 @@ class VideoScene(Scene):
     assert "width=8" in rendered_code and "stroke_width=" not in rendered_code
 
 
+def test_render_provider_ladder_spends_the_free_attempts_first():
+    """Cost shape of scene codegen: the cheap local backend gets every attempt
+    but the last, which escalates to the paid one. Before this the provider was
+    fixed for all attempts, so a local model that could not write valid Manim
+    meant the scene silently became a static slide while a stronger backend was
+    never asked.
+
+    The escalation is opt-in. A bare PipelineConfig has no backups, so
+    importing this library cannot turn a local setup into a paid call.
+    """
+    from config import PipelineConfig
+
+    assert PipelineConfig().render_provider_sequence() == ["lmstudio"]
+
+    cfg = PipelineConfig()
+    cfg.render_llm_provider = "lmstudio"
+    cfg.render_llm_model = "local-model"
+    cfg.render_backup_providers = ["claude"]
+    cfg.renderer_max_retries = 3
+    ladder = cfg.render_provider_sequence()
+    assert ladder == ["lmstudio", "claude"]
+
+    chosen = [
+        ladder[0 if attempt < cfg.renderer_max_retries - 1 else len(ladder) - 1]
+        for attempt in range(cfg.renderer_max_retries)
+    ]
+    assert chosen == ["lmstudio", "lmstudio", "claude"]
+    assert cfg.render_llm_model_name_for("lmstudio") == "local-model"
+    assert cfg.render_llm_model_name_for("claude") == cfg.claude_model
+
+
+def test_manim_drops_dash_array_and_blocks_fileless_mobjects():
+    """Two failures seen from a local codegen model on real scenes:
+    set_stroke(dash_array=...) dies with "unexpected keyword argument
+    'dash_array'", and SVGMobject()/ImageMobject() die with "Must specify file"
+    because no asset exists. Dashes come from DashedVMobject, not a stroke
+    kwarg, so dash_array is simply dropped and the line renders solid; the
+    file-less mobjects are blocked before manim runs so the retry is told why
+    instead of spending a render to find out.
+    """
+    from stages.renderers.manim import (
+        ManimRenderError,
+        _ensure_safe_codegen,
+        _normalize_manim_code,
+    )
+
+    code = (
+        "from manim import *\n"
+        "class VideoScene(Scene):\n"
+        "    def construct(self):\n"
+        "        l = Line(LEFT, RIGHT)\n"
+        '        l.set_stroke(color="#ffffff", width=3, dash_array=[0.1, 0.1])\n'
+    )
+    out = _normalize_manim_code(code)
+    assert "dash_array" not in out
+    assert 'set_stroke(color="#ffffff", width=3)' in out
+
+    for forbidden in ("SVGMobject(", "ImageMobject("):
+        with pytest.raises(ManimRenderError):
+            _ensure_safe_codegen(f"from manim import *\nx = {forbidden})")
+
+
 def test_manim_normalizes_alignment_keyword_before_running_manim(tmp_path):
     import stages.renderers.manim as manim_mod
 

@@ -88,6 +88,12 @@ class PipelineConfig:
     llm_model: str = "qwen/qwen3.5-35b-a3b"
     render_llm_provider: str = "lmstudio"   # claude | lmstudio
     render_llm_model: str = "qwen/qwen3.5-35b-a3b"
+    # Escalation for scene code, tried on the final attempt when the primary
+    # cannot produce valid Manim. Empty by default so importing this config
+    # never turns a single-provider setup into a paid call behind the caller's
+    # back - config.json opts in. Tests rely on that: they mock one backend and
+    # would otherwise hit a real CLI on the last retry.
+    render_backup_providers: list[str] = field(default_factory=list)
     block_degraded_output: bool = True
     max_fallback_scene_ratio: float = 0.2
     lmstudio_base_url: str = "http://localhost:1234/v1"
@@ -118,12 +124,31 @@ class PipelineConfig:
         return providers or ["lmstudio"]
 
     def render_llm_model_name(self) -> str:
-        provider = self.render_llm_provider.strip().lower()
+        return self.render_llm_model_name_for(self.render_llm_provider)
+
+    def render_llm_model_name_for(self, provider: str) -> str:
+        provider = str(provider).strip().lower()
         if provider == "lmstudio":
             if not self.render_llm_model:
                 raise ValueError("render_llm_model must be set when render_llm_provider is lmstudio")
             return self.render_llm_model
         return self.claude_model
+
+    def render_provider_sequence(self) -> list[str]:
+        """Which backend writes the scene code, per attempt, cheapest first.
+
+        A local model costs nothing and is worth two tries; if it still cannot
+        produce valid Manim, the last attempt escalates to the paid one rather
+        than dropping the scene to a static slide. Without this the provider
+        was fixed for every attempt, so a local failure meant the scene never
+        moved and nothing stronger was ever asked.
+        """
+        providers: list[str] = []
+        for provider in [self.render_llm_provider, *self.render_backup_providers]:
+            normalized = str(provider).strip().lower()
+            if normalized in {"lmstudio", "claude"} and normalized not in providers:
+                providers.append(normalized)
+        return providers or ["lmstudio"]
 
     # ── TTS (Kokoro) ─────────────────────────────────────────────────
     tts_enabled: bool = True

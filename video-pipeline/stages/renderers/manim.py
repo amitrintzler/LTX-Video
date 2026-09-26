@@ -61,6 +61,8 @@ NAMED_COLOR_NAMES = (
     "MAGENTA",
 )
 BLOCKED_MANIM_PATTERNS = (
+    r"\bSVGMobject\s*\(",
+    r"\bImageMobject\s*\(",
     r"\bAxes\s*\(",
     r"\bNumberPlane\s*\(",
     r"\bNumberLine\s*\(",
@@ -100,8 +102,13 @@ def render(scene: dict, config: PipelineConfig, out_path: Path) -> Path:
         sys.stderr.flush()
         sys.stdout.flush()
 
-        provider = config.render_llm_provider.strip().lower()
-        model = config.render_llm_model_name()
+        # Cheapest rung first; the last attempt escalates so a scene is not
+        # abandoned to a static slide while a stronger backend went unasked.
+        ladder = config.render_provider_sequence()
+        rung = 0 if attempt < config.renderer_max_retries - 1 else len(ladder) - 1
+        provider = ladder[rung]
+        model = config.render_llm_model_name_for(provider)
+        log.info(f"Codegen backend for attempt {attempt+1}: {provider}:{model}")
         if provider == "lmstudio":
             code = _call_lmstudio_api(
                 model=model,
@@ -704,6 +711,12 @@ def _normalize_manim_code(code: str) -> str:
 
     # Remove invalid stroke_dash_array= parameter (Manim doesn't support this)
     code = re.sub(r",\s*stroke_dash_array\s*=\s*\[[^\]]*\]\s*(?=,|\))", "", code)
+
+    # Same for plain dash_array=, which set_stroke() also rejects
+    # ("VMobject.set_stroke() got an unexpected keyword argument 'dash_array'").
+    # Dashes in Manim come from DashedVMobject/DashedLine, not a stroke kwarg,
+    # so dropping it renders a solid line rather than failing the scene.
+    code = re.sub(r",\s*dash_array\s*=\s*(?:\[[^\]]*\]|\([^)]*\)|[0-9.]+)\s*(?=,|\))", "", code)
 
     # Remove invalid opacity= parameter (use fill_opacity and stroke_opacity instead)
     code = re.sub(r",\s*opacity\s*=\s*[0-9.]+\s*(?=,|\))", "", code)

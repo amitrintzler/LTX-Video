@@ -32,7 +32,12 @@ class ManimRenderError(RuntimeError):
     pass
 
 
-CLAUDE_CODEGEN_TIMEOUT = 600
+# Codegen here shells out to the Claude Code CLI, which is an agentic session
+# rather than a single API call: measured on this machine, one scene takes
+# 308-465s alone, and over 900s from the repo root where the pipeline actually
+# runs. At 600s most scenes timed out and fell back to static slides, which is
+# why "animations" did not animate. Raised above the observed worst case.
+CLAUDE_CODEGEN_TIMEOUT = 1200
 NAMED_COLOR_NAMES = (
     "CYAN",
     "TEAL",

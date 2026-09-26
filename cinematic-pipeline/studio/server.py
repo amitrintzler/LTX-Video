@@ -16,7 +16,8 @@ from fastapi import Body, FastAPI, HTTPException, Query
 from fastapi.responses import FileResponse, HTMLResponse, StreamingResponse
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from jobs import (CONFIG_DIR, PROJECT, RENDER_ROOT, SPECS, TRAILER, Runner)  # noqa: E402
+from jobs import (CONFIG_DIR, PROJECT, RENDER_ROOT, SPECS, TRAILER, Runner,
+                  llm_choices)  # noqa: E402
 import status as status_mod  # noqa: E402
 import catalogue as catalogue_mod  # noqa: E402
 
@@ -153,6 +154,13 @@ def _allowed(target: Path) -> bool:
     roots = [RENDER_ROOT.resolve(), PROJECT.resolve(),
              (Path.home() / "LTX-Studio").resolve()]
     return any(str(target).startswith(str(r)) for r in roots)
+
+
+@app.get("/api/llm-models")
+def llm_models() -> dict[str, Any]:
+    """Which language models this machine can actually reach. Probed live, so
+    loading a model in LM Studio changes this without restarting the studio."""
+    return {"choices": llm_choices()}
 
 
 @app.get("/api/catalogue")

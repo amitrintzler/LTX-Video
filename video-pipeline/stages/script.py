@@ -1095,7 +1095,8 @@ Rules:
 - Return exactly one JSON object with a single top-level key: `scenes`.
 - Do not include `title`, `brief`, `research_brief`, `primary_renderer`, or `global_style`.
 - Produce exactly {chunk_end - chunk_start + 1} scenes in the `scenes` array.
-- If you include `renderer`, valid values are ONLY: "manim", "motion-canvas", or "d3".
+- If you include `renderer`, valid values are ONLY: "manim", "d3", or "slides".
+- "manim" and "d3" animate. "slides" is static text cards - pick it only when nothing should move.
 - Preferred renderer for this topic is "{preferred_renderer}". Use it unless a scene strongly needs another renderer.
 - Do not include scene ids unless you are certain; the pipeline will assign ids.
 - Narration must be 1-3 short sentences and self-contained.
@@ -1259,13 +1260,23 @@ Return JSON only.
 
         return "\n".join(lines) or topic_title(topic)
 
+    # research.py writes this when it collected nothing. Its own heading is
+    # "## Research Summary", and "summary" is a slides keyword below - so a
+    # failed research stage used to pick the static renderer for any topic,
+    # whatever the topic was. A brief that says it has no content is not
+    # evidence about the content.
+    PLACEHOLDER_BRIEF = "no live evidence was collected"
+
     def _suggest_renderer(self, topic: TopicInput, research_text: str, outline_text: str) -> str:
+        if self.PLACEHOLDER_BRIEF in research_text.lower():
+            research_text = ""
         haystack = " ".join([topic_context_json(topic), research_text[:4000], outline_text[:2000]]).lower()
 
         if any(word in haystack for word in [
             "option", "options", "strike", "premium", "payoff", "breakeven",
             "expiration", "expiry", "theta", "delta", "gamma", "vega",
             "call", "put", "intrinsic", "extrinsic",
+            "volatility", "implied vol", "moneyness", "greeks",
         ]):
             return "manim"
 
@@ -1279,6 +1290,6 @@ Return JSON only.
             "slide", "presentation", "bullet", "checklist", "summary", "walkthrough", "explainer",
             "story", "narrative", "step-by-step",
         ]):
-            return "motion-canvas"
+            return "slides"
 
         return "manim"

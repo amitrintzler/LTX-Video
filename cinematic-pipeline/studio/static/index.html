@@ -89,7 +89,9 @@
   .eng.post{color:var(--ok);border-color:var(--ok)}
   .eng.audio{color:var(--violet);border-color:var(--violet)}
   .miniplay{width:104px;border-radius:5px;border:1px solid var(--line);cursor:pointer;display:block}
-  .kgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(268px,1fr));gap:14px}
+  .kgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(268px,1fr));gap:14px;margin-bottom:26px}
+  .ghead{font-size:15px;letter-spacing:.14em;text-transform:uppercase;color:#cfe4ff;margin:26px 0 2px}
+  .gcount{color:#5d7590;font-size:12px;letter-spacing:0}
   .kcard{background:var(--panel);border:1px solid var(--line);border-radius:10px;overflow:hidden;
          display:flex;flex-direction:column}
   .kcard.off{opacity:.62}
@@ -137,7 +139,7 @@
       <button id="vCards" class="on">Cards</button>
       <button id="vTable">Full view</button>
     </div>
-    <div class="kgrid" id="kinds"></div>
+    <div id="kinds"></div>
     <table class="full hidden" id="kindsTable"><thead><tr>
       <th></th><th>Output</th><th>Engine</th><th>Length</th><th>What it is for</th><th></th>
     </tr></thead><tbody></tbody></table>
@@ -239,18 +241,23 @@ function cards(list, kind, target){
     show(c.dataset.k, decodeURIComponent(c.dataset.p), c.dataset.n, c.dataset.s));
 }
 
-async function loadCatalogue(){
-  const kinds = await api('/api/catalogue');
-  $('#kinds').innerHTML = kinds.map(k=>{
+const GROUPS = [
+  ['sound',     'Sounds',     'Music and voice, composed and spoken here — nothing licensed.'],
+  ['image',     'Images',     'Stills: posters, title cards, diagrams, generated art.'],
+  ['animation', 'Animations', 'Drawn motion — maths, charts, slides, React templates.'],
+  ['film',      'Films',      'Finished cuts with a beginning and an end.'],
+  ['shot',      'Shots',      'Single pieces, made to drop inside a film.'],
+  ['ship',      'Ship it',    'Put a finished render on the live site, with proof.'],
+];
+
+function kindCard(k){
     let prev;
     if(!k.proxy) prev = `<div class="noprev">${k.why||'no sample yet'}</div>`;
     else if(k.kind==='image')
       prev = `<img class="prev" loading="lazy" src="${posterUrl(k.proxy, 0)}" data-k="image" data-p="${encodeURIComponent(k.source)}" data-n="${k.title}">`;
     else if(k.kind==='audio')
-      prev = `<div class="noprev prev" style="cursor:pointer;letter-spacing:2px" data-k="audio" data-p="${encodeURIComponent(k.source)}" data-n="${k.title}">▶ PLAY SCORE</div>`;
-    else
-      // poster so the card shows a picture immediately; the clip only loads on hover
-      prev = `<video class="prev" muted loop playsinline preload="none"
+      prev = `<div class="noprev prev" style="cursor:pointer;letter-spacing:2px" data-k="audio" data-p="${encodeURIComponent(k.source)}" data-n="${k.title}">▶ PLAY</div>`;
+    else prev = `<video class="prev" muted loop preload="none" playsinline
                     poster="${posterUrl(k.proxy, 0.4)}" src="${fileUrl(k.proxy)}"
                     data-k="video" data-p="${encodeURIComponent(k.source)}" data-n="${k.title}"></video>`;
     return `<div class="kcard ${k.available?'':'off'}">
@@ -259,9 +266,28 @@ async function loadCatalogue(){
         <div class="kt">${k.title}</div>
         <div class="kp">${k.purpose}</div>
         <div class="kmeta"><span>${k.kind}</span><span>${k.length}</span>
-          ${k.job?`<button class="kmake" data-job="${k.job}">Make one</button>`:''}</div>
+          ${k.job?`<button class="kmake" data-job="${k.job}">Make one</button>`:''}
+        </div>
       </div></div>`;
-  }).join('');
+}
+
+async function loadCatalogue(){
+  const kinds = await api('/api/catalogue');
+  const seen = new Set();
+  let html = '';
+  for(const [cat, title, blurb] of GROUPS){
+    const mine = kinds.filter(k=>k.category===cat);
+    if(!mine.length) continue;
+    mine.forEach(k=>seen.add(k.id));
+    html += `<h3 class="ghead">${title} <span class="gcount">${mine.length}</span></h3>
+             <p class="grouphint">${blurb}</p>
+             <div class="kgrid">${mine.map(kindCard).join('')}</div>`;
+  }
+  const rest = kinds.filter(k=>!seen.has(k.id));
+  if(rest.length) html += `<h3 class="ghead">Everything else</h3>
+             <div class="kgrid">${rest.map(kindCard).join('')}</div>`;
+  $('#kinds').innerHTML = html;
+
   // hover to preview, click to open full size in the stage
   document.querySelectorAll('#kinds video.prev').forEach(v=>{
     v.onmouseenter=()=>v.play().catch(()=>{}); v.onmouseleave=()=>{v.pause();v.currentTime=0;};
@@ -341,7 +367,7 @@ const FIELDS = {
   "vertical-cut":[["video","Video","masters"],["square","Also make square 1:1","bool"]],
   "flow":[["prompt","Prompt","text"],["kind","Media","choice:video,image"],["seconds","Seconds (video only)","number:8"]],
   "flow-hero-shots":[["only","Which clips","choice:both,city_reveal,pantheon_night"]],
-  "animation":[["input","Topic or script JSON path","text"],["stage","Stage","choice:,research,script,render,video,tts,stitch,all,validate"],["max_scenes","Max scenes (blank = all)","number:"]],
+  "animation":[["input","Topic or script JSON path","text"],["model","Language model for the script","llm"],["stage","Stage","choice:,research,script,render,video,tts,stitch,all,validate"],["max_scenes","Max scenes (blank = all)","number:"],["skip_validation","Skip the brief-coverage check","bool"]],
   "showreel":[["stage","Stage","choice:ltx,flow,manim,remotion,promo,score,assemble"]],
   "image":[["prompt","Prompt","text"]],
   "story-reel":[["stage","Stage","choice:all,pages,animate,reel"],["engine","Animation engine","choice:veo,repo,desktop"],["pages","Pages (e.g. 1 or 2,3 - blank = all)","text"],["story","Story spec path (blank = First Trade fable)","text"]],
@@ -355,6 +381,7 @@ const FIELDS = {
   "narration":[["text","Line to speak","text"],["speed","Speed (0.8 slow - 1.1 fast)","number:0.92"],["output","Save wav to (optional)","text"]],
   "capture-page":[["which","Which pages","choice:framework,portal"]],
 };
+let LLMS=[];
 const chip=(on,label,detail)=>`<div class="chip" title="${detail||''}"><span class="dot ${on?'on':'off'}"></span>${label}</div>`;
 
 async function loadStatus(){
@@ -394,6 +421,8 @@ async function pick(name){
   $('#params').innerHTML = (FIELDS[name]||[]).map(([k,label,kind])=>{
     if(kind==='select') return `<label>${label}</label><select data-k="${k}"><option value="">Tuned defaults (delivered master)</option>${cfgs.map(c=>`<option>${c}</option>`).join('')}</select>`;
     if(kind==='clips')  return `<label>${label}</label><select data-k="${k}">${STATUS.clip_ids.map(c=>`<option>${c}</option>`).join('')}</select>`;
+    if(kind==='llm')    return `<label>${label}</label><select data-k="${k}"><option value="">Whatever the config says</option>${(LLMS||[]).map(c=>`<option>${c}</option>`).join('')}</select>`
+                             + `<div class="hint">Probed live. "lmstudio:" runs free on this Mac; "claude:" and "codex:" are metered. A model that is not loaded in LM Studio loads on first use, which is slow.</div>`;
     if(kind==='masters')return `<label>${label}</label><select data-k="${k}">${STATUS.masters.map(m=>`<option value="${m}">${m.split('/').pop()}</option>`).join('')||'<option value="">(nothing rendered yet)</option>'}</select>`;
     if(kind==='bool')   return `<label>${label}</label><select data-k="${k}"><option value="">No</option><option value="1">Yes</option></select>`;
     if(kind.startsWith('choice:')) return `<label>${label}</label><select data-k="${k}">${kind.slice(7).split(',').map(o=>`<option>${o}</option>`).join('')}</select>`;
@@ -459,6 +488,8 @@ $('#cfgSave').onclick=async()=>{
 (async()=>{
   SPECS=await api('/api/job-types');
   await loadStatus(); await pick('offline-cut');
+  api('/api/llm-models').then(d=>{ LLMS = d.choices||[]; if(picked==='animation') pick('animation'); })
+                        .catch(()=>{});
   await loadCatalogue(); await loadGallery(); refresh(); loadConfigs();
   setInterval(()=>{refresh();loadStatus();},6000);
 })();

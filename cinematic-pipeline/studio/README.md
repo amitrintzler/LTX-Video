@@ -28,6 +28,21 @@ default.
 The dashboard's status chips tell you live which engines are ready and exactly
 why one isn't. Trust the chip, not memory.
 
+## Finding the thing you want to make
+
+The dashboard groups everything by what you came to make, not by which engine
+makes it: **Sounds**, **Images**, **Animations**, **Films**, **Shots**, and
+**Ship it**. Every card carries a real sample and a "Make one" button that
+opens Create with that job selected, so options can be set before it starts.
+
+A caveat the status chips do not yet cover: a job with no readiness check
+renders as ready and can still fail at runtime. Known as of 2026-09-24, the
+`animation` job's script stage is broken - its primary LLM provider is set to
+`codex_model = "gpt-5.4"` in `video-pipeline/config.py`, which that account
+rejects outright, and the `lmstudio` backup returned empty output even with
+`qwen/qwen3.5-35b-a3b` loaded. Manim itself is installed and fine; it is the
+topic-to-script step that fails.
+
 ## Jobs (35)
 
 | Job | GPU lane | Typical time | Use it for |

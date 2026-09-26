@@ -22,10 +22,17 @@ PREVIEW = RENDER_ROOT / "ltx25-optionseducator-trailer60-preview"
 VIDEO_PIPELINE_OUT = Path(__file__).resolve().parents[2] / "video-pipeline" / "output"
 FRAMEWORK = RENDER_ROOT / "framework-design"
 
+# "category" groups the dashboard the way someone arrives at it - "I need a
+# sound", "I need an image" - rather than by which engine happens to make it.
+# It is deliberately not "kind": kind is the sample's file type and decides
+# which player renders it, and an animation is a video file but a different
+# thing to ask for.
+#
 # id, title, what it is for, the job that makes one, how to find a sample
 KINDS: list[dict[str, Any]] = [
     {
         "id": "trailer",
+        "category": "film",
         "engine": "LTX + post",
         "usage": "Landing page hero, YouTube, investor or press send-out",
         "title": "Cinematic trailer",
@@ -44,6 +51,7 @@ KINDS: list[dict[str, Any]] = [
     },
     {
         "id": "world",
+        "category": "shot",
         "engine": "LTX",
         "usage": "Atmosphere, establishing shots, mood between product beats",
         "title": "Generated world clip",
@@ -57,6 +65,7 @@ KINDS: list[dict[str, Any]] = [
     },
     {
         "id": "product",
+        "category": "shot",
         "engine": "Post only",
         "usage": "Feature explainers, onboarding, app-store and site loops",
         "title": "Product demo shot",
@@ -70,6 +79,7 @@ KINDS: list[dict[str, Any]] = [
     },
     {
         "id": "story",
+        "category": "film",
         "engine": "Post only",
         "usage": "Lesson promos, social posts about a concept, in-app teasers",
         "title": "Story lesson reel",
@@ -83,6 +93,7 @@ KINDS: list[dict[str, Any]] = [
     },
     {
         "id": "chart",
+        "category": "shot",
         "engine": "Post only",
         "usage": "Anywhere a real price chart must be readable on screen",
         "title": "Stock chart on a building",
@@ -96,6 +107,7 @@ KINDS: list[dict[str, Any]] = [
     },
     {
         "id": "chain",
+        "category": "shot",
         "engine": "Post only",
         "usage": "Explaining strikes, bid/ask and implied vol",
         "title": "Options chain display",
@@ -109,6 +121,7 @@ KINDS: list[dict[str, Any]] = [
     },
     {
         "id": "podcast",
+        "category": "shot",
         "engine": "Post only",
         "usage": "Promoting the daily habit: podcast, video, news",
         "title": "Podcast and daily-video panels",
@@ -125,6 +138,7 @@ KINDS: list[dict[str, Any]] = [
     },
     {
         "id": "inworld_ui",
+        "category": "shot",
         "engine": "LTX + post",
         "usage": "Showing the product without cutting away from the world",
         "title": "Product panel inside the world",
@@ -138,6 +152,7 @@ KINDS: list[dict[str, Any]] = [
     },
     {
         "id": "titles",
+        "category": "image",
         "engine": "Post only",
         "usage": "Any caption, district plate, disclaimer or lower third",
         "title": "Title cards and street plates",
@@ -149,6 +164,7 @@ KINDS: list[dict[str, Any]] = [
     },
     {
         "id": "payoffs",
+        "category": "image",
         "engine": "Post only",
         "usage": "Teaching strategy shapes: calls, spreads, condors",
         "title": "Payoff diagrams",
@@ -160,17 +176,22 @@ KINDS: list[dict[str, Any]] = [
     },
     {
         "id": "thumbnail",
+        "category": "image",
         "engine": "Post only",
         "usage": "YouTube thumbnails, site posters, social cards",
         "title": "Thumbnail and stills",
-        "purpose": "Poster frames for YouTube or the site, with headline type over a clean frame.",
-        "job": None,
+        "purpose": "A designed poster frame - headline type over clean key art, not a "
+        "screenshot of a frame. The site-video job renders one beside its film; the older "
+        "trailer thumbnails were made by hand.",
+        "job": "site-video",
         "length": "still",
         "kind": "image",
-        "find": lambda: _glob(PROJECT / "youtube", "*.jpg"),
+        "find": lambda: _first([FRAMEWORK / "framework-demo.jpg"])
+        or _glob(PROJECT / "youtube", "*.jpg"),
     },
     {
         "id": "score",
+        "category": "sound",
         "engine": "Audio",
         "usage": "Any cut needing an original, rights-clear cue",
         "title": "Original score",
@@ -182,6 +203,7 @@ KINDS: list[dict[str, Any]] = [
     },
     {
         "id": "vertical",
+        "category": "film",
         "engine": "Post only",
         "usage": "Reels, TikTok, Shorts",
         "title": "Vertical 9:16 cut",
@@ -195,6 +217,7 @@ KINDS: list[dict[str, Any]] = [
     },
     {
         "id": "openworld-montage",
+        "category": "shot",
         "engine": "LTX + post",
         "usage": "A wider look at the open world: reveal, old town, storm, first trade, one open city",
         "title": "Open-world city montage",
@@ -218,6 +241,7 @@ KINDS: list[dict[str, Any]] = [
     },
     {
         "id": "image",
+        "category": "image",
         "engine": "Flow (Nano Banana)",
         "usage": "Story art, mood boards, keyframes, thumbnails - free on this plan",
         "title": "Generated still",
@@ -230,6 +254,7 @@ KINDS: list[dict[str, Any]] = [
     },
     {
         "id": "openworld-trailer",
+        "category": "film",
         "engine": "Real product (no LTX, no Flow)",
         "usage": "The Open-World Options City feature, pitched: what it is, why it's "
         "different, what you can do in it",
@@ -254,6 +279,7 @@ KINDS: list[dict[str, Any]] = [
     },
     {
         "id": "options-chain-trailer",
+        "category": "film",
         "engine": "Real product (no LTX, no Flow) + Flow cinematics",
         "usage": "The Options Chain tool, pitched: live Black-Scholes pricing "
         "across the full strike ladder",
@@ -277,6 +303,7 @@ KINDS: list[dict[str, Any]] = [
     },
     {
         "id": "lesson-hub-trailer",
+        "category": "film",
         "engine": "Real product (no LTX, no Flow) + Flow cinematics",
         "usage": "The learner dashboard/roadmap, pitched: one clear path through "
         "options & markets",
@@ -300,6 +327,7 @@ KINDS: list[dict[str, Any]] = [
     },
     {
         "id": "insight-engine-trailer",
+        "category": "film",
         "engine": "Real product (no LTX, no Flow)",
         "usage": "The strategy-selection simulator, pitched: see the trade-off "
         "before you make the trade",
@@ -324,6 +352,7 @@ KINDS: list[dict[str, Any]] = [
     },
     {
         "id": "simulator-trailer",
+        "category": "film",
         "engine": "Real product (no LTX, no Flow)",
         "usage": "The Guided Simulator workspace, pitched: practice the trade "
         "before it's real",
@@ -347,6 +376,7 @@ KINDS: list[dict[str, Any]] = [
     },
     {
         "id": "lesson-library-trailer",
+        "category": "film",
         "engine": "Real product (no LTX, no Flow)",
         "usage": "The lesson catalog and achievements, pitched: curated paths, "
         "real achievements",
@@ -370,6 +400,7 @@ KINDS: list[dict[str, Any]] = [
     },
     {
         "id": "assistant-trailer",
+        "category": "film",
         "engine": "Real product (no LTX, no Flow)",
         "usage": "The AI Assistant, pitched: ask questions, get grounded answers",
         "title": "AI Assistant trailer",
@@ -393,6 +424,7 @@ KINDS: list[dict[str, Any]] = [
     },
     {
         "id": "trade-demos-trailer",
+        "category": "film",
         "engine": "Real product (no LTX, no Flow)",
         "usage": "The 30-day trade timeline lab, pitched: watch a real trade play "
         "out, day by day",
@@ -416,6 +448,7 @@ KINDS: list[dict[str, Any]] = [
     },
     {
         "id": "mini-games-trailer",
+        "category": "film",
         "engine": "Real product (no LTX, no Flow)",
         "usage": "The mini-games arcade, pitched: five fast drills for real "
         "options skills",
@@ -440,6 +473,7 @@ KINDS: list[dict[str, Any]] = [
     },
     {
         "id": "market-maker-defense-trailer",
+        "category": "film",
         "engine": "Real product (no LTX, no Flow)",
         "usage": "The Market Maker Defense mini-game, pitched: survive the "
         "opening bell",
@@ -463,6 +497,7 @@ KINDS: list[dict[str, Any]] = [
     },
     {
         "id": "animate-image",
+        "category": "shot",
         "engine": "Veo i2v (Flow)",
         "usage": "Turn any still into real animation: story art, keyframes, posters",
         "title": "Animated illustration",
@@ -490,6 +525,7 @@ KINDS: list[dict[str, Any]] = [
     },
     {
         "id": "story-reel",
+        "category": "film",
         "engine": "Flow images + post",
         "usage": "Illustrated lesson stories, social storytelling, in-app tales",
         "title": "Illustrated story reel",
@@ -505,6 +541,7 @@ KINDS: list[dict[str, Any]] = [
     },
     {
         "id": "showreel",
+        "category": "film",
         "engine": "All six engines",
         "usage": "The studio's own demo reel - one chapter per engine, freshly generated",
         "title": "Studio showreel",
@@ -522,6 +559,7 @@ KINDS: list[dict[str, Any]] = [
     },
     {
         "id": "site-video",
+        "category": "film",
         "engine": "Real page capture + motion design + original score",
         "usage": "The video embedded on a real site page - shipped to "
         "gameofoptions.netlify.app/framework-design",
@@ -538,7 +576,25 @@ KINDS: list[dict[str, Any]] = [
         "sample_len": 5.0,
     },
     {
+        "id": "deliver",
+        "category": "ship",
+        "engine": "QA gates + the site's own R2 upload workflow",
+        "usage": "Putting a finished render on the live site, with proof it is the one "
+        "that passed QA",
+        "title": "Ship it to the site",
+        "purpose": "Checks the render (duration, loudness, true peak, the music drop's "
+        "position, dropouts, repeated frames), then ships it: uploads to the media host "
+        "and re-reads the live bytes to confirm. Never merges - that is a paid deploy.",
+        "job": "deliver-site-video",
+        "length": "~1 min",
+        "kind": "video",
+        "find": lambda: _first([FRAMEWORK / "framework-demo.mp4"]),
+        "sample_at": 66.0,
+        "sample_len": 5.0,
+    },
+    {
         "id": "narration",
+        "category": "sound",
         "engine": "Kokoro-82M (offline, Apache-2.0)",
         "usage": "Voice-over for any cut - trailers, lessons, explainers",
         "title": "Narration",
@@ -552,6 +608,7 @@ KINDS: list[dict[str, Any]] = [
     },
     {
         "id": "capabilities-reel",
+        "category": "film",
         "engine": "All 10 feature trailers + all six engines",
         "usage": 'The single answer to "show me everything this studio can do" - '
         "highlights from every feature trailer plus the six-engines showreel, cut "
@@ -577,6 +634,7 @@ KINDS: list[dict[str, Any]] = [
     },
     {
         "id": "cinematic-project",
+        "category": "film",
         "engine": "Motion gfx / parallax / LTX-2",
         "usage": "Openmontage promo projects: Game of Options promo, trader films, "
         "depth-parallax shots, motion-graphics explainers",
@@ -595,6 +653,7 @@ KINDS: list[dict[str, Any]] = [
     },
     {
         "id": "remotion",
+        "category": "animation",
         "engine": "Remotion (React)",
         "usage": "Lesson videos, Greeks curves, payoff walkthroughs, kinetic promos - "
         "20 ready templates",
@@ -611,6 +670,7 @@ KINDS: list[dict[str, Any]] = [
     },
     {
         "id": "animation",
+        "category": "animation",
         "engine": "Manim / HTML / D3 / slides",
         "usage": "Explainer and math animations: payoff curves, Greeks, charts, "
         "narrated concept walkthroughs - no GPU model involved",
@@ -632,6 +692,7 @@ KINDS: list[dict[str, Any]] = [
     },
     {
         "id": "openworld-clip",
+        "category": "shot",
         "engine": "LTX",
         "usage": "One act of the open-world montage: reveal, old town, storm, trade, open city",
         "title": "Open-world montage act",
@@ -646,6 +707,7 @@ KINDS: list[dict[str, Any]] = [
     },
     {
         "id": "flow-hero",
+        "category": "shot",
         "engine": "Flow (Veo) + LTX + post",
         "usage": "Higher-realism opening and closing shots for the product trailer",
         "title": "Flow hero bookends",
@@ -663,6 +725,7 @@ KINDS: list[dict[str, Any]] = [
     },
     {
         "id": "flow",
+        "category": "shot",
         "engine": "Google Flow (browser)",
         "usage": "Anything neither LTX nor a drawn browser page covers, when the local "
         "GPU is busy or the shot needs a different model entirely",

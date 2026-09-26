@@ -45,9 +45,9 @@
   "render_workers": 1,
   "script_timeout_sec": 180,
   "script_chunk_size": 1,
-  "llm_provider": "claude",
+  "llm_provider": "lmstudio",
   "script_backup_providers": [
-    "lmstudio"
+    "claude"
   ],
   "llm_model": "qwen/qwen3.8-27b",
   "render_llm_provider": "lmstudio",

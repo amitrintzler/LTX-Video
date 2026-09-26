@@ -411,7 +411,14 @@ def test_render_stage_generates_manim_layout_hint_from_topic(tmp_path):
     assert "Layout hint:" in sanitized["description"]
 
 
-def test_render_stage_falls_back_to_slides_when_latex_missing(tmp_path):
+def test_render_stage_keeps_manim_when_latex_is_absent(tmp_path):
+    """There is deliberately no LaTeX pre-check. render.py states it: the manim
+    prompt forbids LaTeX and the normalizer strips any attempt, so every label
+    is a Text(). An earlier version diverted to slides whenever `latex` was
+    missing from PATH, which silently downgraded animated scenes to static
+    cards on any machine without a TeX install. Absent LaTeX must not change
+    the renderer.
+    """
     from stages.render import RenderStage
 
     cfg = _manim_cfg()
@@ -427,17 +434,13 @@ def test_render_stage_falls_back_to_slides_when_latex_missing(tmp_path):
     fake_renderer = MagicMock()
     fake_renderer.render = MagicMock(return_value=tmp_path / "scene_001.mp4")
 
-    def fake_get_renderer(name):
-        if name == "slides":
-            return fake_renderer
-        raise AssertionError(f"Unexpected renderer request: {name}")
-
     with patch("stages.render.shutil.which", return_value=None), \
-         patch("stages.render.get_renderer", side_effect=fake_get_renderer) as mock_get:
+         patch("stages.render.get_renderer", return_value=fake_renderer) as mock_get:
         stage._render_scene(0, scene, tmp_path, default_renderer="manim")
 
-    assert mock_get.call_args_list[0].args[0] == "slides"
+    assert mock_get.call_args_list[0].args[0] == "manim"
     fake_renderer.render.assert_called_once()
+    assert stage.degraded == [], "a missing LaTeX install is not a reason to degrade"
 
 
 def test_slides_render_success(tmp_path):
@@ -790,9 +793,14 @@ class VideoScene(Scene):
     run_call.assert_not_called()
 
 
-def test_manim_rejects_set_stroke_stroke_width_before_running_manim(tmp_path):
+def test_manim_repairs_set_stroke_stroke_width_instead_of_regenerating(tmp_path):
+    """set_stroke() takes width=, not stroke_width=, and models get this wrong
+    often. The normalizer rewrites it (manim.py's "Fix stroke_width= parameter"
+    rule), so the scene renders on the first answer. It used to be rejected,
+    which cost a whole extra generation to fix one keyword; the guard in
+    _ensure_safe_codegen remains as a backstop for anything the rewrite misses.
+    """
     import stages.renderers.manim as manim_mod
-    from stages.renderers.manim import ManimRenderError
 
     cfg = _manim_cfg()
     cfg.render_llm_provider = "lmstudio"
@@ -809,12 +817,14 @@ class VideoScene(Scene):
 
     with patch("stages.renderers.manim._check_imports"), \
          patch("stages.renderers.manim._call_lmstudio_api", return_value=bad_code) as lm_call, \
-         patch("stages.renderers.manim._run_manim") as run_call:
-        with pytest.raises(ManimRenderError, match="stroke_width"):
-            manim_mod.render(_manim_scene(), cfg, out_path)
+         patch("stages.renderers.manim._run_manim", return_value=out_path) as run_call, \
+         patch("stages.renderers.manim._audit_rendered_video"):
+        manim_mod.render(_manim_scene(), cfg, out_path)
 
-    assert lm_call.call_count == 2
-    run_call.assert_not_called()
+    assert lm_call.call_count == 1, "one generation is enough once the keyword is repaired"
+    run_call.assert_called_once()
+    rendered_code = run_call.call_args.args[0]
+    assert "width=8" in rendered_code and "stroke_width=" not in rendered_code
 
 
 def test_manim_normalizes_alignment_keyword_before_running_manim(tmp_path):

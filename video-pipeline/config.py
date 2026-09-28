@@ -44,6 +44,15 @@ class PipelineConfig:
     )
     use_tea_cache: bool = True      # faster generation via step caching
 
+    # ── Code renderers (Manim, slides, D3, HTML) ─────────────────────
+    # Drawn, not diffused, so they render at delivery size. Kept apart from
+    # the video_* settings above: config.json sizes those for LTX img2video
+    # (1024x576 @ 8 fps), and the code renderers borrowing them shipped an
+    # animated film at 8 fps.
+    render_width: int = 1920
+    render_height: int = 1080
+    render_fps: int = 30
+
     # ── Stitch (FFmpeg) ──────────────────────────────────────────────
     crossfade_sec: float = 0.5      # dissolve duration between clips
     output_codec: str = "libx264"   # libx264 | prores_ks (ProRes)

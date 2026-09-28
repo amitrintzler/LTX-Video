@@ -656,6 +656,48 @@ def test_manim_render_success(tmp_path):
     mock_call.assert_called_once()
 
 
+def test_code_renderers_default_to_delivery_size_not_diffusion_size():
+    """config.json sizes video_* for LTX img2video (1024x576 @ 8 fps). The code
+    renderers have their own settings so they no longer inherit that."""
+    cfg = PipelineConfig(video_width=1024, video_height=576, video_fps=8)
+    assert (cfg.render_width, cfg.render_height, cfg.render_fps) == (1920, 1080, 30)
+
+
+def test_pin_render_settings_overrides_what_the_model_wrote():
+    from stages.renderers.manim import pin_render_settings
+    code = (
+        "from manim import *\nconfig.pixel_width = 1024\nconfig.pixel_height = 576\n"
+        "config.frame_rate = 8\nconfig.background_color = '#0F172A'\nclass VideoScene(Scene): pass\n"
+    )
+    pinned = pin_render_settings(code, 1920, 1080, 30)
+    assert "1024" not in pinned and "576" not in pinned and "= 8" not in pinned
+    assert pinned.count("config.pixel_width = 1920") == 1
+    assert "config.frame_rate = 30" in pinned
+    assert "config.background_color = '#0F172A'" in pinned
+
+
+def test_render_timeout_grows_with_pixels_drawn():
+    from stages.renderers.manim import render_timeout
+    assert render_timeout(10, 1024, 576, 8) == 300
+    assert render_timeout(20, 1920, 1080, 30) > 300
+
+
+def test_manim_render_saves_shipped_code_beside_clip(tmp_path):
+    """The shipped source is kept, so the clip can be re-rendered at another
+    size without asking a model to write it again."""
+    from stages.renderers import manim as manim_mod
+    out_path = tmp_path / "scene_001.mp4"
+    mock_call = MagicMock(return_value="from manim import *\nclass VideoScene(Scene): pass")
+    with patch("stages.renderers.manim._check_imports"), \
+         patch("stages.renderers.manim._call_claude_cli", mock_call), \
+         patch("stages.renderers.manim._audit_rendered_video"), \
+         patch("stages.renderers.manim._run_manim", return_value=out_path) as run:
+        manim_mod.render(_manim_scene(), _manim_cfg(), out_path)
+    saved = (tmp_path / "scene_001.py").read_text()
+    assert saved == run.call_args.args[0]
+    assert "config.pixel_width = 1920" in saved
+
+
 def test_manim_render_retries_on_failure(tmp_path):
     """On _run_manim failure, Claude CLI is called again with error; raises after max_retries."""
     from stages.renderers import manim as manim_mod

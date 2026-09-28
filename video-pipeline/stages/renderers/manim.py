@@ -114,9 +114,9 @@ def render(scene: dict, config: PipelineConfig, out_path: Path) -> Path:
     duration_sec = scene.get("duration_sec", 8)
     bg_color = _extract_bg_color(scene.get("style", ""))
     system = _build_system_prompt(
-        width=config.video_width,
-        height=config.video_height,
-        fps=config.video_fps,
+        width=config.render_width,
+        height=config.render_height,
+        fps=config.render_fps,
         duration_sec=duration_sec,
         bg_color=bg_color,
     )
@@ -156,13 +156,20 @@ def render(scene: dict, config: PipelineConfig, out_path: Path) -> Path:
 
         try:
             code = _normalize_manim_code(code)
+            code = pin_render_settings(
+                code, config.render_width, config.render_height, config.render_fps
+            )
             code = _inject_point_compatibility_shim(code)
             _ensure_safe_codegen(code)
             log.info(f"Starting Manim render for {out_path.name}")
             sys.stderr.flush()
             sys.stdout.flush()
-            # Use 300s timeout for full-quality renders with potential layout audit retries
-            rendered = _run_manim(code, out_path, timeout=300)
+            rendered = _run_manim(
+                code, out_path,
+                timeout=render_timeout(
+                    duration_sec, config.render_width, config.render_height, config.render_fps
+                ),
+            )
             log.info(f"Manim render completed for {out_path.name}")
             try:
                 _audit_rendered_video(rendered, duration_sec=duration_sec)
@@ -180,12 +187,14 @@ def render(scene: dict, config: PipelineConfig, out_path: Path) -> Path:
                 candidates.append({
                     "attempt": attempt + 1,
                     "video": rejected / f"{stem}.mp4",
+                    "code": rejected / f"{stem}.py",
                     "problems": audit.problems,
                     "score": _defect_score(audit.problems),
                 })
                 raise
             log.info(f"Layout audit passed for {out_path.name}")
             _defects_path(out_path).unlink(missing_ok=True)
+            _code_path(out_path).write_text(code)
             return rendered
         except ManimRenderError as e:
             last_error = str(e)
@@ -215,6 +224,34 @@ def _defects_path(out_path: Path) -> Path:
     return out_path.with_suffix(".defects.json")
 
 
+def _code_path(out_path: Path) -> Path:
+    """The source of the shipped clip. Manim is resolution independent, so
+    keeping it means a clip can be re-rendered at another size or frame rate
+    without asking a model to write the scene again."""
+    return out_path.with_suffix(".py")
+
+
+_RENDER_SETTING_RE = re.compile(
+    r"^[ \t]*config\.(pixel_width|pixel_height|frame_rate)[ \t]*=.*$\n?", re.MULTILINE
+)
+
+
+def pin_render_settings(code: str, width: int, height: int, fps: int) -> str:
+    """Make the scene render at the configured size, whatever the model wrote."""
+    code = _RENDER_SETTING_RE.sub("", code)
+    pinned = f"config.pixel_width = {width}\nconfig.pixel_height = {height}\nconfig.frame_rate = {fps}\n"
+    if "from manim import *" in code:
+        return code.replace("from manim import *", "from manim import *\n" + pinned, 1)
+    return "from manim import *\n" + pinned + code
+
+
+def render_timeout(duration_sec: float, width: int, height: int, fps: int) -> int:
+    """Scale the render timeout with the pixels drawn. 300s was sized for
+    1024x576 at 8 fps; 1080p at 30 fps draws about 13 times as much."""
+    frames = max(float(duration_sec or 8), 1.0) * fps
+    return int(max(300, 120 + frames * (width * height) / (1920 * 1080) * 1.5))
+
+
 def _ship_best_attempt(candidates: list[dict], out_path: Path, log) -> Path:
     """No attempt passed, but some played. A flawed animation beats a static
     slide, so the least-defective render ships - lowest weighted score, later
@@ -222,6 +259,8 @@ def _ship_best_attempt(candidates: list[dict], out_path: Path, log) -> Path:
     written beside the clip so they are recorded rather than hidden."""
     best = min(candidates, key=lambda c: (c["score"], -c["attempt"]))
     shutil.copy2(best["video"], out_path)
+    if best.get("code") and Path(best["code"]).exists():
+        shutil.copy2(best["code"], _code_path(out_path))
     _defects_path(out_path).write_text(json.dumps(
         {"attempt": best["attempt"], "score": best["score"], "problems": best["problems"]},
         indent=1,

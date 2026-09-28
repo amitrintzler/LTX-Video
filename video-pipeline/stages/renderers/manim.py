@@ -33,6 +33,33 @@ class ManimRenderError(RuntimeError):
     pass
 
 
+class LayoutAuditError(ManimRenderError):
+    """The scene rendered, but the layout audit found defects. Carries every
+    problem, not just the ones that fit in the message, so failed attempts can
+    be ranked against each other."""
+
+    def __init__(self, message: str, problems: list[str]):
+        super().__init__(message)
+        self.problems = list(problems) or [message]
+
+
+# How much each kind of layout defect hurts a viewer. Text off the frame, hidden
+# under a shape, or printed over other text cannot be read; a sentence parked in
+# the diagram is clutter; a line through a label is ugly but still legible.
+_DEFECT_WEIGHTS = (
+    ("leaves the frame", 3), ("cut off at the frame edge", 3), ("covered by", 3),
+    ("overlaps text", 3), ("title or sentence", 2), ("text in the center band", 2),
+    ("crossed by", 1),
+)
+
+
+def _defect_score(problems: list[str]) -> int:
+    score = 0
+    for problem in problems:
+        score += next((w for key, w in _DEFECT_WEIGHTS if key in problem), 2)
+    return score
+
+
 # Codegen here shells out to the Claude Code CLI, which is an agentic session
 # rather than a single API call: measured on this machine, one scene takes
 # 308-465s alone, and over 900s from the repo root where the pipeline actually
@@ -98,6 +125,9 @@ def render(scene: dict, config: PipelineConfig, out_path: Path) -> Path:
         raise ManimRenderError("renderer_max_retries must be >= 1")
 
     last_error: Optional[str] = None
+    # Renders that played but failed the layout audit. If no attempt passes,
+    # the least-defective one ships instead of a static slide.
+    candidates: list[dict] = []
     for attempt in range(config.renderer_max_retries):
         log.info(f"Render attempt {attempt+1}/{config.renderer_max_retries} for {out_path.name}")
         sys.stderr.flush()
@@ -136,7 +166,7 @@ def render(scene: dict, config: PipelineConfig, out_path: Path) -> Path:
             log.info(f"Manim render completed for {out_path.name}")
             try:
                 _audit_rendered_video(rendered, duration_sec=duration_sec)
-            except ManimRenderError:
+            except LayoutAuditError as audit:
                 # Keep what the audit rejected. It is deleted otherwise, and
                 # "is this rule wrong or is the scene wrong?" can only be
                 # answered by looking at the frame it objected to.
@@ -147,8 +177,15 @@ def render(scene: dict, config: PipelineConfig, out_path: Path) -> Path:
                 if _layout_path(rendered).exists():
                     shutil.copy2(_layout_path(rendered), rejected / f"{stem}.layout.json")
                 (rejected / f"{stem}.py").write_text(code)
+                candidates.append({
+                    "attempt": attempt + 1,
+                    "video": rejected / f"{stem}.mp4",
+                    "problems": audit.problems,
+                    "score": _defect_score(audit.problems),
+                })
                 raise
             log.info(f"Layout audit passed for {out_path.name}")
+            _defects_path(out_path).unlink(missing_ok=True)
             return rendered
         except ManimRenderError as e:
             last_error = str(e)
@@ -162,6 +199,8 @@ def render(scene: dict, config: PipelineConfig, out_path: Path) -> Path:
                 log.error(f"Generated code saved to: {debug_code_path}")
                 # Log full error on final failure
                 log.error(f"Final render failure after {config.renderer_max_retries} attempts:\n{last_error[:1000]}")
+                if candidates:
+                    return _ship_best_attempt(candidates, out_path, log)
                 raise
 
     raise ManimRenderError(  # unreachable, but satisfies type checkers
@@ -170,6 +209,29 @@ def render(scene: dict, config: PipelineConfig, out_path: Path) -> Path:
 
 
 # ── Helpers ──────────────────────────────────────────────────────
+
+
+def _defects_path(out_path: Path) -> Path:
+    return out_path.with_suffix(".defects.json")
+
+
+def _ship_best_attempt(candidates: list[dict], out_path: Path, log) -> Path:
+    """No attempt passed, but some played. A flawed animation beats a static
+    slide, so the least-defective render ships - lowest weighted score, later
+    attempt on a tie since it had the most feedback - and its defects are
+    written beside the clip so they are recorded rather than hidden."""
+    best = min(candidates, key=lambda c: (c["score"], -c["attempt"]))
+    shutil.copy2(best["video"], out_path)
+    _defects_path(out_path).write_text(json.dumps(
+        {"attempt": best["attempt"], "score": best["score"], "problems": best["problems"]},
+        indent=1,
+    ))
+    log.warning(
+        f"SHIPPED WITH LAYOUT DEFECTS: {out_path.name} is attempt {best['attempt']} of "
+        f"{len(candidates)} that rendered (defect score {best['score']}): "
+        + "; ".join(best["problems"][:3])
+    )
+    return out_path
 
 
 def _check_imports() -> None:
@@ -1137,10 +1199,11 @@ def _audit_rendered_video(video_path: Path, duration_sec: int) -> None:
     if has_layout:
         problems = _audit_layout(json.loads(layout_file.read_text()))
         if problems:
-            raise ManimRenderError(
+            raise LayoutAuditError(
                 "Layout audit: " + "; ".join(problems[:3]) + ". Keep every text inside the "
                 "frame and clear of other text; put titles and sentences in the top band "
-                "or side panels."
+                "or side panels.",
+                problems,
             )
 
     actual_duration = _probe_video_duration(video_path) or float(duration_sec)
@@ -1156,17 +1219,19 @@ def _audit_rendered_video(video_path: Path, duration_sec: int) -> None:
             violations = [] if has_layout else _find_center_text_like_regions(frame_path)
             if violations:
                 detail = violations[0]
-                raise ManimRenderError(
+                message = (
                     f"Layout audit found likely text in the center band at t={sample_time:.2f}s: {detail}. "
                     "Move titles and callouts to the top band, outer edges, or side panels."
                 )
+                raise LayoutAuditError(message, [message])
             clipped = _find_clipped_text_regions(frame_path)
             if clipped:
-                raise ManimRenderError(
+                message = (
                     f"Layout audit found text cut off at the frame edge at t={sample_time:.2f}s: "
                     f"{clipped[0]}. The visible frame is only 8 units tall; keep each element's "
                     "full extent inside it, not just its centre."
                 )
+                raise LayoutAuditError(message, [message])
         if not any_sampled:
             return
 

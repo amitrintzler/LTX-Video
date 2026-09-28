@@ -1040,6 +1040,60 @@ def test_scene_durations_are_fitted_to_their_narration(tmp_path):
     assert NARRATION_TAIL_SEC < 1.0
 
 
+def test_failed_scene_ships_its_least_defective_attempt_not_a_slide(tmp_path):
+    """When every attempt renders but fails the layout audit, a flawed
+    animation beats a static slide: the attempt with the lowest weighted
+    defect score ships, its defects are written beside the clip, and nothing
+    is raised. Only when nothing rendered at all does the scene fail."""
+    import json
+
+    import stages.renderers.manim as manim_mod
+    from stages.renderers.manim import LayoutAuditError, ManimRenderError
+
+    cfg = _manim_cfg()
+    cfg.render_llm_provider = "lmstudio"
+    cfg.render_llm_model = "local-model"
+    cfg.renderer_max_retries = 3
+    out_path = tmp_path / "scene_001.mp4"
+    code = "from manim import *\nclass VideoScene(Scene):\n    def construct(self):\n        pass\n"
+
+    def fake_run(code_, out, timeout=300):
+        out.write_bytes(b"render-%d" % fake_run.n)
+        fake_run.n += 1
+        return out
+    fake_run.n = 1
+
+    verdicts = iter([
+        ["text 'A' leaves the frame at t=1.0s"],                              # score 3
+        ["text 'B' is crossed by the stroke of a Line at t=1.0s"],            # score 1 - best
+        ["text 'C' overlaps text 'D' at t=1.0s", "text 'E' is covered by a Dot"],  # score 6
+    ])
+
+    def fake_audit(video, duration_sec):
+        problems = next(verdicts)
+        raise LayoutAuditError("Layout audit: " + "; ".join(problems), problems)
+
+    with patch("stages.renderers.manim._check_imports"), \
+         patch("stages.renderers.manim._call_lmstudio_api", return_value=code), \
+         patch("stages.renderers.manim._call_claude_cli", return_value=code), \
+         patch("stages.renderers.manim._run_manim", side_effect=fake_run), \
+         patch("stages.renderers.manim._audit_rendered_video", side_effect=fake_audit):
+        result = manim_mod.render(_manim_scene(), cfg, out_path)
+
+    assert result == out_path
+    assert out_path.read_bytes() == b"render-2"  # attempt 2, the mildest defect
+    defects = json.loads(out_path.with_suffix(".defects.json").read_text())
+    assert defects["attempt"] == 2 and "crossed by" in defects["problems"][0]
+
+    # Nothing rendered at all: the scene still fails, so render.py can fall back.
+    with patch("stages.renderers.manim._check_imports"), \
+         patch("stages.renderers.manim._call_lmstudio_api", return_value=code), \
+         patch("stages.renderers.manim._call_claude_cli", return_value=code), \
+         patch("stages.renderers.manim._run_manim", side_effect=ManimRenderError("TypeError: boom")):
+        with pytest.raises(ManimRenderError):
+            manim_mod.render(_manim_scene(), cfg, tmp_path / "scene_002.mp4")
+
+
 def test_render_provider_ladder_spends_the_free_attempts_first():
     """Cost shape of scene codegen: the cheap local backend gets every attempt
     but the last, which escalates to the paid one. Before this the provider was

@@ -509,7 +509,28 @@ class _ManimCodeNormalizer(ast.NodeTransformer):
             self.changed = True
         if self._rewrite_style_kwargs(node):
             self.changed = True
+        if self._drop_unsupported_shift(node):
+            self.changed = True
         return node
+
+    # shift= is a FadeIn/FadeOut option. Tested by constructing each class in
+    # the installed Manim: these all raise "Animation.__init__() got an
+    # unexpected keyword argument 'shift'", which ended a scene outright.
+    _NO_SHIFT_ANIMATIONS = {
+        "Write", "Unwrite", "Create", "Uncreate", "GrowArrow", "GrowFromCenter",
+        "GrowFromPoint", "GrowFromEdge", "DrawBorderThenFill", "Indicate",
+        "Circumscribe", "Flash", "FocusOn", "Wiggle", "SpinInFromNothing",
+        "Transform", "ReplacementTransform", "AddTextLetterByLetter",
+    }
+
+    def _drop_unsupported_shift(self, node: ast.Call) -> bool:
+        if not (isinstance(node.func, ast.Name) and node.func.id in self._NO_SHIFT_ANIMATIONS):
+            return False
+        kept = [kw for kw in node.keywords if kw.arg != "shift"]
+        if len(kept) == len(node.keywords):
+            return False
+        node.keywords = kept
+        return True
 
     # Keyword arguments set_stroke()/set_fill() actually accept, read from the
     # installed Manim 0.20.1 (inspect.signature on VMobject), not from memory:

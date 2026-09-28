@@ -851,12 +851,37 @@ def _normalize_manim_code(code: str) -> str:
 _LAYOUT_PROBE = """
 import atexit as _ltx_atexit, json as _ltx_json, os as _ltx_os
 _LTX_LAYOUT = []
+def _ltx_bezier_samples(points, per_curve=10, limit=240):
+    import numpy as _np
+    pts = _np.asarray(points, dtype=float)
+    if len(pts) < 4:
+        return []
+    usable = len(pts) - len(pts) % 4
+    curves = pts[:usable].reshape(-1, 4, 3)
+    ts = _np.linspace(0.0, 1.0, per_curve)[:, None]
+    out = []
+    for p0, p1, p2, p3 in curves:
+        seg = ((1 - ts) ** 3) * p0 + 3 * ((1 - ts) ** 2) * ts * p1 + 3 * (1 - ts) * ts ** 2 * p2 + ts ** 3 * p3
+        out.extend([[round(float(x), 3), round(float(y), 3)] for x, y, _ in seg])
+    step = max(1, len(out) // limit)
+    return out[::step]
 def _ltx_snapshot(scene):
-    items = []
+    # Draw order: scene.mobjects in order, each family depth-first, then a
+    # stable sort by z_index - later entries are painted on top.
+    flat, seq = [], 0
     for mob in scene.mobjects:
         for part in mob.get_family():
-            if not isinstance(part, (Text, MarkupText)):
-                continue
+            flat.append((float(getattr(part, "z_index", 0) or 0), seq, part))
+            seq += 1
+    flat.sort(key=lambda item: (item[0], item[1]))
+    text_parts = set()
+    for _, _, part in flat:
+        if isinstance(part, (Text, MarkupText)):
+            for sub in part.get_family():
+                text_parts.add(id(sub))
+    items, shapes = [], []
+    for order, (_, _, part) in enumerate(flat):
+        if isinstance(part, (Text, MarkupText)):
             try:
                 opacity = float(part.get_fill_opacity())
             except Exception:
@@ -865,13 +890,29 @@ def _ltx_snapshot(scene):
                 continue
             raw = str(getattr(part, "original_text", None) or getattr(part, "text", "") or "")
             items.append({
-                "text": raw[:80],
+                "text": raw[:80], "order": order,
                 "lines": raw.count(chr(10)) + 1,
                 "font_size": float(getattr(part, "font_size", 0) or 0),
                 "x0": float(part.get_left()[0]), "x1": float(part.get_right()[0]),
                 "y0": float(part.get_bottom()[1]), "y1": float(part.get_top()[1]),
             })
-    _LTX_LAYOUT.append({"t": float(getattr(scene, "time", 0.0)), "texts": items})
+            continue
+        if id(part) in text_parts or not isinstance(part, VMobject) or len(part.points) < 4:
+            continue
+        try:
+            stroke_w = float(part.get_stroke_width() or 0)
+            stroke_o = float(part.get_stroke_opacity() or 0)
+            fill_o = float(part.get_fill_opacity() or 0)
+        except Exception:
+            continue
+        if stroke_w >= 1 and stroke_o >= 0.35:
+            shapes.append({"kind": "stroke", "order": order, "name": type(part).__name__,
+                           "pts": _ltx_bezier_samples(part.points)})
+        if fill_o >= 0.3 and part.width > 0 and part.height > 0:
+            shapes.append({"kind": "fill", "order": order, "name": type(part).__name__,
+                           "x0": float(part.get_left()[0]), "x1": float(part.get_right()[0]),
+                           "y0": float(part.get_bottom()[1]), "y1": float(part.get_top()[1])})
+    _LTX_LAYOUT.append({"t": float(getattr(scene, "time", 0.0)), "texts": items, "shapes": shapes})
 _ltx_orig_play, _ltx_orig_wait = Scene.play, Scene.wait
 def _ltx_play(self, *a, **k):
     out = _ltx_orig_play(self, *a, **k)
@@ -931,6 +972,39 @@ def _layout_path(video_path: Path) -> Path:
     return video_path.with_suffix(".layout.json")
 
 
+def _segment_hits_rect(ax, ay, bx, by, rect) -> bool:
+    """Liang-Barsky: does segment a-b pass through the rectangle?"""
+    x0, y0, x1, y1 = rect
+    dx, dy = bx - ax, by - ay
+    t0, t1 = 0.0, 1.0
+    for p, q in ((-dx, ax - x0), (dx, x1 - ax), (-dy, ay - y0), (dy, y1 - ay)):
+        if p == 0:
+            if q < 0:
+                return False
+            continue
+        r = q / p
+        if p < 0:
+            t0 = max(t0, r)
+        else:
+            t1 = min(t1, r)
+        if t0 > t1:
+            return False
+    return True
+
+
+def _text_core(tx: dict) -> tuple:
+    """The text box pulled in a little, so an arrow ending at a label or a box
+    drawn snugly around it does not count as crossing it - only a line that
+    actually runs through the letters does."""
+    w, h = tx["x1"] - tx["x0"], tx["y1"] - tx["y0"]
+    dx, dy = min(0.10 * w, 0.15), 0.18 * h
+    return (tx["x0"] + dx, tx["y0"] + dy, tx["x1"] - dx, tx["y1"] - dy)
+
+
+def _overlap_area(a: tuple, b: tuple) -> float:
+    return max(0.0, min(a[2], b[2]) - max(a[0], b[0])) * max(0.0, min(a[3], b[3]) - max(a[1], b[1]))
+
+
 def _audit_layout(layout: dict) -> list[str]:
     """Text rules checked on Manim's own geometry (see _LAYOUT_PROBE).
 
@@ -988,6 +1062,46 @@ def _audit_layout(layout: dict) -> list[str]:
                 if smaller > 0 and ox * oy > 0.15 * smaller:
                     once(("overlap", *sorted((a["text"], b["text"]))),
                          f"text {a['text'][:30]!r} overlaps text {b['text'][:30]!r} at t={t:.1f}s")
+
+        # Text under a shape. Only renders made after the probe learned shapes
+        # carry this; older layout records simply have none.
+        shapes = snap.get("shapes", [])
+        fills = [f for f in shapes if f["kind"] == "fill"]
+        for tx in texts:
+            core = _text_core(tx)
+            core_area = max(1e-9, (core[2] - core[0]) * (core[3] - core[1]))
+            name = repr(tx["text"][:30])
+            for sh in shapes:
+                if sh["kind"] != "stroke":
+                    continue
+                pts = sh.get("pts", [])
+                crossed = any(
+                    _segment_hits_rect(pts[k][0], pts[k][1], pts[k + 1][0], pts[k + 1][1], core)
+                    for k in range(len(pts) - 1)
+                )
+                if not crossed:
+                    continue
+                # A line under a label's own opaque background box is hidden.
+                masked = any(
+                    sh["order"] < f["order"] < tx.get("order", 1 << 30)
+                    and _overlap_area((f["x0"], f["y0"], f["x1"], f["y1"]), core) >= 0.9 * core_area
+                    for f in fills
+                )
+                if not masked:
+                    once(("crossed", tx["text"], sh["name"]),
+                         f"text {name} is crossed by the stroke of a {sh['name']} at t={t:.1f}s")
+            for f in fills:
+                # Drawn before the text it is a background, which is fine.
+                if f["order"] <= tx.get("order", -1):
+                    continue
+                box = (f["x0"], f["y0"], f["x1"], f["y1"])
+                inter = _overlap_area(box, core)
+                shape_area = max(1e-9, (box[2] - box[0]) * (box[3] - box[1]))
+                # A big shape over much of the text, or a small one (a marker
+                # dot) sitting mostly on the letters.
+                if inter > 0.2 * core_area or inter > 0.5 * shape_area:
+                    once(("covered", tx["text"], f["name"]),
+                         f"text {name} is covered by a {f['name']} drawn over it at t={t:.1f}s")
     return problems
 
 

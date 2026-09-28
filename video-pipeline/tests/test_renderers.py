@@ -972,6 +972,43 @@ def test_geometric_layout_audit_allows_labels_and_rejects_real_defects():
     assert len(_audit_layout(repeated)) == 1
 
 
+def test_layout_audit_catches_text_under_shapes_but_not_backgrounds():
+    """Text crossed by a stroke, or covered by a fill drawn after it, fails.
+    A fill drawn before the text is its background, and a line hidden by an
+    opaque box between it and the text is not visible - both are fine."""
+    from stages.renderers.manim import _audit_layout
+
+    label = {"text": "Market Consensus", "order": 5, "lines": 1, "font_size": 22,
+             "x0": -1.0, "x1": 1.0, "y0": -0.17, "y1": 0.17}
+
+    def run(*shapes):
+        return _audit_layout({"frame_width": 14.222, "frame_height": 8.0,
+                              "snapshots": [{"t": 1.0, "texts": [label], "shapes": list(shapes)}]})
+
+    def stroke(name, order, pts):
+        return {"kind": "stroke", "name": name, "order": order, "pts": pts}
+
+    def fill(name, order, x0, y0, x1, y1):
+        return {"kind": "fill", "name": name, "order": order, "x0": x0, "y0": y0, "x1": x1, "y1": y1}
+
+    through = stroke("Line", 2, [[-3.0, 0.0], [3.0, 0.0]])  # 2 points spanning the label
+    assert "crossed by the stroke of a Line" in run(through)[0]
+    # an arrow that stops at the label's edge
+    assert run(stroke("Arrow", 2, [[-3.0, 0.0], [-1.02, 0.0]])) == []
+    # a box outline snug around the label
+    assert run(stroke("Rectangle", 2, [[-1.1, -0.25], [1.1, -0.25], [1.1, 0.25], [-1.1, 0.25], [-1.1, -0.25]])) == []
+    # the same line hidden by an opaque background box drawn between it and the text
+    assert run(through, fill("Rectangle", 3, -1.2, -0.3, 1.2, 0.3)) == []
+
+    assert run(fill("Rectangle", 1, -1.5, -0.4, 1.5, 0.4)) == []  # background, drawn first
+    assert "covered by a Rectangle" in run(fill("Rectangle", 9, -0.8, -0.4, 1.5, 0.4))[0]
+    assert "covered by a Dot" in run(fill("Dot", 9, 0.2, -0.08, 0.36, 0.08))[0]  # marker on a word
+
+    # records made before shapes were probed carry none, and must still audit
+    assert _audit_layout({"frame_width": 14.222, "frame_height": 8.0,
+                          "snapshots": [{"t": 1.0, "texts": [label]}]}) == []
+
+
 def test_render_provider_ladder_spends_the_free_attempts_first():
     """Cost shape of scene codegen: the cheap local backend gets every attempt
     but the last, which escalates to the paid one. Before this the provider was

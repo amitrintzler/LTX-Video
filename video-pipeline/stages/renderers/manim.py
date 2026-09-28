@@ -952,20 +952,71 @@ def _find_center_text_like_regions(image_path: Path) -> list[str]:
     center_y0 = int(h * 0.30)
     center_y1 = int(h * 0.78)
 
-    violations: list[str] = []
-    center_hits: list[str] = []
+    in_center = []
     for comp in components:
         if not _is_text_like_component(comp, w, h):
             continue
         cx = (comp["x0"] + comp["x1"]) / 2.0
         cy = (comp["y0"] + comp["y1"]) / 2.0
         if center_x0 <= cx <= center_x1 and center_y0 <= cy <= center_y1:
-            center_hits.append(
-                f"bbox=({comp['x0']},{comp['y0']})-({comp['x1']},{comp['y1']}), area={comp['area']}"
-            )
+            in_center.append(comp)
 
-    # Flag ANY text in center band (was incorrectly requiring 3+)
-    return center_hits
+    # The band is where the prompt puts the main diagram, so a small shape
+    # there is expected and is not a violation. What the rule forbids is
+    # text, and text is recognisable by arrangement rather than by any one
+    # shape: glyphs of similar height, on a shared baseline, packed as tightly
+    # as letters are. A lone arrowhead, a dot, or tick marks spread along an
+    # axis do not form such a row.
+    #
+    # History: this once required 3+ hits anywhere, then (43e7dd6) flagged ANY
+    # single hit, on the belief that every hit was text. It was not - a scene
+    # with no text in the band at all was rejected for its arrow, and every
+    # attempt from every backend failed, so no scene could ever animate.
+    return [
+        f"bbox=({x0},{y0})-({x1},{y1}), {n} glyph-like marks in a row"
+        for (x0, y0, x1, y1, n) in _text_lines(in_center)
+    ]
+
+
+def _text_lines(comps: list[dict]) -> list[tuple[int, int, int, int, int]]:
+    """Group components into rows that look like a line of text."""
+    if not comps:
+        return []
+    items = sorted(comps, key=lambda c: c["x0"])
+    used = [False] * len(items)
+    lines = []
+    for i, seed in enumerate(items):
+        if used[i]:
+            continue
+        row = [seed]
+        used[i] = True
+        for j in range(i + 1, len(items)):
+            if used[j]:
+                continue
+            cand, last = items[j], row[-1]
+            hl = last["y1"] - last["y0"] + 1
+            hc = cand["y1"] - cand["y0"] + 1
+            tall = max(hl, hc)
+            same_line = abs((cand["y0"] + cand["y1"]) - (last["y0"] + last["y1"])) / 2.0 <= 0.5 * tall
+            same_size = min(hl, hc) >= 0.4 * tall
+            gap = cand["x0"] - last["x1"]
+            letter_spaced = -2 <= gap <= 1.2 * tall
+            if same_line and same_size and letter_spaced:
+                row.append(cand)
+                used[j] = True
+        # Three marks in a row is a word. Two is a word only if both are
+        # letter-shaped - a glyph is roughly as wide as it is tall, while an
+        # arrowhead beside a dot (a common diagram pairing) is not.
+        glyph_shaped = sum(
+            1 for c in row
+            if (c["x1"] - c["x0"] + 1) <= 1.6 * (c["y1"] - c["y0"] + 1)
+        )
+        if len(row) >= 3 or (len(row) == 2 and glyph_shaped == 2):
+            lines.append((
+                min(c["x0"] for c in row), min(c["y0"] for c in row),
+                max(c["x1"] for c in row), max(c["y1"] for c in row), len(row),
+            ))
+    return lines
 
 
 def _connected_components(mask: np.ndarray) -> list[dict]:

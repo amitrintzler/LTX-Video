@@ -873,6 +873,30 @@ def test_manim_error_summary_survives_rich_box_wrapping():
     assert _summarize_manim_error("nothing useful here") == ""
 
 
+def test_layout_audit_flags_lines_of_text_not_diagram_shapes():
+    """The centre band holds the main diagram, so a lone shape there is fine;
+    only a row of glyphs is text. Measured on real renders before this change:
+    a scene with no text in the band was rejected for its arrow, so every
+    attempt from every backend failed and no scene could animate."""
+    from stages.renderers.manim import _text_lines
+
+    def comp(x0, y0, x1, y1):
+        return {"x0": x0, "y0": y0, "x1": x1, "y1": y1, "area": (x1 - x0) * (y1 - y0)}
+
+    arrow = [comp(340, 106, 389, 118)]
+    ticks = [comp(x, 250, x + 2, 258) for x in (200, 280, 360)]  # spread along an axis
+    dot = [comp(318, 110, 326, 118)]
+    word = [comp(279 + i * 14, 164, 290 + i * 14, 178) for i in range(4)]  # "Mark"
+    short = [comp(258, 166, 265, 175), comp(267, 166, 274, 175)]  # "BE"
+
+    assert _text_lines(arrow) == []
+    assert _text_lines(ticks) == []
+    assert _text_lines(arrow + ticks + dot) == []
+    assert len(_text_lines(word)) == 1 and _text_lines(word)[0][4] == 4
+    assert len(_text_lines(short)) == 1
+    assert len(_text_lines(arrow + ticks + dot + word)) == 1
+
+
 def test_render_provider_ladder_spends_the_free_attempts_first():
     """Cost shape of scene codegen: the cheap local backend gets every attempt
     but the last, which escalates to the paid one. Before this the provider was

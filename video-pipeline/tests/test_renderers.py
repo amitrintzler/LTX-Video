@@ -20,11 +20,11 @@ def test_config_new_fields_have_correct_defaults():
     assert cfg.render_workers == 1
     assert cfg.script_timeout_sec == 180
     assert cfg.script_chunk_size == 1
-    assert cfg.llm_provider == "codex"
+    assert cfg.llm_provider == "lmstudio"
     assert cfg.script_backup_providers == ["lmstudio"]
-    assert cfg.llm_model == "qwen/qwen3.5-35b-a3b"
+    assert cfg.llm_model == "qwen/qwen3.8-27b"
     assert cfg.render_llm_provider == "lmstudio"
-    assert cfg.render_llm_model == "qwen/qwen3.5-35b-a3b"
+    assert cfg.render_llm_model == "mistral-small-3.1-24b-instruct-2503"
     assert cfg.block_degraded_output is True
     assert cfg.max_fallback_scene_ratio == 0.2
     assert cfg.lmstudio_base_url == "http://localhost:1234/v1"
@@ -825,6 +825,52 @@ class VideoScene(Scene):
     run_call.assert_called_once()
     rendered_code = run_call.call_args.args[0]
     assert "width=8" in rendered_code and "stroke_width=" not in rendered_code
+
+
+def test_style_kwargs_are_allowlisted_not_patched_one_at_a_time():
+    """set_stroke/set_fill accept a small fixed set of keywords (read from the
+    installed Manim). Aliases are renamed, inventions dropped, and a keyword is
+    never left repeated - the older regex rename can turn "width=2,
+    stroke_width=9" into two widths, which Python refuses to compile."""
+    from stages.renderers.manim import _normalize_manim_code
+
+    code = (
+        "from manim import *\n"
+        "class VideoScene(Scene):\n"
+        "    def construct(self):\n"
+        "        a = Line(LEFT, RIGHT)\n"
+        '        a.set_stroke(color="#fff", stroke_width=4, line_join="round", stroke_opacity=0.5)\n'
+        "        b = Circle()\n"
+        '        b.set_fill(fill_color="#00C896", fill_opacity=0.3, gradient=True)\n'
+        "        c = Square()\n"
+        "        c.set_stroke(width=2, stroke_width=9)\n"
+    )
+    out = _normalize_manim_code(code)
+    compile(out, "<scene>", "exec")
+    assert "a.set_stroke(color='#fff', width=4, opacity=0.5)" in out
+    assert "b.set_fill(color='#00C896', opacity=0.3)" in out
+    assert "c.set_stroke(width=2)" in out
+    for invented in ("line_join", "gradient", "stroke_opacity", "fill_color"):
+        assert invented not in out
+
+
+def test_manim_error_summary_survives_rich_box_wrapping():
+    """Manim prints tracebacks through rich, boxed and wrapped. The summary
+    must recover the full exception line - it leads the log and the retry
+    prompt, and the wrapped version cut the offending keyword in half."""
+    from stages.renderers.manim import _summarize_manim_error
+
+    wrapped = (
+        "╭──────────── Traceback (most recent call last) ────────────╮\n"
+        "│ /tmp/scene.py:5 in construct                                │\n"
+        "╰─────────────────────────────────────────────────────────────╯\n"
+        "TypeError: VMobject.set_stroke() got an unexpected keyword\n"
+        "argument 'line_join'\n"
+    )
+    assert _summarize_manim_error(wrapped) == (
+        "TypeError: VMobject.set_stroke() got an unexpected keyword argument 'line_join'"
+    )
+    assert _summarize_manim_error("nothing useful here") == ""
 
 
 def test_render_provider_ladder_spends_the_free_attempts_first():

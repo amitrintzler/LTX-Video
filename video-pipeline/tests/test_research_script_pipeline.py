@@ -213,8 +213,8 @@ def test_script_stage_writes_both_modes(tmp_path, log, monkeypatch):
     monkeypatch.setattr(stage, "_ensure_research", lambda topic, slug: (research_path, outline_path))
 
     def fake_run_claude_json(**kwargs):
-        assert kwargs["provider"] == "codex"
-        assert kwargs["model"] == "gpt-5.4"
+        assert kwargs["provider"] == cfg.llm_provider
+        assert kwargs["model"] == cfg.llm_model_name()
         title = "black-scholes-narrated" if "Mode: narrated" in kwargs["prompt"] else "black-scholes-companion-long"
         expected_timeout = cfg.script_timeout_sec if title.endswith("narrated") else max(cfg.script_timeout_sec, 300)
         assert kwargs["timeout"] == expected_timeout
@@ -309,8 +309,8 @@ def test_script_stage_uses_deterministic_generator_for_structured_topic(tmp_path
     monkeypatch.setattr(stage, "_ensure_research", lambda topic, slug: (research_path, outline_path))
 
     def fake_run_claude_json(**kwargs):
-        assert kwargs["provider"] == "codex"
-        assert kwargs["model"] == "gpt-5.4"
+        assert kwargs["provider"] == cfg.llm_provider
+        assert kwargs["model"] == cfg.llm_model_name()
         assert kwargs["timeout"] == cfg.script_timeout_sec
         return _chunk_payload_from_prompt(kwargs["prompt"], f"{slug}-narrated")
 
@@ -346,8 +346,8 @@ def test_script_stage_repairs_chunked_json_before_fallback(tmp_path, log, monkey
 
     def fake_run_claude_json(**kwargs):
         calls["count"] += 1
-        assert kwargs["provider"] == "codex"
-        assert kwargs["model"] == "gpt-5.4"
+        assert kwargs["provider"] == cfg.llm_provider
+        assert kwargs["model"] == cfg.llm_model_name()
         assert kwargs["timeout"] == cfg.script_timeout_sec
         if calls["count"] == 1:
             return _script_payload(title=f"{slug}-narrated", scene_count=1)

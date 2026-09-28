@@ -83,11 +83,15 @@ class PipelineConfig:
     render_workers: int = 1
     script_timeout_sec: int = 180
     script_chunk_size: int = 1
-    llm_provider: str = "codex"   # claude | codex | lmstudio
+    # Defaults name models that are installed here and were tested on the job:
+    # qwen3.8-27b wrote valid scene JSON; mistral-small wrote a usable Manim
+    # scene in 68s with no reasoning tokens. codex was the old default and this
+    # account rejects its model outright.
+    llm_provider: str = "lmstudio"   # claude | codex | lmstudio
     script_backup_providers: list[str] = field(default_factory=lambda: ["lmstudio"])
-    llm_model: str = "qwen/qwen3.5-35b-a3b"
+    llm_model: str = "qwen/qwen3.8-27b"
     render_llm_provider: str = "lmstudio"   # claude | lmstudio
-    render_llm_model: str = "qwen/qwen3.5-35b-a3b"
+    render_llm_model: str = "mistral-small-3.1-24b-instruct-2503"
     # Escalation for scene code, tried on the final attempt when the primary
     # cannot produce valid Manim. Empty by default so importing this config
     # never turns a single-provider setup into a paid call behind the caller's

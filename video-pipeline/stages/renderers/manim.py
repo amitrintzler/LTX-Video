@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import ast
 import json
+import os
 import re
 import shutil
 import subprocess
@@ -215,6 +216,8 @@ Safe zones:
   Bottom callouts (y ≤ -3): [0, -3.5, 0] center, [-3, -3.8, 0] left, [3, -3.8, 0] right
 
 FORBIDDEN: next_to(), to_edge(), align_to(), shift() on grouped children.
+FORBIDDEN (these fail to render here): Axes(), NumberPlane(), NumberLine(), SVGMobject(),
+ImageMobject(), MathTex(), Tex(). Draw axes with Line() and label them with Text().
 REQUIRED: move_to([x, y, 0]) with explicit hardcoded coordinates.
 
 CENTER BAND RESTRICTION:
@@ -224,7 +227,10 @@ Text must use margin positions or top/bottom bands.
 VISUAL RICHNESS:
 - Axis labels: Add tick marks and value labels (not auto — manual Text() labels).
 - Color coding: Use the global color palette systematically. Highlight important values with bright accent colors.
-- Lines & shapes: Use stroke_width ≥2 for visibility. Dashed lines for guides (stroke_dasharray if needed via SVG).
+- Lines & shapes: stroke ≥2 for visibility. In a constructor the keyword is stroke_width
+  (Line(a, b, stroke_width=3)); in set_stroke() it is width (set_stroke(color="#FFD700", width=3)).
+  set_stroke() accepts only color, width, opacity. set_fill() accepts only color, opacity.
+- Dashed guides: DashedLine(start, end, dash_length=0.1). Never dash_array, stroke_dasharray or SVG.
 - Dots & markers: radius ≥0.08 for visibility. Glow effects via Circle() with lower opacity.
 - Curves: Use 50–100 interpolation points for smooth paths, not rough segments.
 - Grid: Optional faint grid background (very low opacity, ~0.1) for frame reference.
@@ -473,7 +479,69 @@ class _ManimCodeNormalizer(ast.NodeTransformer):
             self.changed = True
         if self._rewrite_coordinate_tuples(node):
             self.changed = True
+        if self._rewrite_style_kwargs(node):
+            self.changed = True
         return node
+
+    # Keyword arguments set_stroke()/set_fill() actually accept, read from the
+    # installed Manim 0.20.1 (inspect.signature on VMobject), not from memory:
+    #   set_stroke(color, width, opacity, background, family)
+    #   set_fill(color, opacity, family)
+    # Codegen models invent others - stroke_width, dash_array, stroke_opacity,
+    # line_join - and every one kills the scene with "unexpected keyword
+    # argument". Fixing them one at a time was whack-a-mole, so the whole class
+    # is handled here: known aliases are renamed, anything else is dropped.
+    _STYLE_KWARGS = {
+        "set_stroke": {"color", "width", "opacity", "background", "family"},
+        "set_fill": {"color", "opacity", "family"},
+    }
+    _STYLE_ALIASES = {
+        "set_stroke": {
+            "stroke_width": "width",
+            "stroke_color": "color",
+            "stroke_opacity": "opacity",
+        },
+        "set_fill": {"fill_color": "color", "fill_opacity": "opacity"},
+    }
+
+    def _rewrite_style_kwargs(self, node: ast.Call) -> bool:
+        if not isinstance(node.func, ast.Attribute):
+            return False
+        method = node.func.attr
+        allowed = self._STYLE_KWARGS.get(method)
+        if allowed is None:
+            return False
+        aliases = self._STYLE_ALIASES.get(method, {})
+        present = {kw.arg for kw in node.keywords if kw.arg in allowed}
+        kept: list[ast.keyword] = []
+        seen: set[str] = set()
+        changed = False
+        for kw in node.keywords:
+            if kw.arg is None:  # **kwargs: leave it to Manim
+                kept.append(kw)
+                continue
+            name = kw.arg
+            if name not in allowed and name in aliases:
+                target = aliases[name]
+                if target in present:  # the real name was given too; keep that one
+                    changed = True
+                    continue
+                kw.arg = target
+                present.add(target)
+                name = target
+                changed = True
+            if name in allowed and name not in seen:
+                seen.add(name)
+                kept.append(kw)
+            else:
+                # Not a real kwarg, or a repeat of one already kept. Repeats
+                # happen because the regex pass above renames stroke_width to
+                # width before this runs, so "width=2, stroke_width=9" arrives
+                # as two widths - which Python rejects outright. First wins.
+                changed = True
+        if changed:
+            node.keywords = kept
+        return changed
 
     def visit_Assign(self, node: ast.Assign):  # type: ignore[override]
         node = self.generic_visit(node)
@@ -954,6 +1022,38 @@ def _is_text_like_component(component: dict, frame_w: int, frame_h: int) -> bool
     return 0.15 <= aspect_ratio <= 12.0
 
 
+_BOX_CHARS = "│╭╮╰╯─┃━┏┓┗┛"
+
+
+def _summarize_manim_error(stderr: str) -> str:
+    """The one line that says what went wrong, e.g.
+    "TypeError: VMobject.set_stroke() got an unexpected keyword argument 'x'".
+
+    Rich wraps it across box-drawn lines, so borders are stripped and wrapped
+    continuations re-joined before looking for the final exception line. It
+    leads the error message so both the log and the model's retry prompt start
+    with the cause rather than with a traceback frame.
+    """
+    lines = []
+    for raw in stderr.splitlines():
+        line = raw.strip().strip(_BOX_CHARS).strip()
+        if line:
+            lines.append(line)
+    pattern = re.compile(r"^([A-Za-z_][\w.]*(?:Error|Exception|Warning)):\s*(.*)$")
+    for i in range(len(lines) - 1, -1, -1):
+        m = pattern.match(lines[i])
+        if not m:
+            continue
+        text = m.group(2)
+        # re-attach continuation lines that rich wrapped off the end
+        for nxt in lines[i + 1 :]:
+            if pattern.match(nxt) or nxt.startswith(("File ", "Traceback")):
+                break
+            text += " " + nxt
+        return f"{m.group(1)}: {text}".strip()[:400]
+    return ""
+
+
 def _run_manim(code: str, out_path: Path, timeout: int = 120) -> Path:
     """Write code to a temp dir, run manim render, move result to out_path.
 
@@ -984,6 +1084,12 @@ def _run_manim(code: str, out_path: Path, timeout: int = 120) -> Path:
                 capture_output=True,
                 text=True,
                 timeout=timeout,
+                # Manim prints tracebacks through rich, which draws boxes and
+                # wraps at 80 columns when it is not on a terminal. That cut
+                # the one word that mattered ("unexpected keyword argument
+                # '...") in half, in the logs and in the retry feedback the
+                # model reads to fix its own code. Wide and uncoloured instead.
+                env={**os.environ, "COLUMNS": "400", "NO_COLOR": "1", "TERM": "dumb"},
             )
         except subprocess.TimeoutExpired:
             raise ManimRenderError(f"Manim render timed out after {timeout}s")
@@ -1005,7 +1111,8 @@ def _run_manim(code: str, out_path: Path, timeout: int = 120) -> Path:
                     f"Manim code repeats keyword argument '{keyword}'. "
                     "Define axis config dictionaries once and pass each keyword only once."
                 )
-            raise ManimRenderError(stderr)
+            summary = _summarize_manim_error(stderr)
+            raise ManimRenderError(f"{summary}\n\n{stderr}" if summary else stderr)
 
         # Manim nests output in subdirs — find the MP4
         mp4_files = list(tmp_dir_path.rglob("*.mp4"))

@@ -134,7 +134,18 @@ def render(scene: dict, config: PipelineConfig, out_path: Path) -> Path:
             # Use 300s timeout for full-quality renders with potential layout audit retries
             rendered = _run_manim(code, out_path, timeout=300)
             log.info(f"Manim render completed for {out_path.name}")
-            _audit_rendered_video(rendered, duration_sec=duration_sec)
+            try:
+                _audit_rendered_video(rendered, duration_sec=duration_sec)
+            except ManimRenderError:
+                # Keep what the audit rejected. It is deleted otherwise, and
+                # "is this rule wrong or is the scene wrong?" can only be
+                # answered by looking at the frame it objected to.
+                rejected = out_path.parent / "_rejected"
+                rejected.mkdir(parents=True, exist_ok=True)
+                stem = f"{out_path.stem}_attempt{attempt + 1}"
+                shutil.copy2(rendered, rejected / f"{stem}.mp4")
+                (rejected / f"{stem}.py").write_text(code)
+                raise
             log.info(f"Layout audit passed for {out_path.name}")
             return rendered
         except ManimRenderError as e:
@@ -507,6 +518,11 @@ class _ManimCodeNormalizer(ast.NodeTransformer):
     _STYLE_KWARGS = {
         "set_stroke": {"color", "width", "opacity", "background", "family"},
         "set_fill": {"color", "opacity", "family"},
+        # Scene.add / VGroup.add / Mobject.add take mobjects only. Models
+        # write self.add(obj, run_time=1) meaning self.play(...), which dies
+        # with "unexpected keyword argument 'run_time'". The object still
+        # appears, just without the fade.
+        "add": set(),
     }
     _STYLE_ALIASES = {
         "set_stroke": {

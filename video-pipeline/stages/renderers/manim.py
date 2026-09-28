@@ -179,6 +179,15 @@ def _extract_bg_color(style: str) -> str:
 def _build_system_prompt(
     *, width: int, height: int, fps: int, duration_sec: int, bg_color: str
 ) -> str:
+    # Manim's frame is always 8 units tall and as wide as the pixel aspect
+    # allows: 1024x576 gives x in [-7.11, 7.11], y in [-4, 4]. The prompt used
+    # to state [-8, 8] x [-4.5, 4.5], so the model placed panels and titles up
+    # to 12% outside the visible frame and they rendered clipped. Every number
+    # below is derived from the real frame, so it stays right for any aspect.
+    half_w = 4.0 * width / float(height)
+    edge_x = round(half_w - 0.5, 1)
+    panel_x = round(0.56 * half_w, 1)
+    center_x = round(0.42 * half_w, 1)
     return f"""You are a professional Manim Community v0.18 animator creating high-quality educational finance videos.
 
 Write a complete Python file with a single class VideoScene(Scene) that renders a POLISHED, PROFESSIONAL animation.
@@ -206,14 +215,17 @@ CRITICAL TEXT RULES:
 - Font weight for emphasis: Text(..., weight="bold") or Text(..., font_size=28).
 
 POSITIONING — EXPLICIT COORDINATES:
-Manim canvas: x ∈ [-8, 8], y ∈ [-4.5, 4.5], z = 0 always.
+Visible frame: x ∈ [-{half_w:.2f}, {half_w:.2f}], y ∈ [-4, 4], z = 0 always.
+Anything past those edges is cut off. Keep every element's FULL extent - not
+just its centre - inside x ∈ [-{edge_x}, {edge_x}], y ∈ [-3.6, 3.6]. A box 3 units
+wide centred at x = {edge_x} sticks 1.5 units out of the frame.
 
-Safe zones:
-  Top title band (y ≥ 3.0): [0, 3.5, 0] center, [-3, 3.8, 0] left, [3, 3.8, 0] right
-  Left panel (x ≤ -4): x ∈ [-7, -4], y ∈ [-3, 3]
-  Right panel (x ≥ 4): x ∈ [4, 7], y ∈ [-3, 3]
-  Center frame (main diagram): x ∈ [-3, 3], y ∈ [-2.5, 2.5]
-  Bottom callouts (y ≤ -3): [0, -3.5, 0] center, [-3, -3.8, 0] left, [3, -3.8, 0] right
+Safe zones (centres):
+  Top title band: [0, 3.2, 0] - never higher; a title's top edge must stay below y = 3.6
+  Left panel:  x ∈ [-{edge_x}, -{panel_x}] for the element's full width, y ∈ [-2.8, 2.8]
+  Right panel: x ∈ [{panel_x}, {edge_x}] for the element's full width, y ∈ [-2.8, 2.8]
+  Center frame (main diagram): x ∈ [-{center_x}, {center_x}], y ∈ [-2.5, 2.5]
+  Bottom callouts: [0, -3.2, 0] - never lower
 
 FORBIDDEN: next_to(), to_edge(), align_to(), shift() on grouped children.
 FORBIDDEN (these fail to render here): Axes(), NumberPlane(), NumberLine(), SVGMobject(),
@@ -238,7 +250,8 @@ VISUAL RICHNESS:
 ANIMATION DETAILS:
 - Each element: FadeIn(run_time=0.6), Create(run_time=0.8), Transform(run_time=1.0).
 - No sudden appearance — always fade/create/write in.
-- Easing: Use default (EaseInOutQuad equivalent). Avoid linear.
+- Easing: omit rate_func (Manim's default, smooth, eases in and out), or pass
+  rate_func=rate_functions.ease_in_out_quad. There is no EaseInOutQuad name. Avoid linear.
 - Sequences: Group related elements, animate in logical order (background → structure → labels → emphasis).
 - Duration match: Entire sequence must fit in {duration_sec}s. Budget animation times carefully.
 
@@ -786,6 +799,15 @@ def _normalize_manim_code(code: str) -> str:
     # so dropping it renders a solid line rather than failing the scene.
     code = re.sub(r",\s*dash_array\s*=\s*(?:\[[^\]]*\]|\([^)]*\)|[0-9.]+)\s*(?=,|\))", "", code)
 
+    # Easing names borrowed from CSS/JS (EaseInOutQuad, EaseOutCubic, ...) are
+    # not defined in Manim and end the scene with a NameError. Manim has the
+    # same curves as rate_functions.ease_in_out_quad and friends.
+    def _manim_easing(m: "re.Match[str]") -> str:
+        where = {"In": "in", "Out": "out", "InOut": "in_out"}[m.group(1)]
+        return f"rate_functions.ease_{where}_{m.group(2).lower()}"
+
+    code = re.sub(r"\bEase(InOut|In|Out)(Quad|Cubic|Sine)\b", _manim_easing, code)
+
     # Remove invalid opacity= parameter (use fill_opacity and stroke_opacity instead)
     code = re.sub(r",\s*opacity\s*=\s*[0-9.]+\s*(?=,|\))", "", code)
 
@@ -856,6 +878,13 @@ def _audit_rendered_video(video_path: Path, duration_sec: int) -> None:
                 raise ManimRenderError(
                     f"Layout audit found likely text in the center band at t={sample_time:.2f}s: {detail}. "
                     "Move titles and callouts to the top band, outer edges, or side panels."
+                )
+            clipped = _find_clipped_text_regions(frame_path)
+            if clipped:
+                raise ManimRenderError(
+                    f"Layout audit found text cut off at the frame edge at t={sample_time:.2f}s: "
+                    f"{clipped[0]}. The visible frame is only 8 units tall; keep each element's "
+                    "full extent inside it, not just its centre."
                 )
         if not any_sampled:
             return
@@ -976,6 +1005,56 @@ def _find_center_text_like_regions(image_path: Path) -> list[str]:
         f"bbox=({x0},{y0})-({x1},{y1}), {n} glyph-like marks in a row"
         for (x0, y0, x1, y1, n) in _text_lines(in_center)
     ]
+
+
+def _find_clipped_text_regions(image_path: Path, margin: int = 3) -> list[str]:
+    """Lines of text that touch the frame edge, i.e. were cut off.
+
+    Nothing caught this before: the centre-band rule only looks inward, so a
+    label pushed past the edge rendered as "tock Price" and passed. Only text
+    rows count - a full-width axis line or a background grid reaching the edge
+    is not a defect, and those are not text-like anyway.
+    """
+    with Image.open(image_path) as image:
+        gray = image.convert("L")
+        if gray.width > 640:
+            ratio = 640 / float(gray.width)
+            gray = gray.resize(
+                (640, max(1, int(round(gray.height * ratio)))),
+                RESAMPLING.LANCZOS,
+            )
+        edges = ImageOps.autocontrast(gray.filter(ImageFilter.FIND_EDGES))
+        arr = np.asarray(edges, dtype=np.uint8)
+    threshold = int(max(60, np.percentile(arr, 92)))
+    mask = arr >= threshold
+    h, w = mask.shape
+    textish = [c for c in _connected_components(mask) if _is_text_like_component(c, w, h)]
+    # Judged per glyph, not per row: at analysis size small lowercase letters
+    # fall under the text-like area floor, so a clipped "Market Price" leaves
+    # only "M" and "P" - too far apart to form a row. The prompt keeps content
+    # at least half a unit (~22 px here) from every edge, so a letter-shaped
+    # mark within one glyph of an edge, with ink in the border strip beside it,
+    # is a cut-off label rather than a layout choice.
+    #
+    # The ink test matters: a cut letter leaves a sliver at the border that is
+    # too small to be text-like itself ("Stock Price" off the left edge showed
+    # a 21-pixel fragment at x=0-5, with the first counted glyph at x=6).
+    out = []
+    for c in textish:
+        x0, y0, x1, y1 = c["x0"], c["y0"], c["x1"], c["y1"]
+        gw, gh = x1 - x0 + 1, y1 - y0 + 1
+        if gw > 1.6 * gh:  # not letter-shaped: arrowheads, dashes, bars
+            continue
+        near = {
+            "left": x0 <= margin + 1.5 * gh and mask[y0 : y1 + 1, : margin + 1].any(),
+            "right": x1 >= w - 1 - margin - 1.5 * gh and mask[y0 : y1 + 1, w - 1 - margin :].any(),
+            "top": y0 <= margin + gh and mask[: margin + 1, x0 : x1 + 1].any(),
+            "bottom": y1 >= h - 1 - margin - gh and mask[h - 1 - margin :, x0 : x1 + 1].any(),
+        }
+        side = next((k for k, hit in near.items() if hit), "")
+        if side:
+            out.append(f"bbox=({x0},{y0})-({x1},{y1}) cut off at the {side} edge")
+    return out
 
 
 def _text_lines(comps: list[dict]) -> list[tuple[int, int, int, int, int]]:

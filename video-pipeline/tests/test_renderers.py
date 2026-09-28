@@ -897,6 +897,39 @@ def test_layout_audit_flags_lines_of_text_not_diagram_shapes():
     assert len(_text_lines(arrow + ticks + dot + word)) == 1
 
 
+def test_layout_audit_catches_text_cut_off_at_the_frame_edge(tmp_path):
+    """A label pushed past the frame edge used to pass: the centre-band rule
+    only looks inward. Frames drawn here with PIL so the test needs no Manim."""
+    from PIL import Image, ImageDraw, ImageFont
+
+    from stages.renderers.manim import _find_clipped_text_regions
+
+    try:
+        font = ImageFont.truetype("/System/Library/Fonts/Helvetica.ttc", 40)
+    except OSError:
+        font = ImageFont.load_default()
+
+    def frame(name, placements):
+        im = Image.new("RGB", (1024, 576), (10, 10, 10))
+        d = ImageDraw.Draw(im)
+        for text, xy in placements:
+            d.text(xy, text, fill=(255, 255, 255), font=font)
+        d.line([(0, 520), (1023, 520)], fill=(229, 231, 235), width=4)  # full-width axis
+        path = tmp_path / name
+        im.save(path)
+        return path
+
+    inside = frame("inside.png", [("Stock Price", (60, 200)), ("Breakeven", (780, 200))])
+    right = frame("right.png", [("Market Price", (930, 300))])
+    left = frame("left.png", [("Stock Price", (-70, 200))])
+    top = frame("top.png", [("Implied Volatility", (380, -18))])
+
+    assert _find_clipped_text_regions(inside) == []
+    assert "right edge" in _find_clipped_text_regions(right)[0]
+    assert "left edge" in _find_clipped_text_regions(left)[0]
+    assert "top edge" in _find_clipped_text_regions(top)[0]
+
+
 def test_render_provider_ladder_spends_the_free_attempts_first():
     """Cost shape of scene codegen: the cheap local backend gets every attempt
     but the last, which escalates to the paid one. Before this the provider was

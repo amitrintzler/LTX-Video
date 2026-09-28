@@ -144,6 +144,8 @@ def render(scene: dict, config: PipelineConfig, out_path: Path) -> Path:
                 rejected.mkdir(parents=True, exist_ok=True)
                 stem = f"{out_path.stem}_attempt{attempt + 1}"
                 shutil.copy2(rendered, rejected / f"{stem}.mp4")
+                if _layout_path(rendered).exists():
+                    shutil.copy2(_layout_path(rendered), rejected / f"{stem}.layout.json")
                 (rejected / f"{stem}.py").write_text(code)
                 raise
             log.info(f"Layout audit passed for {out_path.name}")
@@ -840,6 +842,57 @@ def _normalize_manim_code(code: str) -> str:
     return ast.unparse(tree)
 
 
+# Records where every visible Text is after each play()/wait(), in Manim's own
+# coordinates. The pixel audit works on a 640-wide thumbnail, where small text
+# largely disappears - a 60-character title registered as a 14%-wide row, and a
+# caption with a label printed over it barely registered at all - so questions
+# about text (does it overlap other text, is it a title or a label, does it
+# leave the frame) are answered from geometry instead of guessed from pixels.
+_LAYOUT_PROBE = """
+import atexit as _ltx_atexit, json as _ltx_json, os as _ltx_os
+_LTX_LAYOUT = []
+def _ltx_snapshot(scene):
+    items = []
+    for mob in scene.mobjects:
+        for part in mob.get_family():
+            if not isinstance(part, (Text, MarkupText)):
+                continue
+            try:
+                opacity = float(part.get_fill_opacity())
+            except Exception:
+                opacity = 1.0
+            if opacity < 0.05 or part.width <= 0:
+                continue
+            raw = str(getattr(part, "original_text", None) or getattr(part, "text", "") or "")
+            items.append({
+                "text": raw[:80],
+                "lines": raw.count(chr(10)) + 1,
+                "font_size": float(getattr(part, "font_size", 0) or 0),
+                "x0": float(part.get_left()[0]), "x1": float(part.get_right()[0]),
+                "y0": float(part.get_bottom()[1]), "y1": float(part.get_top()[1]),
+            })
+    _LTX_LAYOUT.append({"t": float(getattr(scene, "time", 0.0)), "texts": items})
+_ltx_orig_play, _ltx_orig_wait = Scene.play, Scene.wait
+def _ltx_play(self, *a, **k):
+    out = _ltx_orig_play(self, *a, **k)
+    _ltx_snapshot(self)
+    return out
+def _ltx_wait(self, *a, **k):
+    out = _ltx_orig_wait(self, *a, **k)
+    _ltx_snapshot(self)
+    return out
+Scene.play, Scene.wait = _ltx_play, _ltx_wait
+def _ltx_dump():
+    path = _ltx_os.environ.get("LTX_LAYOUT_OUT")
+    if path:
+        with open(path, "w") as fh:
+            _ltx_json.dump({"frame_width": float(config.frame_width),
+                            "frame_height": float(config.frame_height),
+                            "snapshots": _LTX_LAYOUT}, fh)
+_ltx_atexit.register(_ltx_dump)
+"""
+
+
 _POINT_COMPAT_SHIM = """
 import numpy as np
 
@@ -874,9 +927,84 @@ def _inject_point_compatibility_shim(code: str) -> str:
     return f"from manim import *\n{_POINT_COMPAT_SHIM.strip()}\n\n{code}"
 
 
+def _layout_path(video_path: Path) -> Path:
+    return video_path.with_suffix(".layout.json")
+
+
+def _audit_layout(layout: dict) -> list[str]:
+    """Text rules checked on Manim's own geometry (see _LAYOUT_PROBE).
+
+    - Text must not overlap other text.
+    - Text must stay inside the frame.
+    - The centre band holds the diagram, and a diagram may be labelled: a short
+      one-line label is fine there. A title or a sentence is not. Measured on
+      real Text at 1024x576, labels ("Options Model", "Expected Move", "IV")
+      are 3-14% of the frame width and sentences/titles are 25-61%, so a label
+      is one line under 22% wide - unless it is title-sized (32pt+) and over
+      12%, which is a title however short.
+
+    The pixel-based centre rule it replaces rejected every label, and in the
+    one scene that got past it the model had moved a box's own label out of
+    the box and printed it over the caption beneath.
+    """
+    fw = float(layout.get("frame_width") or 14.222)
+    fh = float(layout.get("frame_height") or 8.0)
+    hw, hh = fw / 2.0, fh / 2.0
+    band_x, band_y0, band_y1 = 0.52 * hw, hh - 0.78 * fh, hh - 0.30 * fh
+    eps = 0.02
+    problems: list[str] = []
+    seen: set[tuple] = set()
+
+    def once(key: tuple, msg: str) -> None:
+        # The same text breaks the same rule in every later snapshot; say it
+        # once, at the first moment it happens.
+        if key not in seen:
+            seen.add(key)
+            problems.append(msg)
+
+    for snap in layout.get("snapshots", []):
+        t = snap.get("t", 0.0)
+        texts = snap.get("texts", [])
+        for tx in texts:
+            name = repr(tx["text"][:40])
+            if tx["x0"] < -hw - eps or tx["x1"] > hw + eps or tx["y0"] < -hh - eps or tx["y1"] > hh + eps:
+                once(("frame", tx["text"]), f"text {name} leaves the frame at t={t:.1f}s")
+            cx, cy = (tx["x0"] + tx["x1"]) / 2, (tx["y0"] + tx["y1"]) / 2
+            if abs(cx) <= band_x and band_y0 <= cy <= band_y1:
+                share = (tx["x1"] - tx["x0"]) / fw
+                titleish = tx.get("font_size", 0) >= 32 and share > 0.12
+                if tx.get("lines", 1) > 1 or share > 0.22 or titleish:
+                    once(("centre", tx["text"]), f"text {name} is a title or sentence in the centre band at t={t:.1f}s "
+                         f"({100 * share:.0f}% of the frame wide) - only short labels belong there")
+        for i in range(len(texts)):
+            for j in range(i + 1, len(texts)):
+                a, b = texts[i], texts[j]
+                ox = min(a["x1"], b["x1"]) - max(a["x0"], b["x0"])
+                oy = min(a["y1"], b["y1"]) - max(a["y0"], b["y0"])
+                if ox <= 0 or oy <= 0:
+                    continue
+                smaller = min((a["x1"] - a["x0"]) * (a["y1"] - a["y0"]),
+                              (b["x1"] - b["x0"]) * (b["y1"] - b["y0"]))
+                if smaller > 0 and ox * oy > 0.15 * smaller:
+                    once(("overlap", *sorted((a["text"], b["text"]))),
+                         f"text {a['text'][:30]!r} overlaps text {b['text'][:30]!r} at t={t:.1f}s")
+    return problems
+
+
 def _audit_rendered_video(video_path: Path, duration_sec: int) -> None:
     if duration_sec <= 0:
         duration_sec = 8
+
+    layout_file = _layout_path(video_path)
+    has_layout = layout_file.exists()
+    if has_layout:
+        problems = _audit_layout(json.loads(layout_file.read_text()))
+        if problems:
+            raise ManimRenderError(
+                "Layout audit: " + "; ".join(problems[:3]) + ". Keep every text inside the "
+                "frame and clear of other text; put titles and sentences in the top band "
+                "or side panels."
+            )
 
     actual_duration = _probe_video_duration(video_path) or float(duration_sec)
     sample_times = _audit_sample_times(actual_duration)
@@ -888,7 +1016,7 @@ def _audit_rendered_video(video_path: Path, duration_sec: int) -> None:
             if not _extract_frame(video_path, sample_time, frame_path):
                 continue
             any_sampled = True
-            violations = _find_center_text_like_regions(frame_path)
+            violations = [] if has_layout else _find_center_text_like_regions(frame_path)
             if violations:
                 detail = violations[0]
                 raise ManimRenderError(
@@ -1210,7 +1338,13 @@ def _run_manim(code: str, out_path: Path, timeout: int = 120) -> Path:
     with tempfile.TemporaryDirectory(prefix="manim_render_") as tmp_dir:
         tmp_dir_path = Path(tmp_dir)
         code_file = tmp_dir_path / "scene.py"
-        code_file.write_text(code)
+        layout_file = tmp_dir_path / "layout.json"
+        probed = code
+        if "_ltx_snapshot" not in probed:
+            probed = probed.replace(
+                "from manim import *", f"from manim import *\n{_LAYOUT_PROBE.strip()}\n", 1
+            ) if "from manim import *" in probed else f"from manim import *\n{_LAYOUT_PROBE.strip()}\n\n{probed}"
+        code_file.write_text(probed)
 
         # Log the generated code for debugging
         import logging
@@ -1235,7 +1369,8 @@ def _run_manim(code: str, out_path: Path, timeout: int = 120) -> Path:
                 # the one word that mattered ("unexpected keyword argument
                 # '...") in half, in the logs and in the retry feedback the
                 # model reads to fix its own code. Wide and uncoloured instead.
-                env={**os.environ, "COLUMNS": "400", "NO_COLOR": "1", "TERM": "dumb"},
+                env={**os.environ, "COLUMNS": "400", "NO_COLOR": "1", "TERM": "dumb",
+                     "LTX_LAYOUT_OUT": str(layout_file)},
             )
         except subprocess.TimeoutExpired:
             raise ManimRenderError(f"Manim render timed out after {timeout}s")
@@ -1267,4 +1402,9 @@ def _run_manim(code: str, out_path: Path, timeout: int = 120) -> Path:
 
         out_path.parent.mkdir(parents=True, exist_ok=True)
         shutil.move(str(mp4_files[0]), out_path)  # shutil.move handles cross-device moves
+        layout_dest = _layout_path(out_path)
+        if layout_file.exists():
+            shutil.copy2(layout_file, layout_dest)
+        elif layout_dest.exists():
+            layout_dest.unlink()  # never audit against a previous render's layout
         return out_path

@@ -930,6 +930,48 @@ def test_layout_audit_catches_text_cut_off_at_the_frame_edge(tmp_path):
     assert "top edge" in _find_clipped_text_regions(top)[0]
 
 
+def test_geometric_layout_audit_allows_labels_and_rejects_real_defects():
+    """Text rules run on Manim's own geometry. Widths below are real Text
+    measurements at 1024x576 (frame 14.22 x 8 units): labels are 3-14% of the
+    frame width, sentences and titles 25-61%."""
+    from stages.renderers.manim import _audit_layout
+
+    def text(s, x, y, width, height=0.35, font_size=24, lines=1):
+        return {"text": s, "lines": lines, "font_size": font_size,
+                "x0": x - width / 2, "x1": x + width / 2,
+                "y0": y - height / 2, "y1": y + height / 2}
+
+    def layout(*texts):
+        return {"frame_width": 14.222, "frame_height": 8.0,
+                "snapshots": [{"t": 1.0, "texts": list(texts)}]}
+
+    title = text("Implied Volatility", 0, 3.2, 2.90, font_size=32)
+    # A labelled diagram: short labels in the centre band are fine.
+    assert _audit_layout(layout(title,
+                                text("Options Model", 0, 0, 1.98),
+                                text("IV", 0, -1.2, 0.45, font_size=40),
+                                text("Stock Price", -5.3, 1.5, 1.70))) == []
+
+    sentence = text("The market is secretly telling you something", 0, -1.2, 5.95)
+    assert "title or sentence in the centre band" in _audit_layout(layout(sentence))[0]
+    centre_title = text("Implied Volatility", 0, -1.2, 2.90, font_size=32)
+    assert "title or sentence" in _audit_layout(layout(centre_title))[0]
+    paragraph = text("Line one" + chr(10) + "Line two", 0, -1.0, 1.5, height=0.8, lines=2)
+    assert "title or sentence" in _audit_layout(layout(paragraph))[0]
+
+    caption = text("Solving for the unknown volatility", 0, -3.2, 3.61, font_size=18)
+    stamped = text("Model", 0.2, -3.15, 0.9)
+    assert "overlaps" in _audit_layout(layout(caption, stamped))[0]
+
+    off_left = text("Stock Price", -6.8, 1.5, 1.70)
+    assert "leaves the frame" in _audit_layout(layout(off_left))[0]
+
+    # The same text breaking the same rule in every snapshot is reported once.
+    repeated = {"frame_width": 14.222, "frame_height": 8.0,
+                "snapshots": [{"t": t, "texts": [off_left]} for t in (1.0, 2.0, 3.0)]}
+    assert len(_audit_layout(repeated)) == 1
+
+
 def test_render_provider_ladder_spends_the_free_attempts_first():
     """Cost shape of scene codegen: the cheap local backend gets every attempt
     but the last, which escalates to the paid one. Before this the provider was

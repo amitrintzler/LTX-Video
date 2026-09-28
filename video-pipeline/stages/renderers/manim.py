@@ -266,7 +266,9 @@ ANIMATION DETAILS:
 - Easing: omit rate_func (Manim's default, smooth, eases in and out), or pass
   rate_func=rate_functions.ease_in_out_quad. There is no EaseInOutQuad name. Avoid linear.
 - Sequences: Group related elements, animate in logical order (background → structure → labels → emphasis).
-- Duration match: Entire sequence must fit in {duration_sec}s. Budget animation times carefully.
+- Duration: the scene runs {duration_sec}s, the length of its narration. Fill it - keep
+  something moving or appearing the whole way through, and end with no more than 1s of
+  stillness. Finishing early and waiting leaves the viewer on a frozen frame.
 
 EXAMPLE PROFESSIONAL SCENE:
 ```python
@@ -309,7 +311,7 @@ CHECKLIST:
 ✓ Axis labels, tick marks, value callouts visible
 ✓ Curves smooth (50+ points), not jagged
 ✓ Animations have easing and appropriate duration
-✓ Total duration ≤ {duration_sec}s
+✓ Total duration ≈ {duration_sec}s, never under {duration_sec}s minus 1, with motion throughout
 ✓ No MathTex/Tex, no LaTeX
 ✓ No alignment= or align= in constructors
 

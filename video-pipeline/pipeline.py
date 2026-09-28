@@ -26,7 +26,7 @@ from stages.render import RenderStage
 from stages.stitch import StitchStage
 from stages.tts import TTSStage
 from stages.validate import ValidationStage
-from stages.scene_utils import needs_draw_things
+from stages.scene_utils import needs_draw_things, safe_slug
 from stages.topic_utils import is_topic_document, topic_slug, topic_title
 
 
@@ -214,16 +214,24 @@ def _run_new_pipeline_for_script(
     if any(s in stages_to_run for s in ["render", "tts", "stitch"]):
         _enforce_quality_gate(log, cfg, script, scenes, title)
 
-    if "render" in stages_to_run:
-        log.info("━━━ Render stage ━━━")
-        RenderStage(cfg, log).run(script, runtime_scenes, runtime_title)
-
+    # Narration runs before render so each scene can be animated for as long
+    # as it is spoken. The other way round, manim was told the script's nominal
+    # length (10s) while the speech ran 12-18s, and stitch held the last frame
+    # until the voice finished: a 137s film whose clips all animated was frozen
+    # for 81s of it.
+    narrated = output_mode in {"narrated", "companion-long"}
     if "tts" in stages_to_run:
         log.info("━━━ TTS stage ━━━")
-        if output_mode in {"narrated", "companion-long"}:
+        if narrated:
             TTSStage(cfg, log).run(runtime_scenes, runtime_title)
         else:
             log.info("  TTS skipped — silent companion output")
+
+    if "render" in stages_to_run:
+        if narrated:
+            _fit_scene_durations_to_narration(log, cfg, runtime_scenes, runtime_title)
+        log.info("━━━ Render stage ━━━")
+        RenderStage(cfg, log).run(script, runtime_scenes, runtime_title)
 
     if "stitch" in stages_to_run:
         log.info("━━━ Stitch stage ━━━")
@@ -232,6 +240,35 @@ def _run_new_pipeline_for_script(
             StitchStage(cfg, log).run(runtime_scenes, runtime_title, output_mode="companion-short")
         else:
             StitchStage(cfg, log).run(runtime_scenes, runtime_title, output_mode="companion-long")
+
+
+NARRATION_TAIL_SEC = 0.6
+
+
+def _fit_scene_durations_to_narration(
+    log: logging.Logger, cfg: PipelineConfig, scenes: list[dict], title: str
+) -> None:
+    """Set each scene's duration to its measured narration plus a short tail,
+    never shorter than the script asked for. Scenes without narration keep
+    their scripted length."""
+    import math
+
+    import soundfile as sf
+
+    clips_dir = cfg.clips_dir / safe_slug(title)
+    for i, scene in enumerate(scenes):
+        audio = clips_dir / f"scene_{i + 1:03d}_audio.wav"
+        if not audio.exists():
+            continue
+        spoken = sf.info(str(audio)).duration
+        scripted = float(scene.get("duration_sec") or 0)
+        fitted = max(scripted, math.ceil(spoken + NARRATION_TAIL_SEC))
+        if fitted != scripted:
+            log.info(
+                f"  [scene_{i + 1:03d}] narration {spoken:.1f}s: animating for {fitted}s "
+                f"(script said {scripted:g}s)"
+            )
+        scene["duration_sec"] = fitted
 
 
 def _run_topic_pipeline(

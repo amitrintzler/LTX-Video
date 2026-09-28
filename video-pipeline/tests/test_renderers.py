@@ -1009,6 +1009,37 @@ def test_layout_audit_catches_text_under_shapes_but_not_backgrounds():
                           "snapshots": [{"t": 1.0, "texts": [label]}]}) == []
 
 
+def test_scene_durations_are_fitted_to_their_narration(tmp_path):
+    """Measured on a full film: speech ran 12-18s per scene while manim was
+    asked for 10s, and stitch froze the last frame to cover the difference -
+    81 of 137 seconds still. Each scene now animates for its spoken length
+    plus a short tail, and never shorter than the script asked."""
+    import logging
+
+    import numpy as np
+    import soundfile as sf
+
+    from config import PipelineConfig
+    from pipeline import NARRATION_TAIL_SEC, _fit_scene_durations_to_narration
+    from stages.scene_utils import safe_slug
+
+    cfg = PipelineConfig(work_dir=str(tmp_path))
+    title = "IV test"
+    clips = cfg.clips_dir / safe_slug(title)
+    clips.mkdir(parents=True)
+    sr = 24000
+    sf.write(clips / "scene_001_audio.wav", np.zeros(int(12.35 * sr)), sr)  # longer than scripted
+    sf.write(clips / "scene_002_audio.wav", np.zeros(int(4.0 * sr)), sr)    # shorter than scripted
+    scenes = [{"duration_sec": 10}, {"duration_sec": 10}, {"duration_sec": 8}]  # scene 3: no narration
+
+    _fit_scene_durations_to_narration(logging.getLogger("t"), cfg, scenes, title)
+
+    assert scenes[0]["duration_sec"] == 13  # ceil(12.35 + 0.6)
+    assert scenes[1]["duration_sec"] == 10  # never shorter than scripted
+    assert scenes[2]["duration_sec"] == 8   # untouched
+    assert NARRATION_TAIL_SEC < 1.0
+
+
 def test_render_provider_ladder_spends_the_free_attempts_first():
     """Cost shape of scene codegen: the cheap local backend gets every attempt
     but the last, which escalates to the paid one. Before this the provider was

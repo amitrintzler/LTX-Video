@@ -698,6 +698,28 @@ def test_manim_render_saves_shipped_code_beside_clip(tmp_path):
     assert "config.pixel_width = 1920" in saved
 
 
+def test_edge_content_flags_a_box_cut_by_the_frame(tmp_path):
+    from PIL import ImageDraw
+    from stages.renderers.manim import _find_edge_content
+    img = Image.new("RGB", (1920, 1080), "#0F1923")
+    ImageDraw.Draw(img).rectangle([-40, 300, 400, 500], outline="#2A4A6B", width=6)
+    ImageDraw.Draw(img).rectangle([1700, 500, 1960, 620], outline="#F5C842", width=6)
+    path = tmp_path / "frame.png"
+    img.save(path)
+    assert _find_edge_content(path) == ["left", "right"]
+
+
+def test_edge_content_passes_a_frame_with_margins(tmp_path):
+    from PIL import ImageDraw
+    from stages.renderers.manim import _find_edge_content
+    img = Image.new("RGB", (1920, 1080), "#0F1923")
+    ImageDraw.Draw(img).rectangle([90, 200, 600, 400], outline="#2A4A6B", width=6)
+    ImageDraw.Draw(img).line([(0, 1079), (0, 1079)], fill="#FFFFFF")  # single stray pixel
+    path = tmp_path / "frame.png"
+    img.save(path)
+    assert _find_edge_content(path) == []
+
+
 def test_manim_render_retries_on_failure(tmp_path):
     """On _run_manim failure, Claude CLI is called again with error; raises after max_retries."""
     from stages.renderers import manim as manim_mod

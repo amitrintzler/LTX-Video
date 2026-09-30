@@ -1271,6 +1271,14 @@ def _audit_rendered_video(video_path: Path, duration_sec: int) -> None:
                     "full extent inside it, not just its centre."
                 )
                 raise LayoutAuditError(message, [message])
+            edges = _find_edge_content(frame_path)
+            if edges:
+                message = (
+                    f"Layout audit found shapes cut off at the frame edge ({', '.join(edges)}) "
+                    f"at t={sample_time:.2f}s. Boxes, panels and lines must sit fully inside the "
+                    "frame too, not only text."
+                )
+                raise LayoutAuditError(message, [message])
         if not any_sampled:
             return
 
@@ -1390,6 +1398,29 @@ def _find_center_text_like_regions(image_path: Path) -> list[str]:
         f"bbox=({x0},{y0})-({x1},{y1}), {n} glyph-like marks in a row"
         for (x0, y0, x1, y1, n) in _text_lines(in_center)
     ]
+
+
+def _find_edge_content(image_path: Path, min_pixels: int = 20) -> list[str]:
+    """Sides of the frame that drawn content touches. The text rules only see
+    text, so a panel or box pushed half off-frame passed them: the implied
+    volatility film shipped input boxes cut by the left edge and a price box
+    cut by the right. Anything that stands out from the background in the
+    outermost 0.4% of the frame is running off it. Full resolution, because
+    thin dim borders (steel blue on near-black) vanish when downsampled."""
+    import numpy as np
+    from PIL import Image
+
+    with Image.open(image_path) as img:
+        arr = np.asarray(img.convert("L"), dtype=int)
+    h, w = arr.shape
+    strip = max(2, round(w * 0.004))
+    background = np.median(arr)
+    strips = {
+        "left": arr[:, :strip], "right": arr[:, -strip:],
+        "top": arr[:strip, :], "bottom": arr[-strip:, :],
+    }
+    return [side for side, band in strips.items()
+            if int((np.abs(band - background) > 24).sum()) >= min_pixels]
 
 
 def _find_clipped_text_regions(image_path: Path, margin: int = 3) -> list[str]:

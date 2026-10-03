@@ -44,6 +44,15 @@ class PipelineConfig:
     )
     use_tea_cache: bool = True      # faster generation via step caching
 
+    # ── Code renderers (Manim, slides, D3, HTML) ─────────────────────
+    # Drawn, not diffused, so they render at delivery size. Kept apart from
+    # the video_* settings above: config.json sizes those for LTX img2video
+    # (1024x576 @ 8 fps), and the code renderers borrowing them shipped an
+    # animated film at 8 fps.
+    render_width: int = 1920
+    render_height: int = 1080
+    render_fps: int = 30
+
     # ── Stitch (FFmpeg) ──────────────────────────────────────────────
     crossfade_sec: float = 0.5      # dissolve duration between clips
     output_codec: str = "libx264"   # libx264 | prores_ks (ProRes)
@@ -83,11 +92,21 @@ class PipelineConfig:
     render_workers: int = 1
     script_timeout_sec: int = 180
     script_chunk_size: int = 1
-    llm_provider: str = "codex"   # claude | codex | lmstudio
+    # Defaults name models that are installed here and were tested on the job:
+    # qwen3.8-27b wrote valid scene JSON; mistral-small wrote a usable Manim
+    # scene in 68s with no reasoning tokens. codex was the old default and this
+    # account rejects its model outright.
+    llm_provider: str = "lmstudio"   # claude | codex | lmstudio
     script_backup_providers: list[str] = field(default_factory=lambda: ["lmstudio"])
-    llm_model: str = "qwen/qwen3.5-35b-a3b"
+    llm_model: str = "qwen/qwen3.8-27b"
     render_llm_provider: str = "lmstudio"   # claude | lmstudio
-    render_llm_model: str = "qwen/qwen3.5-35b-a3b"
+    render_llm_model: str = "mistral-small-3.1-24b-instruct-2503"
+    # Escalation for scene code, tried on the final attempt when the primary
+    # cannot produce valid Manim. Empty by default so importing this config
+    # never turns a single-provider setup into a paid call behind the caller's
+    # back - config.json opts in. Tests rely on that: they mock one backend and
+    # would otherwise hit a real CLI on the last retry.
+    render_backup_providers: list[str] = field(default_factory=list)
     block_degraded_output: bool = True
     max_fallback_scene_ratio: float = 0.2
     lmstudio_base_url: str = "http://localhost:1234/v1"
@@ -118,12 +137,31 @@ class PipelineConfig:
         return providers or ["lmstudio"]
 
     def render_llm_model_name(self) -> str:
-        provider = self.render_llm_provider.strip().lower()
+        return self.render_llm_model_name_for(self.render_llm_provider)
+
+    def render_llm_model_name_for(self, provider: str) -> str:
+        provider = str(provider).strip().lower()
         if provider == "lmstudio":
             if not self.render_llm_model:
                 raise ValueError("render_llm_model must be set when render_llm_provider is lmstudio")
             return self.render_llm_model
         return self.claude_model
+
+    def render_provider_sequence(self) -> list[str]:
+        """Which backend writes the scene code, per attempt, cheapest first.
+
+        A local model costs nothing and is worth two tries; if it still cannot
+        produce valid Manim, the last attempt escalates to the paid one rather
+        than dropping the scene to a static slide. Without this the provider
+        was fixed for every attempt, so a local failure meant the scene never
+        moved and nothing stronger was ever asked.
+        """
+        providers: list[str] = []
+        for provider in [self.render_llm_provider, *self.render_backup_providers]:
+            normalized = str(provider).strip().lower()
+            if normalized in {"lmstudio", "claude"} and normalized not in providers:
+                providers.append(normalized)
+        return providers or ["lmstudio"]
 
     # ── TTS (Kokoro) ─────────────────────────────────────────────────
     tts_enabled: bool = True

@@ -48,6 +48,9 @@ ALLOWED_OVERRIDES = {
     "output_crf",
     "output_preset",
     "video_fps",
+    "render_width",
+    "render_height",
+    "render_fps",
 }
 
 

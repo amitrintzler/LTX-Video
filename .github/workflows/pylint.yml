@@ -29,3 +29,12 @@ jobs:
       run: |
         pip install -e .[test]
         pytest -m "not slow"
+    - name: Video pipeline tests
+      working-directory: video-pipeline
+      run: |
+        pip install rich pillow numpy requests soundfile
+        pytest tests -q
+    - name: Cinematic engine provider check
+      working-directory: cinematic-pipeline/engine/tests
+      run: |
+        python test_http_provider.py

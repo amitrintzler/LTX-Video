@@ -42,7 +42,6 @@ def lower_third(text: str, w: int, h: int, out: Path, accent=(99, 248, 137)) -> 
         a = int(190 * (i / bar_h))
         d.line([(0, y0 + i), (w, y0 + i)], fill=(8, 10, 20, a))
     fnt = _font(int(h * 0.058))
-    sub = _font(int(h * 0.030))
     tx = int(w * 0.07)
     d.rectangle(
         [tx, y0 + int(bar_h * 0.30), tx + int(w * 0.012), y0 + int(bar_h * 0.78)],

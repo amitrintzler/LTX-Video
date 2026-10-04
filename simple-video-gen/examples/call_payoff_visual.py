@@ -4,7 +4,7 @@
 import sys
 
 sys.path.insert(0, "..")
-from video_gen import VideoGenerator, Scene, TextElement, LineElement, PolygonElement
+from video_gen import VideoGenerator, Scene, TextElement, LineElement
 
 gen = VideoGenerator()
 

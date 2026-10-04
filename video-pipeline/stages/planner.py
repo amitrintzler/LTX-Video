@@ -9,10 +9,8 @@ from __future__ import annotations
 
 import json
 import logging
-from typing import Optional
 
 from config import PipelineConfig
-from stages.claude_client import ClaudeCLIError
 
 
 class PlanningError(RuntimeError):
@@ -137,7 +135,6 @@ Create a detailed animation plan in JSON format."""
         try:
             # Call Claude CLI with structured output
             import subprocess
-            import tempfile
 
             cmd = [
                 "claude",
@@ -184,7 +181,6 @@ Create a detailed animation plan in JSON format."""
     @staticmethod
     def _extract_json(text: str) -> dict | None:
         """Extract JSON object from text (may contain prose)."""
-        import json
         import re
 
         text = text.strip()

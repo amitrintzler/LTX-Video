@@ -6,7 +6,6 @@ import tempfile
 from pathlib import Path
 from PIL import Image, ImageDraw, ImageFont
 from dataclasses import dataclass
-import json
 
 
 @dataclass
@@ -65,7 +64,7 @@ class VideoGenerator:
         """Get system font. Falls back to default if not available."""
         try:
             return ImageFont.truetype("/System/Library/Fonts/Helvetica.ttc", size)
-        except:
+        except Exception:
             return ImageFont.load_default()
 
     def _create_frame(self, scene: Scene) -> Image.Image:

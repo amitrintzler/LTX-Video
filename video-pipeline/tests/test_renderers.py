@@ -404,7 +404,7 @@ def test_render_stage_sanitizes_manim_scene_description(tmp_path):
         raise AssertionError(f"Unexpected renderer request: {name}")
 
     with (
-        patch("stages.render.shutil.which", return_value="/usr/bin/latex"),
+        patch("shutil.which", return_value="/usr/bin/latex"),
         patch("stages.render.get_renderer", side_effect=fake_get_renderer),
     ):
         stage._render_scene(0, scene, tmp_path, default_renderer="manim")
@@ -438,7 +438,7 @@ def test_render_stage_appends_layout_hint_for_manim(tmp_path):
         raise AssertionError(f"Unexpected renderer request: {name}")
 
     with (
-        patch("stages.render.shutil.which", return_value="/usr/bin/latex"),
+        patch("shutil.which", return_value="/usr/bin/latex"),
         patch("stages.render.get_renderer", side_effect=fake_get_renderer),
     ):
         stage._render_scene(0, scene, tmp_path, default_renderer="manim")
@@ -495,7 +495,7 @@ def test_render_stage_keeps_manim_when_latex_is_absent(tmp_path):
     fake_renderer.render = MagicMock(return_value=tmp_path / "scene_001.mp4")
 
     with (
-        patch("stages.render.shutil.which", return_value=None),
+        patch("shutil.which", return_value=None),
         patch("stages.render.get_renderer", return_value=fake_renderer) as mock_get,
     ):
         stage._render_scene(0, scene, tmp_path, default_renderer="manim")
@@ -1903,7 +1903,8 @@ def test_manim_missing_claude_cli_raises_helpful_error(tmp_path):
 
 def test_manim_missing_manim_package_raises_helpful_error(tmp_path):
     """If manim is not installed, render() raises ImportError with install instructions."""
-    import builtins, importlib
+    import builtins
+    import importlib
 
     real_import = builtins.__import__
 
@@ -2076,7 +2077,7 @@ def test_pipeline_dispatches_manim_scene(tmp_path):
     mock_render = MagicMock(return_value=tmp_path / "clips/test_mixed/scene_001.mp4")
 
     with (
-        patch("stages.render.shutil.which", return_value="/usr/bin/latex"),
+        patch("shutil.which", return_value="/usr/bin/latex"),
         patch("stages.renderers.manim.render", mock_render),
         patch("stages.video.DrawThingsClient"),
         patch("stages.storyboard.DrawThingsClient"),

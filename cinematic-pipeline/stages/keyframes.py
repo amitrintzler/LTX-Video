@@ -18,7 +18,6 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
-import config as cfg  # noqa: E402
 
 
 def make_keyframe(

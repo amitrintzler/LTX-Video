@@ -202,9 +202,6 @@ def test_script_stage_writes_both_modes(tmp_path, log, monkeypatch):
     outline_path = research_dir / f"{slug}-outline.md"
     research_path.write_text("# Research\n\nNotes.\n")
     outline_path.write_text("# Outline\n\n- Act 1\n- Act 2\n- Act 3\n- Act 4\n")
-    research_signature = stage._research_signature(
-        research_path.read_text(), outline_path.read_text()
-    )
     (research_dir / f"{slug}.meta.json").write_text(
         json.dumps(
             {

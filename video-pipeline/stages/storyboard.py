@@ -12,7 +12,6 @@ Output: frames/<title>/scene_<N>.png
 from __future__ import annotations
 import logging
 import time
-from pathlib import Path
 
 from config import PipelineConfig
 from draw_things_client import DrawThingsClient, DrawThingsError

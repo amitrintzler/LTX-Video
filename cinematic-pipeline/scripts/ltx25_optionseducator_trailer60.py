@@ -23,12 +23,9 @@ from __future__ import annotations
 
 import argparse
 import json
-import re
 import subprocess
 import sys
 import time
-import urllib.error
-import urllib.request
 from pathlib import Path
 
 from PIL import Image, ImageDraw, ImageFilter, ImageFont
@@ -1156,11 +1153,11 @@ def render_chart_panel(
     body_w = max(3.0, step * 0.62)
     wick_w = max(1, int(round(step * 0.11)))
     closes = []
-    for i, (o, h, l, c) in enumerate(candles):
+    for i, (o, h, lo, c) in enumerate(candles):
         cx = plot_l + step * (i + 0.5)
         up = c >= o
         colour = (46, 204, 148, 255) if up else (239, 90, 90, 255)
-        draw.line([(cx, py(h)), (cx, py(l))], fill=colour, width=wick_w)
+        draw.line([(cx, py(h)), (cx, py(lo))], fill=colour, width=wick_w)
         top, bot = py(max(o, c)), py(min(o, c))
         if bot - top < 1.5:
             bot = top + 1.5
@@ -1202,7 +1199,7 @@ def render_chart_panel(
 
     vb, vt = y0 + H - 20 * scale, y0 + H - 66 * scale
     peak = max(abs(c[3] - c[0]) for c in candles) or 1
-    for i, (o, h, l, c) in enumerate(candles):
+    for i, (o, h, lo, c) in enumerate(candles):
         cx = plot_l + step * (i + 0.5)
         height = (0.25 + 0.75 * abs(c - o) / peak) * (vb - vt)
         colour = (46, 204, 148, 175) if c >= o else (239, 90, 90, 175)
@@ -1369,10 +1366,10 @@ def render_tower_board(
     body = max(2.5, step * 0.6)
     wick = max(1, int(round(step * 0.13)))
     closes = []
-    for i, (o, h, l, c) in enumerate(shown):
+    for i, (o, h, lo, c) in enumerate(shown):
         cx = plot_l + step * (i + 0.5)
         colour = (46, 204, 148, 255) if c >= o else (239, 90, 90, 255)
-        draw.line([(cx, py(h)), (cx, py(l))], fill=colour, width=wick)
+        draw.line([(cx, py(h)), (cx, py(lo))], fill=colour, width=wick)
         top, bot = py(max(o, c)), py(min(o, c))
         if bot - top < 1.5:
             bot = top + 1.5
@@ -1386,7 +1383,7 @@ def render_tower_board(
     draw.line(ma, fill=(250, 204, 21, 240), width=max(2, int(1.8 * u)), joint="curve")
 
     peak = max(abs(c[3] - c[0]) for c in shown) or 1
-    for i, (o, h, l, c) in enumerate(shown):
+    for i, (o, h, lo, c) in enumerate(shown):
         cx = plot_l + step * (i + 0.5)
         height = (0.25 + 0.75 * abs(c - o) / peak) * (vol_b - vol_t)
         colour = (46, 204, 148, 175) if c >= o else (239, 90, 90, 175)

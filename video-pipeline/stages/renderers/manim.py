@@ -1456,9 +1456,9 @@ def _extract_frame(video_path: Path, sample_time: float, out_path: Path) -> bool
         raise ManimRenderError(
             "ffmpeg is required for the Manim layout audit but was not found on PATH."
         ) from e
-    except subprocess.CalledProcessError as e:
+    except subprocess.CalledProcessError:
         return False
-    except subprocess.TimeoutExpired as e:
+    except subprocess.TimeoutExpired:
         return False
 
     return out_path.exists()
@@ -1753,7 +1753,6 @@ def _run_manim(code: str, out_path: Path, timeout: int = 120) -> Path:
 
         # Log the generated code for debugging
         import logging
-        import sys
 
         log = logging.getLogger("manim")
         log.debug(f"Generated Manim code for {out_path.name}:\n{code}")

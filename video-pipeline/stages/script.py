@@ -798,17 +798,17 @@ class ScriptStage:
             (
                 "Hook",
                 f"Open with {topic_name} and the question it answers.",
-                f"Use a dark background, a small gold title in the top-left, and one central diagram. Keep the first reveal centered and avoid text overlapping the diagram.",
+                "Use a dark background, a small gold title in the top-left, and one central diagram. Keep the first reveal centered and avoid text overlapping the diagram.",
             ),
             (
                 "What It Means",
                 f"Define {topic_name} in one plain sentence.",
-                f"Show one large label, one supporting callout, and a clean empty margin around them. Introduce the topic without stacking multiple text blocks on top of each other.",
+                "Show one large label, one supporting callout, and a clean empty margin around them. Introduce the topic without stacking multiple text blocks on top of each other.",
             ),
             (
                 "Key Terms",
                 f"Name the key terms: {key_term_text}.",
-                f"Place the terms in a simple row or column, with each label spaced apart. Use gold for the main term and teal for the supporting note.",
+                "Place the terms in a simple row or column, with each label spaced apart. Use gold for the main term and teal for the supporting note.",
             ),
             (
                 "Flow Signal",
@@ -883,7 +883,7 @@ class ScriptStage:
             (
                 "Example Walkthrough",
                 "Walk through one concrete example from start to finish.",
-                f"Use one clean example, one starting value, and one final result. If you need a supporting note, keep it in a small side box so it does not overlap the main diagram.",
+                "Use one clean example, one starting value, and one final result. If you need a supporting note, keep it in a small side box so it does not overlap the main diagram.",
             ),
             (
                 "Common Traps",
@@ -898,7 +898,7 @@ class ScriptStage:
             (
                 "Takeaway",
                 "State the one-sentence takeaway.",
-                f"Summarize the lesson in one clear line and keep every other label small. Use the takeaway as a visual anchor, not as a paragraph.",
+                "Summarize the lesson in one clear line and keep every other label small. Use the takeaway as a visual anchor, not as a paragraph.",
             ),
             (
                 "Summary",

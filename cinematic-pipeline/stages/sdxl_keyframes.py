@@ -120,7 +120,8 @@ def release():
         return
     _PIPE = None
     try:
-        import gc, torch
+        import gc
+        import torch
 
         gc.collect()
         if torch.backends.mps.is_available():

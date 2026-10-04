@@ -1,10 +1,9 @@
 #!/usr/bin/env python3
 """Hyperframes video generator wrapper - HTML-native video composition."""
 
-import json
 import subprocess
 from pathlib import Path
-from dataclasses import dataclass, asdict
+from dataclasses import dataclass
 
 
 @dataclass

@@ -1,4 +1,6 @@
-import sys, numpy as np, soundfile as sf, torch
+import sys
+import soundfile as sf
+import torch
 from transformers import AutoProcessor, MusicgenForConditionalGeneration
 
 dur = float(sys.argv[1]) if len(sys.argv) > 1 else 33.0

@@ -399,10 +399,6 @@ class Promo:
                     [(strike_x, ay0), (strike_x, ay1)], fill=(INDIGO + (int(ma * 0.6),))
                 )
                 d.text((strike_x - 20, ay1 + 6), "Strike", font=fs, fill=INDIGO + (ma,))
-                be_x = (
-                    strike_x + prem / ((ay0 - (zero_y + prem)) / (ax1 - strike_x)) * -1
-                )
-                be_x = strike_x + prem * (ax1 - strike_x) / (zero_y + prem - ay0) * -1
             _ctext(d, "Long Call Payoff", fh, int(H * 0.72), WHITE, a)
             self._save(img)
 

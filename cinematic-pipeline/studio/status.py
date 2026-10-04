@@ -16,7 +16,7 @@ import sys
 from pathlib import Path
 from typing import Any
 
-from jobs import PROJECT, RENDER_ROOT, SCRIPTS, TRAILER
+from jobs import PROJECT, RENDER_ROOT, TRAILER
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "engine"))
 from providers import flow_quota  # noqa: E402

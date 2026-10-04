@@ -63,7 +63,7 @@ FPS = 24
 W, H = 1920, 1080
 
 sys.path.insert(0, str(HERE))
-from feature_trailer import _card, _font  # noqa: E402
+from feature_trailer import _card  # noqa: E402
 
 # (source clip, seconds to keep, act) - every clip is a silent seg_*.mp4,
 # already carrying its own drawn label from its home trailer's build.

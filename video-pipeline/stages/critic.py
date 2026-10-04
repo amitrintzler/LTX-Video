@@ -7,14 +7,12 @@ multimodal LLM (Claude vision).
 
 from __future__ import annotations
 
-import base64
 import json
 import logging
 import subprocess
 import tempfile
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Optional
 
 from config import PipelineConfig
 
@@ -205,7 +203,6 @@ Evaluate whether these requirements are met in the provided frames."""
         self, prompt: str, frame_images: list[bytes]
     ) -> CriticResult:
         """Call Claude API with vision to evaluate frames."""
-        import base64
         import subprocess
 
         # Build multi-line prompt with images

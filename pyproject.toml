@@ -46,3 +46,16 @@ include = ["ltx_video*"]
 
 [tool.setuptools.package-data]
 ltx_video = ["configs/*.yaml"]
+
+[tool.ruff]
+# CI passes every tracked .py file explicitly; force-exclude makes the
+# exclusions apply to those paths too.
+force-exclude = true
+extend-exclude = ["video-pipeline/output"]
+
+[tool.ruff.lint.per-file-ignores]
+# Manim scenes are written against `from manim import *` by convention.
+"video-pipeline/examples/*" = ["F403", "F405"]
+
+[tool.black]
+force-exclude = "video-pipeline/output/"

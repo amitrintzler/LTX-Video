@@ -177,7 +177,10 @@ def _verify(provider: str, model: str) -> tuple[bool, str]:
         req = urllib.request.Request(
             f"{LMSTUDIO_BASE}/chat/completions",
             data=body,
-            headers={"Content-Type": "application/json", "Authorization": "Bearer lm-studio"},
+            headers={
+                "Content-Type": "application/json",
+                "Authorization": "Bearer lm-studio",
+            },
         )
         try:
             with urllib.request.urlopen(req, timeout=240) as r:
@@ -210,7 +213,9 @@ def _verify(provider: str, model: str) -> tuple[bool, str]:
         try:
             r = subprocess.run(
                 ["codex", "exec", "--skip-git-repo-check", "Reply with exactly: OK"],
-                capture_output=True, text=True, timeout=240,
+                capture_output=True,
+                text=True,
+                timeout=240,
             )
         except (subprocess.SubprocessError, OSError) as e:
             return False, str(e)
@@ -218,17 +223,24 @@ def _verify(provider: str, model: str) -> tuple[bool, str]:
         m = re.search(r'"message":"([^"]+)"', blob)
         if m:
             return False, m.group(1)[:160]
-        return r.returncode == 0, (r.stdout.strip().splitlines() or ["no output"])[-1][:80]
+        return (
+            r.returncode == 0,
+            (r.stdout.strip().splitlines() or ["no output"])[-1][:80],
+        )
     if provider == "claude":
         try:
             r = subprocess.run(
                 ["claude", "-p", "Reply with exactly: OK"],
-                capture_output=True, text=True, timeout=240,
+                capture_output=True,
+                text=True,
+                timeout=240,
             )
         except (subprocess.SubprocessError, OSError) as e:
             return False, str(e)
         out = r.stdout.strip()
-        return (r.returncode == 0 and bool(out)), (out[:60] or r.stderr.strip()[:120] or "no output")
+        return (r.returncode == 0 and bool(out)), (
+            out[:60] or r.stderr.strip()[:120] or "no output"
+        )
     return False, "unknown provider"
 
 
@@ -319,10 +331,16 @@ def main() -> int:
         for m in info["models"]:
             state = ""
             if "loaded" in info:
-                state = " (loaded)" if m in info.get("loaded", []) else " (not loaded - loads on first use)"
+                state = (
+                    " (loaded)"
+                    if m in info.get("loaded", [])
+                    else " (not loaded - loads on first use)"
+                )
             probe = (info.get("probe") or {}).get(m)
             if probe:
-                state += "  probe: " + ("answered" if probe["ok"] else f"FAILED - {probe['detail']}")
+                state += "  probe: " + (
+                    "answered" if probe["ok"] else f"FAILED - {probe['detail']}"
+                )
             print(f"  - {m}{state}")
         if info.get("note"):
             print(f"  note: {info['note']}")

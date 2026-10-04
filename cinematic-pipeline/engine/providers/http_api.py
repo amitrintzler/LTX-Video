@@ -9,6 +9,7 @@ Field paths are dotted with optional indices - "response.samples[0].video.uri" -
 which covers every response shape encountered so far without pulling in a
 JSONPath dependency.
 """
+
 from __future__ import annotations
 
 import json
@@ -107,10 +108,14 @@ class HTTPProvider(BaseProvider):
             raise ProviderError(f"{self.name}: unknown auth type {kind!r}")
         return head
 
-    def call(self, url: str, payload: dict | None = None, method: str | None = None) -> dict:
+    def call(
+        self, url: str, payload: dict | None = None, method: str | None = None
+    ) -> dict:
         method = method or ("POST" if payload is not None else "GET")
         body = None if payload is None else json.dumps(payload).encode()
-        req = urllib.request.Request(url, data=body, method=method, headers=self.headers())
+        req = urllib.request.Request(
+            url, data=body, method=method, headers=self.headers()
+        )
         try:
             with urllib.request.urlopen(req, timeout=self.timeout) as resp:
                 return json.loads(resp.read().decode() or "{}")
@@ -144,16 +149,24 @@ class HTTPProvider(BaseProvider):
             return Job(handle=None, payload=payload, status=DONE, result=result)
         handle = dig(result, poll.get("operation", "name"))
         if not handle:
-            raise ProviderError(f"{self.name}: no operation id in response: {str(result)[:200]}")
+            raise ProviderError(
+                f"{self.name}: no operation id in response: {str(result)[:200]}"
+            )
         return Job(handle=handle, payload=payload, status=PENDING, result=result)
 
     def poll(self, job: Job) -> Job:
         poll = self.config.get("poll") or {}
-        url = poll.get("url") or f"{self.config.get('poll_base', '').rstrip('/')}/{job.handle}"
+        url = (
+            poll.get("url")
+            or f"{self.config.get('poll_base', '').rstrip('/')}/{job.handle}"
+        )
         result = self.call(url.replace("{operation}", str(job.handle)))
         job.result = result
         if dig(result, poll.get("error", "error")):
-            job.status, job.detail = FAILED, str(dig(result, poll.get("error", "error")))[:200]
+            job.status, job.detail = (
+                FAILED,
+                str(dig(result, poll.get("error", "error")))[:200],
+            )
         elif dig(result, poll.get("done", "done")):
             job.status = DONE
         return job
@@ -167,6 +180,9 @@ class HTTPProvider(BaseProvider):
         suffix = Path(urllib.parse.urlsplit(url).path).suffix or ".mp4"
         out = out.with_suffix(suffix)
         req = urllib.request.Request(url, headers=self.headers())
-        with urllib.request.urlopen(req, timeout=self.timeout) as resp, open(out, "wb") as fh:
+        with (
+            urllib.request.urlopen(req, timeout=self.timeout) as resp,
+            open(out, "wb") as fh,
+        ):
             fh.write(resp.read())
         return out

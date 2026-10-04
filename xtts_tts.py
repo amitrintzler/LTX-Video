@@ -40,11 +40,7 @@ def _resolve_ffmpeg() -> str:
     ffmpeg = shutil.which("ffmpeg")
     if ffmpeg:
         return ffmpeg
-    bundled = (
-        Path(__file__).resolve().parent
-        / "outputs"
-        / "ffmpeg-macos-aarch64-v7.1"
-    )
+    bundled = Path(__file__).resolve().parent / "outputs" / "ffmpeg-macos-aarch64-v7.1"
     if bundled.exists():
         return str(bundled)
     fallback = (
@@ -135,6 +131,7 @@ def main() -> None:
     out_path.parent.mkdir(parents=True, exist_ok=True)
 
     device = _device(args.device)
+
     def _load_audio_sf(audiopath: str, sampling_rate: int) -> torch.Tensor:
         audio, lsr = sf.read(audiopath)
         if audio.ndim > 1:

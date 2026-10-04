@@ -1208,8 +1208,10 @@ def render_chart_panel(
         colour = (46, 204, 148, 175) if c >= o else (239, 90, 90, 175)
         draw.rectangle((cx - body_w / 2, vb - height, cx + body_w / 2, vb), fill=colour)
 
-    canvas.crop((0, 0, 1280, 720)).save(out) if (x0, y0) == (64, 160) else canvas.save(
-        out
+    (
+        canvas.crop((0, 0, 1280, 720)).save(out)
+        if (x0, y0) == (64, 160)
+        else canvas.save(out)
     )
     return out
 

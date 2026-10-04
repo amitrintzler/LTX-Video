@@ -77,7 +77,9 @@ def synth(text: str, speed: float = 0.92) -> np.ndarray:
     # and the faster generation above cancels the slowing.
     y = _resample(raw, 2 / r)
     on = np.argmax(np.abs(y) > 0.02 * np.abs(y).max())
-    return y[max(0, on - int(0.03 * SR)) :]  # start on the first breath, so placement is exact
+    return y[
+        max(0, on - int(0.03 * SR)) :
+    ]  # start on the first breath, so placement is exact
 
 
 def trailer_voice(x: np.ndarray) -> np.ndarray:
@@ -127,7 +129,7 @@ def render_lines(lines, cache_dir: Path):
 def main() -> int:
     """CLI so the studio can narrate a line without a Python import.
 
-        framework_voice.py "One idea. A whole learning portal." out.wav [speed]
+    framework_voice.py "One idea. A whole learning portal." out.wav [speed]
     """
     import argparse
 
@@ -135,7 +137,9 @@ def main() -> int:
 
     ap = argparse.ArgumentParser(description="Narrate a line with Kokoro (offline).")
     ap.add_argument("text")
-    ap.add_argument("output", nargs="?", default=str(Path.home() / "LTX-Studio" / "narration.wav"))
+    ap.add_argument(
+        "output", nargs="?", default=str(Path.home() / "LTX-Studio" / "narration.wav")
+    )
     ap.add_argument("--speed", type=float, default=0.92)
     a = ap.parse_args()
 
@@ -143,7 +147,10 @@ def main() -> int:
     out.parent.mkdir(parents=True, exist_ok=True)
     y = trailer_voice(synth(a.text, a.speed))
     sf.write(out, y, SR)
-    print(f"narration={out}  {len(y) / SR:.2f}s  voice={VOICE}  pitch={PITCH_ST:+g} st", flush=True)
+    print(
+        f"narration={out}  {len(y) / SR:.2f}s  voice={VOICE}  pitch={PITCH_ST:+g} st",
+        flush=True,
+    )
     return 0
 
 

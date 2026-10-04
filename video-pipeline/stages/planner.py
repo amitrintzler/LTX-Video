@@ -119,7 +119,9 @@ TASK WORKFLOW:
         duration_sec = scene.get("duration_sec", 8)
 
         if not description.strip():
-            self.log.warning(f"Scene '{title}' has empty description; using fallback plan")
+            self.log.warning(
+                f"Scene '{title}' has empty description; using fallback plan"
+            )
             return self._fallback_plan(title, duration_sec)
 
         prompt = f"""Scene Title: {title}
@@ -140,8 +142,10 @@ Create a detailed animation plan in JSON format."""
             cmd = [
                 "claude",
                 "--print",
-                "--model", self.cfg.claude_model,
-                "--system-prompt", self.PLANNING_SYSTEM_PROMPT,
+                "--model",
+                self.cfg.claude_model,
+                "--system-prompt",
+                self.PLANNING_SYSTEM_PROMPT,
                 prompt,
             ]
             result = subprocess.run(
@@ -167,7 +171,9 @@ Create a detailed animation plan in JSON format."""
 
             # Validate schema
             plan = self._validate_plan(plan_json, title, duration_sec)
-            self.log.info(f"Planned scene '{title}' with {len(plan.get('elements', []))} elements")
+            self.log.info(
+                f"Planned scene '{title}' with {len(plan.get('elements', []))} elements"
+            )
             return plan
 
         except PlanningError as e:
@@ -211,7 +217,9 @@ Create a detailed animation plan in JSON format."""
             class_name = "".join(w.capitalize() for w in title.split())
             plan["scene_class"] = class_name or "AnimatedScene"
 
-        if "duration_sec" not in plan or not isinstance(plan.get("duration_sec"), (int, float)):
+        if "duration_sec" not in plan or not isinstance(
+            plan.get("duration_sec"), (int, float)
+        ):
             plan["duration_sec"] = duration_sec
 
         if "background_color" not in plan:

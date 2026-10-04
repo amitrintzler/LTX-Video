@@ -4,6 +4,7 @@ A film names the provider it wants and the engine hands one back, so swapping
 LTX for a hosted service - or for the browser, when the shot has a correct
 answer rather than an imagined one - is a config change.
 """
+
 from __future__ import annotations
 
 import json

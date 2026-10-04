@@ -3,6 +3,7 @@
 Binds to 127.0.0.1 only. It triggers hours of GPU work and writes files, so it is
 deliberately not reachable from anywhere else on the network.
 """
+
 from __future__ import annotations
 
 import asyncio
@@ -16,8 +17,15 @@ from fastapi import Body, FastAPI, HTTPException, Query
 from fastapi.responses import FileResponse, HTMLResponse, StreamingResponse
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from jobs import (CONFIG_DIR, PROJECT, RENDER_ROOT, SPECS, TRAILER, Runner,
-                  llm_choices)  # noqa: E402
+from jobs import (
+    CONFIG_DIR,
+    PROJECT,
+    RENDER_ROOT,
+    SPECS,
+    TRAILER,
+    Runner,
+    llm_choices,
+)  # noqa: E402
 import status as status_mod  # noqa: E402
 import catalogue as catalogue_mod  # noqa: E402
 
@@ -39,8 +47,10 @@ def system_status() -> dict:
 
 @app.get("/api/job-types")
 def job_types() -> list[dict[str, Any]]:
-    return [{"name": s.name, "gpu": s.gpu, "summary": s.summary, "est": s.est}
-            for s in SPECS.values()]
+    return [
+        {"name": s.name, "gpu": s.gpu, "summary": s.summary, "est": s.est}
+        for s in SPECS.values()
+    ]
 
 
 @app.post("/api/jobs", status_code=201)
@@ -111,8 +121,11 @@ def list_configs() -> list[str]:
 def default_config() -> dict[str, Any]:
     """The tuned constants, exported straight from the trailer script."""
     out = CONFIG_DIR / "_default.json"
-    subprocess.run([sys.executable, str(TRAILER), "--emit-config", str(out)],
-                   check=True, capture_output=True)
+    subprocess.run(
+        [sys.executable, str(TRAILER), "--emit-config", str(out)],
+        check=True,
+        capture_output=True,
+    )
     return json.loads(out.read_text())
 
 
@@ -140,9 +153,14 @@ def outputs() -> list[dict[str, Any]]:
         if not root.exists():
             continue
         for f in sorted(root.rglob("*.mp4"))[:80]:
-            files.append({"path": str(f), "name": f.name,
-                          "mib": round(f.stat().st_size / 1048576, 1),
-                          "modified": int(f.stat().st_mtime)})
+            files.append(
+                {
+                    "path": str(f),
+                    "name": f.name,
+                    "mib": round(f.stat().st_size / 1048576, 1),
+                    "modified": int(f.stat().st_mtime),
+                }
+            )
     return sorted(files, key=lambda x: x["modified"], reverse=True)[:40]
 
 
@@ -151,8 +169,11 @@ POSTER_DIR.mkdir(parents=True, exist_ok=True)
 
 
 def _allowed(target: Path) -> bool:
-    roots = [RENDER_ROOT.resolve(), PROJECT.resolve(),
-             (Path.home() / "LTX-Studio").resolve()]
+    roots = [
+        RENDER_ROOT.resolve(),
+        PROJECT.resolve(),
+        (Path.home() / "LTX-Studio").resolve(),
+    ]
     return any(str(target).startswith(str(r)) for r in roots)
 
 
@@ -172,10 +193,15 @@ def catalogue() -> list:
 @app.get("/api/gallery")
 def gallery() -> dict:
     """Everything worth reviewing, grouped so a decision can be made at a glance."""
+
     def stat(f: Path) -> dict:
         st = f.stat()
-        return {"path": str(f), "name": f.name, "mib": round(st.st_size / 1048576, 2),
-                "modified": int(st.st_mtime)}
+        return {
+            "path": str(f),
+            "name": f.name,
+            "mib": round(st.st_size / 1048576, 2),
+            "modified": int(st.st_mtime),
+        }
 
     masters, shots, audio, images = [], [], [], []
     for d in sorted(RENDER_ROOT.glob("*")) if RENDER_ROOT.exists() else []:
@@ -210,9 +236,13 @@ def gallery() -> dict:
         seen_groups.add(m["group"])
     masters = (kept + rest)[:MASTER_CAP]
     dropped = len(kept) + len(rest) - len(masters)
-    return {"masters": masters, "shots": shots[:24],
-            "audio": audio[:12], "images": images[:12],
-            "masters_hidden": dropped}
+    return {
+        "masters": masters,
+        "shots": shots[:24],
+        "audio": audio[:12],
+        "images": images[:12],
+        "masters_hidden": dropped,
+    }
 
 
 @app.get("/api/poster")
@@ -229,7 +259,16 @@ def poster(path: str, t: float = 2.0) -> FileResponse:
         cmd = ["ffmpeg", "-v", "error"]
         if not is_image:
             cmd += ["-ss", str(t)]
-        cmd += ["-i", str(target), "-frames:v", "1", "-vf", "scale=480:-2", "-y", str(out)]
+        cmd += [
+            "-i",
+            str(target),
+            "-frames:v",
+            "1",
+            "-vf",
+            "scale=480:-2",
+            "-y",
+            str(out),
+        ]
         subprocess.run(cmd, check=False, capture_output=True)
     if not out.is_file():
         raise HTTPException(500, "could not build a poster for that file")
@@ -248,7 +287,9 @@ def get_file(path: str) -> FileResponse:
 
 
 @app.post("/webhook/{job_type}")
-def webhook(job_type: str, payload: Optional[Dict[str, Any]] = Body(default=None)) -> dict:
+def webhook(
+    job_type: str, payload: Optional[Dict[str, Any]] = Body(default=None)
+) -> dict:
     """Fire a job from a script, shortcut or cron on this Mac."""
     try:
         job = runner.submit(job_type, (payload or {}).get("params") or payload or {})
@@ -260,12 +301,17 @@ def webhook(job_type: str, payload: Optional[Dict[str, Any]] = Body(default=None
 @app.get("/health")
 def health() -> dict[str, Any]:
     running = [j.type for j in runner.jobs.values() if j.status == "running"]
-    return {"ok": True, "running": running, "queued_gpu": runner.gpu_q.qsize(),
-            "queued_cpu": runner.cpu_q.qsize()}
+    return {
+        "ok": True,
+        "running": running,
+        "queued_gpu": runner.gpu_q.qsize(),
+        "queued_cpu": runner.cpu_q.qsize(),
+    }
 
 
 def main() -> int:
     import uvicorn
+
     uvicorn.run(app, host="127.0.0.1", port=8765, log_level="info")
     return 0
 

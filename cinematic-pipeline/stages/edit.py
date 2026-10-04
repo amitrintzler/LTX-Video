@@ -11,6 +11,7 @@ Takes the rendered per-shot clips and assembles a finished film:
 
 This stage is GPU-free and fully runnable on any machine.
 """
+
 from __future__ import annotations
 import subprocess
 import sys
@@ -24,8 +25,8 @@ FF = cfg.ffmpeg_bin()
 # A compact "teal & orange" look implemented purely with built-in ffmpeg filters
 # (no external .cube needed, so it runs with the pip-bundled ffmpeg too).
 GRADE_FILTERS = (
-    "curves=master='0/0 0.25/0.22 0.5/0.5 0.75/0.80 1/1':"      # gentle S-curve
-    "r='0/0.02 0.5/0.52 1/0.98':b='0/0.04 0.5/0.48 1/0.96',"   # warm highs, cool lows
+    "curves=master='0/0 0.25/0.22 0.5/0.5 0.75/0.80 1/1':"  # gentle S-curve
+    "r='0/0.02 0.5/0.52 1/0.98':b='0/0.04 0.5/0.48 1/0.96',"  # warm highs, cool lows
     "eq=contrast=1.06:saturation=1.12:gamma=0.98"
 )
 VIGNETTE = "vignette=PI/5"
@@ -34,8 +35,9 @@ GRAIN = "noise=alls={grain}:allf=t"
 
 def _has_filter(name: str) -> bool:
     try:
-        out = subprocess.run([FF, "-hide_banner", "-filters"],
-                             capture_output=True, text=True).stdout
+        out = subprocess.run(
+            [FF, "-hide_banner", "-filters"], capture_output=True, text=True
+        ).stdout
         return f" {name} " in out
     except (subprocess.SubprocessError, FileNotFoundError):
         return False
@@ -45,28 +47,52 @@ def _normalise(clip: Path, project: dict, look: dict, tmp: Path, idx: int) -> Pa
     w = project["resolution"]["width"]
     h = project["resolution"]["height"]
     fps = project.get("fps", 24)
-    vf = [f"scale={w}:{h}:force_original_aspect_ratio=increase",
-          f"crop={w}:{h}", f"fps={fps}", GRADE_FILTERS]
+    vf = [
+        f"scale={w}:{h}:force_original_aspect_ratio=increase",
+        f"crop={w}:{h}",
+        f"fps={fps}",
+        GRADE_FILTERS,
+    ]
     if look.get("vignette", True):
         vf.append(VIGNETTE)
     if look.get("letterbox"):
         bar = int(h * 0.12)
-        vf.append(f"pad={w}:{h}:0:0:black,drawbox=y=0:w={w}:h={bar}:color=black:t=fill,"
-                  f"drawbox=y={h-bar}:w={w}:h={bar}:color=black:t=fill")
+        vf.append(
+            f"pad={w}:{h}:0:0:black,drawbox=y=0:w={w}:h={bar}:color=black:t=fill,"
+            f"drawbox=y={h-bar}:w={w}:h={bar}:color=black:t=fill"
+        )
     grain = float(look.get("grain", 0) or 0)
     if grain > 0 and _has_filter("noise"):
         vf.append(GRAIN.format(grain=int(grain * 100)))
     out = tmp / f"norm_{idx:03d}.mp4"
-    subprocess.run([FF, "-y", "-loglevel", "error", "-i", str(clip),
-                    "-vf", ",".join(vf), "-an",
-                    "-c:v", "libx264", "-crf", "16", "-preset", "medium",
-                    "-pix_fmt", "yuv420p", str(out)], check=True)
+    subprocess.run(
+        [
+            FF,
+            "-y",
+            "-loglevel",
+            "error",
+            "-i",
+            str(clip),
+            "-vf",
+            ",".join(vf),
+            "-an",
+            "-c:v",
+            "libx264",
+            "-crf",
+            "16",
+            "-preset",
+            "medium",
+            "-pix_fmt",
+            "yuv420p",
+            str(out),
+        ],
+        check=True,
+    )
     return out
 
 
 def _probe_duration(path: Path) -> float:
-    out = subprocess.run(
-        [FF, "-i", str(path)], capture_output=True, text=True).stderr
+    out = subprocess.run([FF, "-i", str(path)], capture_output=True, text=True).stderr
     for line in out.splitlines():
         if "Duration:" in line:
             hms = line.split("Duration:")[1].split(",")[0].strip()
@@ -78,6 +104,7 @@ def _probe_duration(path: Path) -> float:
 def _overlay_text(clip: Path, text: str, project: dict, tmp: Path, idx: int) -> Path:
     """Composite a lower-third headline (fade in/out) over a normalised clip."""
     from stages import textcards
+
     w = project["resolution"]["width"]
     h = project["resolution"]["height"]
     png = textcards.lower_third(text, w, h, tmp / f"lt_{idx:03d}.png")
@@ -85,37 +112,91 @@ def _overlay_text(clip: Path, text: str, project: dict, tmp: Path, idx: int) -> 
     dur = _probe_duration(clip)
     fo = max(0.5, dur - 0.6)
     # loop the still so its alpha fade animates over the clip duration, then overlay
-    subprocess.run([FF, "-y", "-loglevel", "error", "-i", str(clip),
-                    "-loop", "1", "-t", f"{dur:.2f}", "-i", str(png),
-                    "-filter_complex",
-                    f"[1]fade=t=in:st=0.3:d=0.5:alpha=1,"
-                    f"fade=t=out:st={fo:.2f}:d=0.5:alpha=1[t];[0][t]overlay=format=auto[o]",
-                    "-map", "[o]", "-c:v", "libx264", "-crf", "16",
-                    "-pix_fmt", "yuv420p", str(out)], check=True)
+    subprocess.run(
+        [
+            FF,
+            "-y",
+            "-loglevel",
+            "error",
+            "-i",
+            str(clip),
+            "-loop",
+            "1",
+            "-t",
+            f"{dur:.2f}",
+            "-i",
+            str(png),
+            "-filter_complex",
+            f"[1]fade=t=in:st=0.3:d=0.5:alpha=1,"
+            f"fade=t=out:st={fo:.2f}:d=0.5:alpha=1[t];[0][t]overlay=format=auto[o]",
+            "-map",
+            "[o]",
+            "-c:v",
+            "libx264",
+            "-crf",
+            "16",
+            "-pix_fmt",
+            "yuv420p",
+            str(out),
+        ],
+        check=True,
+    )
     return out
 
 
 def _brand_clip(outro: dict, project: dict, tmp: Path) -> Path:
     """Render the brand/CTA end card as a short clip with a slow push-in."""
     from stages import textcards
+
     w = project["resolution"]["width"]
     h = project["resolution"]["height"]
     fps = project.get("fps", 24)
     dur = float(outro.get("duration", 3.0))
-    png = textcards.brand_card(outro.get("brand", ""), outro.get("tagline", ""),
-                               outro.get("cta", ""), w, h, tmp / "brand.png")
+    png = textcards.brand_card(
+        outro.get("brand", ""),
+        outro.get("tagline", ""),
+        outro.get("cta", ""),
+        w,
+        h,
+        tmp / "brand.png",
+    )
     out = tmp / "brand.mp4"
-    subprocess.run([FF, "-y", "-loglevel", "error", "-loop", "1", "-i", str(png),
-                    "-t", f"{dur:.2f}", "-r", str(fps),
-                    "-vf", f"scale={int(w*1.06)}:{int(h*1.06)},"
-                           f"zoompan=z='min(zoom+0.0006,1.06)':d={int(dur*fps)}:"
-                           f"s={w}x{h}:fps={fps},format=yuv420p",
-                    "-c:v", "libx264", "-crf", "16", str(out)], check=True)
+    subprocess.run(
+        [
+            FF,
+            "-y",
+            "-loglevel",
+            "error",
+            "-loop",
+            "1",
+            "-i",
+            str(png),
+            "-t",
+            f"{dur:.2f}",
+            "-r",
+            str(fps),
+            "-vf",
+            f"scale={int(w*1.06)}:{int(h*1.06)},"
+            f"zoompan=z='min(zoom+0.0006,1.06)':d={int(dur*fps)}:"
+            f"s={w}x{h}:fps={fps},format=yuv420p",
+            "-c:v",
+            "libx264",
+            "-crf",
+            "16",
+            str(out),
+        ],
+        check=True,
+    )
     return out
 
 
-def assemble(clips: list[Path], project: dict, out_path: Path,
-             audio: Path | None = None, subtitles: Path | None = None) -> Path:
+def assemble(
+    clips: list[Path],
+    project: dict,
+    out_path: Path,
+    audio: Path | None = None,
+    subtitles: Path | None = None,
+) -> Path:
     look = project.get("look", {})
     xf = float(look.get("transition_sec", 0.5))
     tmp = out_path.parent / "_edit_tmp"
@@ -141,34 +222,103 @@ def assemble(clips: list[Path], project: dict, out_path: Path,
     for i in range(1, len(normed)):
         offset += _probe_duration(normed[i - 1]) - xf
         out = f"v{i}"
-        fc.append(f"[{prev}][{i}:v]xfade=transition=dissolve:"
-                  f"duration={xf}:offset={offset:.3f}[{out}]")
+        fc.append(
+            f"[{prev}][{i}:v]xfade=transition=dissolve:"
+            f"duration={xf}:offset={offset:.3f}[{out}]"
+        )
         prev = out
     video_only = tmp / "video.mp4"
     if fc:
-        subprocess.run([FF, "-y", "-loglevel", "error", *inputs,
-                        "-filter_complex", ";".join(fc), "-map", f"[{prev}]",
-                        "-c:v", "libx264", "-crf", "16", "-pix_fmt", "yuv420p",
-                        str(video_only)], check=True)
+        subprocess.run(
+            [
+                FF,
+                "-y",
+                "-loglevel",
+                "error",
+                *inputs,
+                "-filter_complex",
+                ";".join(fc),
+                "-map",
+                f"[{prev}]",
+                "-c:v",
+                "libx264",
+                "-crf",
+                "16",
+                "-pix_fmt",
+                "yuv420p",
+                str(video_only),
+            ],
+            check=True,
+        )
     else:
         video_only = normed[0]
 
     # Burn subtitles if a full ffmpeg (libass) is available.
     if subtitles and subtitles.exists() and _has_filter("subtitles"):
         burned = tmp / "video_sub.mp4"
-        subprocess.run([FF, "-y", "-loglevel", "error", "-i", str(video_only),
-                        "-vf", f"subtitles={subtitles}", "-c:v", "libx264",
-                        "-crf", "16", "-pix_fmt", "yuv420p", str(burned)], check=True)
+        subprocess.run(
+            [
+                FF,
+                "-y",
+                "-loglevel",
+                "error",
+                "-i",
+                str(video_only),
+                "-vf",
+                f"subtitles={subtitles}",
+                "-c:v",
+                "libx264",
+                "-crf",
+                "16",
+                "-pix_fmt",
+                "yuv420p",
+                str(burned),
+            ],
+            check=True,
+        )
         video_only = burned
 
     # Final mux. Pad audio with silence (apad) so a short audio bed can NEVER
     # truncate the video; -shortest then trims the padded audio to video length.
     if audio and audio.exists():
-        subprocess.run([FF, "-y", "-loglevel", "error", "-i", str(video_only),
-                        "-i", str(audio), "-filter_complex", "[1:a]apad[a]",
-                        "-map", "0:v", "-map", "[a]", "-c:v", "copy", "-c:a", "aac",
-                        "-shortest", str(out_path)], check=True)
+        subprocess.run(
+            [
+                FF,
+                "-y",
+                "-loglevel",
+                "error",
+                "-i",
+                str(video_only),
+                "-i",
+                str(audio),
+                "-filter_complex",
+                "[1:a]apad[a]",
+                "-map",
+                "0:v",
+                "-map",
+                "[a]",
+                "-c:v",
+                "copy",
+                "-c:a",
+                "aac",
+                "-shortest",
+                str(out_path),
+            ],
+            check=True,
+        )
     else:
-        subprocess.run([FF, "-y", "-loglevel", "error", "-i", str(video_only),
-                        "-c:v", "copy", str(out_path)], check=True)
+        subprocess.run(
+            [
+                FF,
+                "-y",
+                "-loglevel",
+                "error",
+                "-i",
+                str(video_only),
+                "-c:v",
+                "copy",
+                str(out_path),
+            ],
+            check=True,
+        )
     return out_path

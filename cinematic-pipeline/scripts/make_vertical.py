@@ -17,17 +17,19 @@ OUT = Path(sys.argv[2]) if len(sys.argv) > 2 else SRC.parent
 SQUARE = len(sys.argv) > 3 and sys.argv[3] == "square"
 
 VW = 1080
-VIDEO_H = 608                       # 1080-wide 16:9 content height
+VIDEO_H = 608  # 1080-wide 16:9 content height
 CW, CH = (1080, 1080) if SQUARE else (1080, 1920)
-vy = (CH - VIDEO_H) // 2            # content vertical position
+vy = (CH - VIDEO_H) // 2  # content vertical position
 
 
 def canvas_png(path: Path) -> Path:
     img = Image.new("RGB", (CW, CH))
     px = img.load()
-    for y in range(CH):                                   # brand gradient
+    for y in range(CH):  # brand gradient
         f = y / CH
-        px_row = tuple(int(mg.BG_TOP[i] + (mg.BG_BOT[i] - mg.BG_TOP[i]) * f) for i in range(3))
+        px_row = tuple(
+            int(mg.BG_TOP[i] + (mg.BG_BOT[i] - mg.BG_TOP[i]) * f) for i in range(3)
+        )
         for x in range(CW):
             px[x, y] = px_row
     d = ImageDraw.Draw(img, "RGBA")
@@ -43,12 +45,20 @@ def canvas_png(path: Path) -> Path:
     fw = mg._font(64 if not SQUARE else 44)
     ft = mg._font(30 if not SQUARE else 24)
     bb = d.textbbox((0, 0), "OPTIONS EDUCATOR", font=fw)
-    d.text(((CW - (bb[2] - bb[0])) // 2, hy + (10 if not SQUARE else 6)),
-           "OPTIONS EDUCATOR", font=fw, fill=(255, 255, 255))
+    d.text(
+        ((CW - (bb[2] - bb[0])) // 2, hy + (10 if not SQUARE else 6)),
+        "OPTIONS EDUCATOR",
+        font=fw,
+        fill=(255, 255, 255),
+    )
     sub = "stocks · options · volatility"
     bb = d.textbbox((0, 0), sub, font=ft)
-    d.text(((CW - (bb[2] - bb[0])) // 2, hy + (86 if not SQUARE else 54)), sub,
-           font=ft, fill=mg.MUTE)
+    d.text(
+        ((CW - (bb[2] - bb[0])) // 2, hy + (86 if not SQUARE else 54)),
+        sub,
+        font=ft,
+        fill=mg.MUTE,
+    )
 
     # ---- FOOTER (below video) ----
     fy = vy + VIDEO_H + (CH - (vy + VIDEO_H)) // 2
@@ -58,15 +68,20 @@ def canvas_png(path: Path) -> Path:
     cw2, ch2 = bb[2] - bb[0], bb[3] - bb[1]
     padx, pady = 46, 22
     x0 = (CW - cw2) // 2 - padx
-    d.rounded_rectangle([x0, fy - pady, x0 + cw2 + 2 * padx, fy + ch2 + pady],
-                        radius=40, fill=mg.ACCENT)
+    d.rounded_rectangle(
+        [x0, fy - pady, x0 + cw2 + 2 * padx, fy + ch2 + pady], radius=40, fill=mg.ACCENT
+    )
     d.text(((CW - cw2) // 2, fy - bb[1]), cta, font=fc, fill=(8, 20, 14))
     if not SQUARE:
         fu = mg._font(28)
         u = "optionseducator.com"
         bb = d.textbbox((0, 0), u, font=fu)
-        d.text(((CW - (bb[2] - bb[0])) // 2, fy + ch2 + pady + 30), u, font=fu,
-               fill=(200, 205, 235))
+        d.text(
+            ((CW - (bb[2] - bb[0])) // 2, fy + ch2 + pady + 30),
+            u,
+            font=fu,
+            fill=(200, 205, 235),
+        )
     img.save(path)
     return path
 
@@ -74,9 +89,20 @@ def canvas_png(path: Path) -> Path:
 def probe_duration(path: Path) -> float:
     ffprobe = FF.replace("ffmpeg", "ffprobe")  # cfg only exposes the ffmpeg binary
     out = subprocess.run(
-        [ffprobe, "-v", "error", "-show_entries", "format=duration",
-         "-of", "default=nw=1:nk=1", str(path)],
-        capture_output=True, check=True, text=True).stdout.strip()
+        [
+            ffprobe,
+            "-v",
+            "error",
+            "-show_entries",
+            "format=duration",
+            "-of",
+            "default=nw=1:nk=1",
+            str(path),
+        ],
+        capture_output=True,
+        check=True,
+        text=True,
+    ).stdout.strip()
     return float(out)
 
 
@@ -88,10 +114,35 @@ out = OUT / f"{SRC.stem}_{sfx}.mp4"
 # hours and grew to gigabytes before it was noticed. Bound it explicitly to the
 # source's own duration.
 duration = probe_duration(SRC)
-subprocess.run([
-    FF, "-y", "-loglevel", "error", "-loop", "1", "-i", str(canvas), "-i", str(SRC),
-    "-filter_complex",
-    f"[1:v]scale={VW}:-2[v];[0:v][v]overlay=(W-w)/2:{vy}:format=auto,format=yuv420p[o]",
-    "-map", "[o]", "-map", "1:a?", "-c:v", "libx264", "-crf", "18", "-c:a", "aac",
-    "-t", f"{duration:.3f}", "-shortest", str(out)], check=True)
+subprocess.run(
+    [
+        FF,
+        "-y",
+        "-loglevel",
+        "error",
+        "-loop",
+        "1",
+        "-i",
+        str(canvas),
+        "-i",
+        str(SRC),
+        "-filter_complex",
+        f"[1:v]scale={VW}:-2[v];[0:v][v]overlay=(W-w)/2:{vy}:format=auto,format=yuv420p[o]",
+        "-map",
+        "[o]",
+        "-map",
+        "1:a?",
+        "-c:v",
+        "libx264",
+        "-crf",
+        "18",
+        "-c:a",
+        "aac",
+        "-t",
+        f"{duration:.3f}",
+        "-shortest",
+        str(out),
+    ],
+    check=True,
+)
 print("DONE ->", out)

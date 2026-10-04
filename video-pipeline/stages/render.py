@@ -56,7 +56,13 @@ class RenderStage:
                 "The film will play, but those scenes do not animate."
             )
 
-    def _render_scene(self, i: int, scene: dict, clips_dir: Path, default_renderer: Optional[str] = None) -> None:
+    def _render_scene(
+        self,
+        i: int,
+        scene: dict,
+        clips_dir: Path,
+        default_renderer: Optional[str] = None,
+    ) -> None:
         scene_id = f"scene_{i+1:03d}"
         out_path = clips_dir / f"{scene_id}.mp4"
         if out_path.exists():
@@ -96,7 +102,9 @@ class RenderStage:
                 f"  [{scene_id}] {resolved_name} failed ({exc.__class__.__name__}: {exc}); "
                 "falling back to slides - THIS SCENE WILL NOT MOVE"
             )
-            self.degraded.append({"scene": scene_id, "renderer": resolved_name, "error": str(exc)})
+            self.degraded.append(
+                {"scene": scene_id, "renderer": resolved_name, "error": str(exc)}
+            )
             slides = get_renderer("slides")
             slides.render(self._scene_for_renderer(scene, "slides"), self.cfg, out_path)
         self.log.info(f"  [{scene_id}] saved -> {out_path}")
@@ -135,8 +143,18 @@ class RenderStage:
         text = re.sub(r"\blower center\b", "bottom band", text, flags=re.I)
         text = re.sub(r"\bcenter of the frame\b", "outer edges", text, flags=re.I)
         text = re.sub(r"\bcenter of frame\b", "outer edges", text, flags=re.I)
-        text = re.sub(r"\bcentered on screen\b", "anchored in the main diagram zone", text, flags=re.I)
-        text = re.sub(r"\bcentered on the screen\b", "anchored in the main diagram zone", text, flags=re.I)
+        text = re.sub(
+            r"\bcentered on screen\b",
+            "anchored in the main diagram zone",
+            text,
+            flags=re.I,
+        )
+        text = re.sub(
+            r"\bcentered on the screen\b",
+            "anchored in the main diagram zone",
+            text,
+            flags=re.I,
+        )
         text = re.sub(r"\bcentered\b", "anchored", text, flags=re.I)
         text = re.sub(r"\bcentral\b", "main", text, flags=re.I)
         text = re.sub(r"\bcenter\b", "outer edges", text, flags=re.I)
@@ -156,15 +174,20 @@ class RenderStage:
     @staticmethod
     def _generate_manim_layout_hint(scene: dict) -> str:
         text = " ".join(
-            str(scene.get(key) or "")
-            for key in ("title", "narration", "description")
+            str(scene.get(key) or "") for key in ("title", "narration", "description")
         ).lower()
-        if any(token in text for token in ("call", "put", "payoff", "breakeven", "premium", "strike")):
+        if any(
+            token in text
+            for token in ("call", "put", "payoff", "breakeven", "premium", "strike")
+        ):
             return (
                 "Use a left strike ladder, a wide payoff chart across the lower frame, and a right legend panel. "
                 "Keep labels on chart corners or side panels, not in the middle of the frame."
             )
-        if any(token in text for token in ("theta", "expiration", "time decay", "days", "timing")):
+        if any(
+            token in text
+            for token in ("theta", "expiration", "time decay", "days", "timing")
+        ):
             return (
                 "Use a left contract card, a wide timeline or curve across the lower frame, and a right-side gauge. "
                 "Keep the timeline labels on the outer edges and leave the middle clear."
@@ -174,7 +197,9 @@ class RenderStage:
                 "Use one dominant curve with short callouts pinned to the edges. "
                 "Do not place explanatory paragraphs over the curve."
             )
-        if any(token in text for token in ("flow", "signal", "volume", "open interest")):
+        if any(
+            token in text for token in ("flow", "signal", "volume", "open interest")
+        ):
             return (
                 "Use a two-column layout with a left signal source and a right evidence panel. "
                 "Keep the middle lane for arrows or the main path only."

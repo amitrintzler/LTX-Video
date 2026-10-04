@@ -5,6 +5,7 @@ Wraps this repo's `inference.py` (LTX-Video / LTX-2) to render one MP4 per shot.
 Supports text-to-video and image-to-video (keyframe conditioning). Device- and
 tier-aware: resolution and model are chosen by config.py for the host machine.
 """
+
 from __future__ import annotations
 import subprocess
 import sys
@@ -27,17 +28,18 @@ def frames_for(duration_s: float, fps: int) -> int:
     return n - ((n - 1) % 8)
 
 
-def generate_shot(shot: dict, project: dict, tier: dict, out_dir: Path,
-                  device, dry_run: bool = False) -> Path:
+def generate_shot(
+    shot: dict, project: dict, tier: dict, out_dir: Path, device, dry_run: bool = False
+) -> Path:
     fps = int(project.get("fps", 24))
     res = project.get("resolution", {"width": 1280, "height": 704})
     w, h = cfg.cap_resolution(res["width"], res["height"], tier["max_pixels"])
     num_frames = frames_for(shot.get("duration", 5), fps)
     max_frames = tier.get("max_frames", 257)
-    pmf = project.get("max_frames")             # project may request longer single clips
+    pmf = project.get("max_frames")  # project may request longer single clips
     if pmf:
         max_frames = pmf
-    if num_frames > max_frames:                 # cap clip length to fit device memory
+    if num_frames > max_frames:  # cap clip length to fit device memory
         num_frames = max_frames - ((max_frames - 1) % 8)
     out_path = out_dir / f"shot_{shot['id']}.mp4"
     # inference.py treats --output_path as a DIRECTORY and writes its own
@@ -45,27 +47,48 @@ def generate_shot(shot: dict, project: dict, tier: dict, out_dir: Path,
     gen_dir = out_dir / f"_gen_{shot['id']}"
 
     argv = [
-        sys.executable, str(REPO_ROOT / "inference.py"),
-        "--prompt", shot["prompt"],
-        "--negative_prompt", shot.get("negative", NEG_DEFAULT),
-        "--pipeline_config", tier["config"],
-        "--height", str(h),
-        "--width", str(w),
-        "--num_frames", str(num_frames),
-        "--frame_rate", str(fps),
-        "--seed", str(shot.get("seed", 42)),
-        "--output_path", str(gen_dir),
+        sys.executable,
+        str(REPO_ROOT / "inference.py"),
+        "--prompt",
+        shot["prompt"],
+        "--negative_prompt",
+        shot.get("negative", NEG_DEFAULT),
+        "--pipeline_config",
+        tier["config"],
+        "--height",
+        str(h),
+        "--width",
+        str(w),
+        "--num_frames",
+        str(num_frames),
+        "--frame_rate",
+        str(fps),
+        "--seed",
+        str(shot.get("seed", 42)),
+        "--output_path",
+        str(gen_dir),
     ]
     # image-to-video: anchor the clip to a keyframe still at frame 0 via the
     # ConditioningItem path (--conditioning_*). This is the correct i2v API —
     # --input_media_path is for video continuation and trips a full-noise
     # assertion. Strength ~0.9 keeps the character/composition, lets motion vary.
     if shot.get("keyframe"):
-        kf = (out_dir.parent / shot["keyframe"]) if not Path(shot["keyframe"]).is_absolute() else Path(shot["keyframe"])
-        strength = str(shot.get("keyframe_strength", project.get("keyframe_strength", 0.9)))
-        argv += ["--conditioning_media_paths", str(kf),
-                 "--conditioning_start_frames", "0",
-                 "--conditioning_strengths", strength]
+        kf = (
+            (out_dir.parent / shot["keyframe"])
+            if not Path(shot["keyframe"]).is_absolute()
+            else Path(shot["keyframe"])
+        )
+        strength = str(
+            shot.get("keyframe_strength", project.get("keyframe_strength", 0.9))
+        )
+        argv += [
+            "--conditioning_media_paths",
+            str(kf),
+            "--conditioning_start_frames",
+            "0",
+            "--conditioning_strengths",
+            strength,
+        ]
     # Apple Silicon / small cards: stream weights through CPU to fit memory
     if device.kind != "cuda" or device.vram_gb < 24:
         argv += ["--offload_to_cpu", "True"]

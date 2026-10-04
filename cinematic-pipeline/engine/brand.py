@@ -9,6 +9,7 @@ The drawn fallback is kept deliberately: a project with no logo file still gets
 a mark rather than a hole, and the fallback is clearly generic rather than
 someone else's identity.
 """
+
 from __future__ import annotations
 
 import json
@@ -25,7 +26,7 @@ def _rgb(value, default=(56, 189, 248)):
         h = value.lstrip("#")
         if len(h) == 3:
             h = "".join(c * 2 for c in h)
-        return tuple(int(h[i:i + 2], 16) for i in (0, 2, 4))
+        return tuple(int(h[i : i + 2], 16) for i in (0, 2, 4))
     return default
 
 
@@ -75,19 +76,30 @@ class Brand:
         """A neutral placeholder: the brand's initial on an accent tile."""
         art = Image.new("RGBA", (size, size), (0, 0, 0, 0))
         d = ImageDraw.Draw(art)
-        d.rounded_rectangle([0, 0, size - 1, size - 1], radius=int(size * 0.25),
-                            fill=(*self.accent, alpha))
+        d.rounded_rectangle(
+            [0, 0, size - 1, size - 1],
+            radius=int(size * 0.25),
+            fill=(*self.accent, alpha),
+        )
         letter = (self.name or "?").strip()[:1].upper()
         try:
             from PIL import ImageFont
-            font = ImageFont.truetype("/System/Library/Fonts/Supplemental/Arial Bold.ttf",
-                                      int(size * 0.58))
+
+            font = ImageFont.truetype(
+                "/System/Library/Fonts/Supplemental/Arial Bold.ttf", int(size * 0.58)
+            )
         except OSError:
             font = None
         box = d.textbbox((0, 0), letter, font=font)
-        d.text(((size - (box[2] - box[0])) / 2 - box[0],
-                (size - (box[3] - box[1])) / 2 - box[1]),
-               letter, font=font, fill=(255, 255, 255, alpha))
+        d.text(
+            (
+                (size - (box[2] - box[0])) / 2 - box[0],
+                (size - (box[3] - box[1])) / 2 - box[1],
+            ),
+            letter,
+            font=font,
+            fill=(255, 255, 255, alpha),
+        )
         return art
 
     def stamp(self, frame: Image.Image, size: int = 64) -> Image.Image:

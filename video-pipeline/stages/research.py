@@ -65,7 +65,12 @@ class ResearchStage:
                 "research_markdown": {"type": "string"},
                 "outline_markdown": {"type": "string"},
             },
-            "required": ["title", "research_brief", "research_markdown", "outline_markdown"],
+            "required": [
+                "title",
+                "research_brief",
+                "research_markdown",
+                "outline_markdown",
+            ],
             "additionalProperties": False,
         }
 
@@ -73,7 +78,9 @@ class ResearchStage:
             if evidence:
                 self.log.info("  Using Codex CLI with WebSearch for research")
             else:
-                self.log.info("  No local evidence collected; forcing Codex CLI with WebSearch for research")
+                self.log.info(
+                    "  No local evidence collected; forcing Codex CLI with WebSearch for research"
+                )
             prompt = self._build_prompt(topic, slug, queries, evidence)
             result = run_codex_research(
                 prompt=prompt,
@@ -88,12 +95,18 @@ class ResearchStage:
                 result.get("outline_markdown") or result.get("research_markdown") or ""
             )
         except (CodexCLIError, ValueError, TimeoutError, OSError) as exc:
-            self.log.warning(f"  Codex CLI research failed ({exc}); using structured fallback")
+            self.log.warning(
+                f"  Codex CLI research failed ({exc}); using structured fallback"
+            )
 
         if not research_markdown.strip():
-            research_markdown = self._fallback_research_markdown(topic, title, queries, evidence)
+            research_markdown = self._fallback_research_markdown(
+                topic, title, queries, evidence
+            )
         if not outline_markdown.strip():
-            outline_markdown = self._fallback_outline_markdown(topic, title, queries, evidence)
+            outline_markdown = self._fallback_outline_markdown(
+                topic, title, queries, evidence
+            )
 
         research_path.write_text(research_markdown.rstrip() + "\n")
         outline_path.write_text(outline_markdown.rstrip() + "\n")
@@ -118,7 +131,11 @@ class ResearchStage:
         if isinstance(topic, dict):
             title = topic_title(topic)
             queries = [
-                *(query.strip() for query in topic.get("search_queries", []) if isinstance(query, str)),
+                *(
+                    query.strip()
+                    for query in topic.get("search_queries", [])
+                    if isinstance(query, str)
+                ),
                 f"{title} definition and intuition",
                 f"{title} worked example",
                 f"{title} visual intuition",
@@ -136,7 +153,10 @@ class ResearchStage:
         topic_clean = topic.strip()
         lower = topic_clean.lower()
 
-        if any(word in lower for word in ["option", "trading", "finance", "market", "stock"]):
+        if any(
+            word in lower
+            for word in ["option", "trading", "finance", "market", "stock"]
+        ):
             return [
                 f"{topic_clean} definition and core formula",
                 f"{topic_clean} worked example with numbers",
@@ -146,7 +166,19 @@ class ResearchStage:
                 f"{topic_clean} real world example",
             ]
 
-        if any(word in lower for word in ["physics", "chemistry", "biology", "math", "probability", "statistics", "algorithm", "machine learning"]):
+        if any(
+            word in lower
+            for word in [
+                "physics",
+                "chemistry",
+                "biology",
+                "math",
+                "probability",
+                "statistics",
+                "algorithm",
+                "machine learning",
+            ]
+        ):
             return [
                 f"{topic_clean} definition and mechanism",
                 f"{topic_clean} worked example or experiment",
@@ -156,7 +188,18 @@ class ResearchStage:
                 f"{topic_clean} real world application",
             ]
 
-        if any(word in lower for word in ["history", "war", "novel", "movie", "story", "biography", "detective"]):
+        if any(
+            word in lower
+            for word in [
+                "history",
+                "war",
+                "novel",
+                "movie",
+                "story",
+                "biography",
+                "detective",
+            ]
+        ):
             return [
                 f"{topic_clean} historical context",
                 f"{topic_clean} key events and timeline",
@@ -241,6 +284,7 @@ class ResearchStage:
                 raw = resp.read()
                 # Brave may return gzip-encoded data
                 import gzip as _gzip
+
                 try:
                     raw = _gzip.decompress(raw)
                 except Exception:
@@ -258,12 +302,14 @@ class ResearchStage:
             extra = " ".join(item.get("extra_snippets") or []).strip()
             snippet = f"{description} {extra}".strip() if extra else description
             if snippet:
-                results.append({
-                    "source": "brave",
-                    "title": title,
-                    "url": page_url,
-                    "snippet": snippet,
-                })
+                results.append(
+                    {
+                        "source": "brave",
+                        "title": title,
+                        "url": page_url,
+                        "snippet": snippet,
+                    }
+                )
         return results
 
     def _duckduckgo_instant_answer(self, query: str) -> list[dict[str, str]]:
@@ -407,28 +453,52 @@ Target search queries:
                 lines.extend(["", description])
             goals = self._topic_list(topic.get("learning_goals"))
             if goals:
-                lines.extend(["", "## Learning Goals", *[f"- {item}" for item in goals]])
+                lines.extend(
+                    ["", "## Learning Goals", *[f"- {item}" for item in goals]]
+                )
             notes = topic.get("teaching_notes")
             if isinstance(notes, dict):
                 opener = str(notes.get("opener") or "").strip()
                 explanation = str(notes.get("explanation") or "").strip()
                 practice = str(notes.get("practice") or "").strip()
                 close = str(notes.get("close") or "").strip()
-                teaching_bits = [bit for bit in [opener, explanation, practice, close] if bit]
+                teaching_bits = [
+                    bit for bit in [opener, explanation, practice, close] if bit
+                ]
                 if teaching_bits:
-                    lines.extend(["", "## Teaching Notes", *[f"- {bit}" for bit in teaching_bits]])
+                    lines.extend(
+                        [
+                            "",
+                            "## Teaching Notes",
+                            *[f"- {bit}" for bit in teaching_bits],
+                        ]
+                    )
             key_terms = self._topic_list(topic.get("key_terms"))
             if key_terms:
                 lines.extend(["", "## Key Terms", *[f"- {item}" for item in key_terms]])
             visual_hooks = self._topic_list(topic.get("visual_hooks"))
             if visual_hooks:
-                lines.extend(["", "## Visual Hooks", *[f"- {item}" for item in visual_hooks]])
+                lines.extend(
+                    ["", "## Visual Hooks", *[f"- {item}" for item in visual_hooks]]
+                )
             misconceptions = self._topic_list(topic.get("misconceptions"))
             if misconceptions:
-                lines.extend(["", "## Common Misconceptions", *[f"- {item}" for item in misconceptions]])
+                lines.extend(
+                    [
+                        "",
+                        "## Common Misconceptions",
+                        *[f"- {item}" for item in misconceptions],
+                    ]
+                )
             research_angles = self._topic_list(topic.get("research_angles"))
             if research_angles:
-                lines.extend(["", "## Research Angles", *[f"- {item}" for item in research_angles]])
+                lines.extend(
+                    [
+                        "",
+                        "## Research Angles",
+                        *[f"- {item}" for item in research_angles],
+                    ]
+                )
         else:
             lines.append(
                 "No live evidence was collected for this seed, so this draft preserves the broad lesson context for downstream script generation."
@@ -438,17 +508,24 @@ Target search queries:
             lines.append("- No evidence snippets were returned.")
 
         if queries:
-            lines.extend([
-                "",
-                "## Search Queries",
-                *[f"- {query}" for query in queries[:6]],
-            ])
+            lines.extend(
+                [
+                    "",
+                    "## Search Queries",
+                    *[f"- {query}" for query in queries[:6]],
+                ]
+            )
         if evidence:
-            lines.extend([
-                "",
-                "## Evidence Notes",
-                *[f"- {item.get('title', 'source')}: {item.get('snippet', '')}" for item in evidence[:6]],
-            ])
+            lines.extend(
+                [
+                    "",
+                    "## Evidence Notes",
+                    *[
+                        f"- {item.get('title', 'source')}: {item.get('snippet', '')}"
+                        for item in evidence[:6]
+                    ],
+                ]
+            )
         elif not isinstance(topic, dict):
             lines.append("- No evidence snippets were returned.")
         return "\n".join(lines)
@@ -478,7 +555,9 @@ Target search queries:
         if isinstance(topic, dict):
             goals = self._topic_list(topic.get("learning_goals"))
             if goals:
-                lines.extend(["", "## Learning Goals", *[f"- {item}" for item in goals]])
+                lines.extend(
+                    ["", "## Learning Goals", *[f"- {item}" for item in goals]]
+                )
             teaching_notes = topic.get("teaching_notes")
             if isinstance(teaching_notes, dict):
                 notes_lines = []
@@ -489,23 +568,34 @@ Target search queries:
                 if notes_lines:
                     lines.extend(["", "## Teaching Notes", *notes_lines])
         if queries:
-            lines.extend([
-                "",
-                "## Search Queries",
-                *[f"- {query}" for query in queries[:6]],
-            ])
+            lines.extend(
+                [
+                    "",
+                    "## Search Queries",
+                    *[f"- {query}" for query in queries[:6]],
+                ]
+            )
         if evidence:
-            lines.extend([
-                "",
-                "## Evidence",
-                *[f"- {item.get('title', 'source')}: {item.get('snippet', '')}" for item in evidence[:6]],
-            ])
+            lines.extend(
+                [
+                    "",
+                    "## Evidence",
+                    *[
+                        f"- {item.get('title', 'source')}: {item.get('snippet', '')}"
+                        for item in evidence[:6]
+                    ],
+                ]
+            )
         return "\n".join(lines)
 
     @staticmethod
     def _topic_list(value: Any) -> list[str]:
         if isinstance(value, list):
-            return [str(item).strip() for item in value if isinstance(item, str) and item.strip()]
+            return [
+                str(item).strip()
+                for item in value
+                if isinstance(item, str) and item.strip()
+            ]
         if isinstance(value, str) and value.strip():
             return [value.strip()]
         return []

@@ -109,7 +109,9 @@ def _render_slide_image(
         int(height * 0.83),
     ]
 
-    draw.rounded_rectangle(hero_box, radius=36, fill=panel_color, outline=panel_edge, width=3)
+    draw.rounded_rectangle(
+        hero_box, radius=36, fill=panel_color, outline=panel_edge, width=3
+    )
     draw.rectangle(
         [hero_box[0], hero_box[1], hero_box[0] + 16, hero_box[3]],
         fill=accent_color,
@@ -147,13 +149,17 @@ def _render_slide_image(
 
     bullets = _content_bullets(title, narration, description, visual_kind)
     rail_title_y = rail_box[1]
-    draw.text((rail_box[0], rail_title_y), "Key ideas", font=subtitle_font, fill=accent_color)
+    draw.text(
+        (rail_box[0], rail_title_y), "Key ideas", font=subtitle_font, fill=accent_color
+    )
     chip_top = rail_title_y + 52
     chip_gap = 18
     chip_h = 96
     for bullet in bullets[:4]:
         chip_box = [rail_box[0], chip_top, rail_box[2], chip_top + chip_h]
-        draw.rounded_rectangle(chip_box, radius=28, fill=panel_color, outline=panel_edge, width=2)
+        draw.rounded_rectangle(
+            chip_box, radius=28, fill=panel_color, outline=panel_edge, width=2
+        )
         draw.ellipse(
             [chip_box[0] + 20, chip_box[1] + 22, chip_box[0] + 40, chip_box[1] + 42],
             fill=glow_color,
@@ -173,7 +179,9 @@ def _render_slide_image(
     image.save(out_path)
 
 
-def _encode_slide_video(image_path: Path, out_path: Path, duration_sec: int, fps: int) -> Path:
+def _encode_slide_video(
+    image_path: Path, out_path: Path, duration_sec: int, fps: int
+) -> Path:
     out_path.parent.mkdir(parents=True, exist_ok=True)
     cmd = [
         "ffmpeg",
@@ -199,22 +207,33 @@ def _encode_slide_video(image_path: Path, out_path: Path, duration_sec: int, fps
     try:
         result = subprocess.run(cmd, capture_output=True, text=True)
     except FileNotFoundError as e:
-        raise SlidesRenderError("FFmpeg not found. Install it with: brew install ffmpeg") from e
+        raise SlidesRenderError(
+            "FFmpeg not found. Install it with: brew install ffmpeg"
+        ) from e
 
     if result.returncode != 0:
-        raise SlidesRenderError((result.stderr or result.stdout or "FFmpeg failed")[-2000:])
+        raise SlidesRenderError(
+            (result.stderr or result.stdout or "FFmpeg failed")[-2000:]
+        )
 
     if not out_path.exists():
-        raise SlidesRenderError("FFmpeg reported success but the output file was not created")
+        raise SlidesRenderError(
+            "FFmpeg reported success but the output file was not created"
+        )
     return out_path
 
 
-def _draw_background(draw: ImageDraw.ImageDraw, width: int, height: int, bg_color: str, accent_color: str) -> None:
+def _draw_background(
+    draw: ImageDraw.ImageDraw, width: int, height: int, bg_color: str, accent_color: str
+) -> None:
     # Subtle layered background so slides do not look flat.
     draw.rectangle((0, 0, width, height), fill=bg_color)
     band_h = max(16, height // 60)
     draw.rectangle((0, 0, width, band_h), fill=accent_color)
-    draw.rectangle((0, height - band_h, width, height), fill=_blend_hex(bg_color, accent_color, 0.28))
+    draw.rectangle(
+        (0, height - band_h, width, height),
+        fill=_blend_hex(bg_color, accent_color, 0.28),
+    )
     draw.ellipse(
         [int(width * 0.52), int(height * 0.08), int(width * 1.02), int(height * 0.72)],
         outline=_blend_hex(bg_color, accent_color, 0.18),
@@ -229,9 +248,13 @@ def _draw_background(draw: ImageDraw.ImageDraw, width: int, height: int, bg_colo
 
 def _scene_visual_kind(title: str, description: str, narration: str) -> str:
     text = " ".join([title, description, narration]).lower()
-    if any(token in text for token in ("call", "put", "payoff", "premium", "breakeven")):
+    if any(
+        token in text for token in ("call", "put", "payoff", "premium", "breakeven")
+    ):
         return "payoff"
-    if any(token in text for token in ("volume", "open interest", "oi", "contract count")):
+    if any(
+        token in text for token in ("volume", "open interest", "oi", "contract count")
+    ):
         return "bars"
     if any(token in text for token in ("strike ladder", "strike map", "strike wall")):
         return "ladder"
@@ -239,9 +262,14 @@ def _scene_visual_kind(title: str, description: str, narration: str) -> str:
         return "pressure"
     if any(token in text for token in ("delta", "gamma", "curve", "convexity")):
         return "curve"
-    if any(token in text for token in ("theta", "expiration", "expiry", "time decay", "days to")):
+    if any(
+        token in text
+        for token in ("theta", "expiration", "expiry", "time decay", "days to")
+    ):
         return "time"
-    if any(token in text for token in ("checklist", "trap", "terms", "definition", "steps")):
+    if any(
+        token in text for token in ("checklist", "trap", "terms", "definition", "steps")
+    ):
         return "list"
     if any(token in text for token in ("flow", "signal", "unusual")):
         return "flow"
@@ -329,9 +357,15 @@ def _scene_mechanics(kind: str, title: str, description: str) -> list[str]:
     return bullets
 
 
-def _content_bullets(title: str, narration: str, description: str, kind: str) -> list[str]:
+def _content_bullets(
+    title: str, narration: str, description: str, kind: str
+) -> list[str]:
     sentence_source = narration.strip() or ""
-    sentences = [item.strip() for item in re.split(r"(?<=[.!?])\s+", sentence_source) if item.strip()]
+    sentences = [
+        item.strip()
+        for item in re.split(r"(?<=[.!?])\s+", sentence_source)
+        if item.strip()
+    ]
     bullets: list[str] = []
     for sentence in sentences:
         cleaned = _compress_bullet(sentence)
@@ -392,7 +426,15 @@ def _draw_hero_visual(
         "concept": _draw_concept_visual,
     }
     handler = handlers.get(kind, _draw_concept_visual)
-    handler(draw, visual_box, title=title, description=description, narration=narration, colors=colors, fonts=fonts)
+    handler(
+        draw,
+        visual_box,
+        title=title,
+        description=description,
+        narration=narration,
+        colors=colors,
+        fonts=fonts,
+    )
 
 
 def _draw_flow_visual(
@@ -423,12 +465,38 @@ def _draw_flow_visual(
     draw.line(shadow, fill=colors["secondary"], width=7, joint="curve")
     draw.line(points, fill=colors["accent"], width=9, joint="curve")
     for idx, (px, py) in enumerate(points[::2], start=1):
-        draw.ellipse([px - 12, py - 12, px + 12, py + 12], fill=colors["bg"], outline=colors["text"], width=3)
-        draw.text((px + 10, py - 20), f"P{idx}", font=fonts["small"], fill=colors["muted"])
-    _draw_badge(draw, [x0, y0, x0 + 180, y0 + 44], "PREMIUM SPIKE", colors["accent"], fonts["small"], colors["bg"])
-    _draw_badge(draw, [x1 - 210, y0 + 14, x1, y0 + 58], "FOLLOW-THROUGH", colors["secondary"], fonts["small"], colors["bg"])
+        draw.ellipse(
+            [px - 12, py - 12, px + 12, py + 12],
+            fill=colors["bg"],
+            outline=colors["text"],
+            width=3,
+        )
+        draw.text(
+            (px + 10, py - 20), f"P{idx}", font=fonts["small"], fill=colors["muted"]
+        )
+    _draw_badge(
+        draw,
+        [x0, y0, x0 + 180, y0 + 44],
+        "PREMIUM SPIKE",
+        colors["accent"],
+        fonts["small"],
+        colors["bg"],
+    )
+    _draw_badge(
+        draw,
+        [x1 - 210, y0 + 14, x1, y0 + 58],
+        "FOLLOW-THROUGH",
+        colors["secondary"],
+        fonts["small"],
+        colors["bg"],
+    )
     draw.text((x0, y1 - 30), "Trend axis", font=fonts["small"], fill=colors["muted"])
-    draw.text((x1 - 168, y1 - 30), "Research-backed motion", font=fonts["small"], fill=colors["muted"])
+    draw.text(
+        (x1 - 168, y1 - 30),
+        "Research-backed motion",
+        font=fonts["small"],
+        fill=colors["muted"],
+    )
 
 
 def _draw_payoff_visual(
@@ -453,8 +521,12 @@ def _draw_payoff_visual(
     draw.line([(axis_x, axis_y), (x1 - 16, axis_y)], fill=colors["edge"], width=3)
     draw.text((axis_x - 20, y0), "P/L", font=fonts["small"], fill=colors["muted"])
     draw.text((x1 - 76, axis_y + 8), "Price", font=fonts["small"], fill=colors["muted"])
-    draw.line([(strike_x, y0 + 26), (strike_x, axis_y)], fill=colors["secondary"], width=3)
-    draw.text((strike_x - 22, y0 + 4), "K", font=fonts["small"], fill=colors["secondary"])
+    draw.line(
+        [(strike_x, y0 + 26), (strike_x, axis_y)], fill=colors["secondary"], width=3
+    )
+    draw.text(
+        (strike_x - 22, y0 + 4), "K", font=fonts["small"], fill=colors["secondary"]
+    )
 
     if is_put:
         path = [
@@ -472,11 +544,42 @@ def _draw_payoff_visual(
         break_even_x = strike_x + int(width * 0.12)
 
     draw.line(path, fill=colors["accent"], width=9, joint="curve")
-    draw.line([(break_even_x, axis_y - 16), (break_even_x, axis_y + 12)], fill=colors["text"], width=2)
-    draw.text((break_even_x - 34, axis_y + 18), "BE", font=fonts["small"], fill=colors["muted"])
-    _draw_badge(draw, [x0, y0, x0 + 142, y0 + 44], "PREMIUM", colors["accent"], fonts["small"], colors["bg"])
-    _draw_badge(draw, [x0 + 156, y0, x0 + 326, y0 + 44], "STRIKE", colors["secondary"], fonts["small"], colors["bg"])
-    _draw_badge(draw, [x0 + 340, y0, x0 + 528, y0 + 44], "BREAK-EVEN", colors["panel"], fonts["small"], colors["text"], outline=colors["edge"])
+    draw.line(
+        [(break_even_x, axis_y - 16), (break_even_x, axis_y + 12)],
+        fill=colors["text"],
+        width=2,
+    )
+    draw.text(
+        (break_even_x - 34, axis_y + 18),
+        "BE",
+        font=fonts["small"],
+        fill=colors["muted"],
+    )
+    _draw_badge(
+        draw,
+        [x0, y0, x0 + 142, y0 + 44],
+        "PREMIUM",
+        colors["accent"],
+        fonts["small"],
+        colors["bg"],
+    )
+    _draw_badge(
+        draw,
+        [x0 + 156, y0, x0 + 326, y0 + 44],
+        "STRIKE",
+        colors["secondary"],
+        fonts["small"],
+        colors["bg"],
+    )
+    _draw_badge(
+        draw,
+        [x0 + 340, y0, x0 + 528, y0 + 44],
+        "BREAK-EVEN",
+        colors["panel"],
+        fonts["small"],
+        colors["text"],
+        outline=colors["edge"],
+    )
 
 
 def _draw_ladder_visual(
@@ -502,12 +605,37 @@ def _draw_ladder_visual(
         row_y = y0 + 18 + idx * row_h
         color = colors["accent"] if idx == selected else colors["edge"]
         draw.line([(ladder_x - 20, row_y), (ladder_x + 20, row_y)], fill=color, width=4)
-        draw.text((ladder_x - 74, row_y - 14), strike, font=fonts["small"], fill=colors["text"])
+        draw.text(
+            (ladder_x - 74, row_y - 14),
+            strike,
+            font=fonts["small"],
+            fill=colors["text"],
+        )
         bar_w = int((idx + 2) / (len(strikes) + 2) * (x1 - bar_left - 10))
-        fill = colors["secondary"] if idx == selected else _blend_hex(colors["secondary"], colors["bg"], 0.45)
-        draw.rounded_rectangle([bar_left, row_y - 14, bar_left + bar_w, row_y + 14], radius=12, fill=fill)
-    _draw_badge(draw, [bar_left, y0, bar_left + 170, y0 + 44], "SELECTED STRIKE", colors["accent"], fonts["small"], colors["bg"])
-    _draw_badge(draw, [bar_left, y1 - 52, bar_left + 146, y1 - 8], "PREMIUM ZONE", colors["secondary"], fonts["small"], colors["bg"])
+        fill = (
+            colors["secondary"]
+            if idx == selected
+            else _blend_hex(colors["secondary"], colors["bg"], 0.45)
+        )
+        draw.rounded_rectangle(
+            [bar_left, row_y - 14, bar_left + bar_w, row_y + 14], radius=12, fill=fill
+        )
+    _draw_badge(
+        draw,
+        [bar_left, y0, bar_left + 170, y0 + 44],
+        "SELECTED STRIKE",
+        colors["accent"],
+        fonts["small"],
+        colors["bg"],
+    )
+    _draw_badge(
+        draw,
+        [bar_left, y1 - 52, bar_left + 146, y1 - 8],
+        "PREMIUM ZONE",
+        colors["secondary"],
+        fonts["small"],
+        colors["bg"],
+    )
 
 
 def _draw_time_visual(
@@ -529,19 +657,38 @@ def _draw_time_visual(
         (x0 + int(width * 0.62), "T-3"),
         (x0 + int(width * 0.84), "EXP"),
     ]
-    draw.line([(points[0][0], timeline_y), (points[-1][0], timeline_y)], fill=colors["edge"], width=4)
+    draw.line(
+        [(points[0][0], timeline_y), (points[-1][0], timeline_y)],
+        fill=colors["edge"],
+        width=4,
+    )
     bar_tops = [y0 + 48, y0 + 84, y0 + 128, y0 + 184]
     for idx, (px, label) in enumerate(points):
-        draw.ellipse([px - 12, timeline_y - 12, px + 12, timeline_y + 12], fill=colors["accent"] if idx == 0 else colors["secondary"])
-        draw.text((px - 18, timeline_y + 20), label, font=fonts["small"], fill=colors["text"])
+        draw.ellipse(
+            [px - 12, timeline_y - 12, px + 12, timeline_y + 12],
+            fill=colors["accent"] if idx == 0 else colors["secondary"],
+        )
+        draw.text(
+            (px - 18, timeline_y + 20), label, font=fonts["small"], fill=colors["text"]
+        )
         alpha_fill = _blend_hex(colors["accent"], colors["bg"], idx * 0.22)
-        draw.rounded_rectangle([px - 34, bar_tops[idx], px + 34, timeline_y - 34], radius=16, fill=alpha_fill)
+        draw.rounded_rectangle(
+            [px - 34, bar_tops[idx], px + 34, timeline_y - 34],
+            radius=16,
+            fill=alpha_fill,
+        )
     clock_box = [x1 - 140, y0 + 10, x1 - 16, y0 + 134]
     draw.ellipse(clock_box, outline=colors["secondary"], width=4)
     center_x = (clock_box[0] + clock_box[2]) // 2
     center_y = (clock_box[1] + clock_box[3]) // 2
-    draw.line([(center_x, center_y), (center_x, center_y - 26)], fill=colors["text"], width=4)
-    draw.line([(center_x, center_y), (center_x + 22, center_y + 12)], fill=colors["text"], width=4)
+    draw.line(
+        [(center_x, center_y), (center_x, center_y - 26)], fill=colors["text"], width=4
+    )
+    draw.line(
+        [(center_x, center_y), (center_x + 22, center_y + 12)],
+        fill=colors["text"],
+        width=4,
+    )
 
 
 def _draw_bars_visual(
@@ -573,7 +720,14 @@ def _draw_bars_visual(
             bx1 = bx0 + bar_w
             by0 = base_y - int(height * factor)
             draw.rounded_rectangle([bx0, by0, bx1, base_y], radius=14, fill=fill)
-    _draw_badge(draw, [x1 - 220, y0, x1 - 86, y0 + 44], "NEW SIZE", colors["accent"], fonts["small"], colors["bg"])
+    _draw_badge(
+        draw,
+        [x1 - 220, y0, x1 - 86, y0 + 44],
+        "NEW SIZE",
+        colors["accent"],
+        fonts["small"],
+        colors["bg"],
+    )
 
 
 def _draw_pressure_visual(
@@ -589,12 +743,49 @@ def _draw_pressure_visual(
     x0, y0, x1, y1 = box
     mid_x = (x0 + x1) // 2
     mid_y = (y0 + y1) // 2
-    draw.rounded_rectangle([mid_x - 70, mid_y - 44, mid_x + 70, mid_y + 44], radius=24, fill=colors["panel"], outline=colors["edge"], width=2)
-    draw.text((mid_x - 24, mid_y - 12), "PRICE", font=fonts["small"], fill=colors["text"])
-    draw.polygon([(x0 + 30, mid_y), (mid_x - 90, mid_y - 42), (mid_x - 90, mid_y - 18), (mid_x - 12, mid_y - 18), (mid_x - 12, mid_y + 18), (mid_x - 90, mid_y + 18), (mid_x - 90, mid_y + 42)], fill=colors["accent"])
-    draw.polygon([(x1 - 30, mid_y), (mid_x + 90, mid_y - 42), (mid_x + 90, mid_y - 18), (mid_x + 12, mid_y - 18), (mid_x + 12, mid_y + 18), (mid_x + 90, mid_y + 18), (mid_x + 90, mid_y + 42)], fill=colors["secondary"])
-    draw.text((x0 + 18, y0 + 16), "BUYER PRESSURE", font=fonts["small"], fill=colors["accent"])
-    draw.text((x1 - 120, y0 + 16), "SELLER PRESSURE", font=fonts["small"], fill=colors["secondary"])
+    draw.rounded_rectangle(
+        [mid_x - 70, mid_y - 44, mid_x + 70, mid_y + 44],
+        radius=24,
+        fill=colors["panel"],
+        outline=colors["edge"],
+        width=2,
+    )
+    draw.text(
+        (mid_x - 24, mid_y - 12), "PRICE", font=fonts["small"], fill=colors["text"]
+    )
+    draw.polygon(
+        [
+            (x0 + 30, mid_y),
+            (mid_x - 90, mid_y - 42),
+            (mid_x - 90, mid_y - 18),
+            (mid_x - 12, mid_y - 18),
+            (mid_x - 12, mid_y + 18),
+            (mid_x - 90, mid_y + 18),
+            (mid_x - 90, mid_y + 42),
+        ],
+        fill=colors["accent"],
+    )
+    draw.polygon(
+        [
+            (x1 - 30, mid_y),
+            (mid_x + 90, mid_y - 42),
+            (mid_x + 90, mid_y - 18),
+            (mid_x + 12, mid_y - 18),
+            (mid_x + 12, mid_y + 18),
+            (mid_x + 90, mid_y + 18),
+            (mid_x + 90, mid_y + 42),
+        ],
+        fill=colors["secondary"],
+    )
+    draw.text(
+        (x0 + 18, y0 + 16), "BUYER PRESSURE", font=fonts["small"], fill=colors["accent"]
+    )
+    draw.text(
+        (x1 - 120, y0 + 16),
+        "SELLER PRESSURE",
+        font=fonts["small"],
+        fill=colors["secondary"],
+    )
 
 
 def _draw_curve_visual(
@@ -623,8 +814,20 @@ def _draw_curve_visual(
     ]
     draw.line(points, fill=colors["secondary"], width=9, joint="curve")
     focus = points[3]
-    draw.ellipse([focus[0] - 14, focus[1] - 14, focus[0] + 14, focus[1] + 14], fill=colors["accent"], outline=colors["text"], width=3)
-    _draw_badge(draw, [focus[0] + 20, focus[1] - 18, focus[0] + 138, focus[1] + 20], "GAMMA PICKUP", colors["accent"], fonts["small"], colors["bg"])
+    draw.ellipse(
+        [focus[0] - 14, focus[1] - 14, focus[0] + 14, focus[1] + 14],
+        fill=colors["accent"],
+        outline=colors["text"],
+        width=3,
+    )
+    _draw_badge(
+        draw,
+        [focus[0] + 20, focus[1] - 18, focus[0] + 138, focus[1] + 20],
+        "GAMMA PICKUP",
+        colors["accent"],
+        fonts["small"],
+        colors["bg"],
+    )
 
 
 def _draw_list_visual(
@@ -647,9 +850,22 @@ def _draw_list_visual(
     for idx, row in enumerate(rows):
         top = y0 + 12 + idx * row_h
         panel = [x0 + 16, top, x1 - 16, top + row_h - 16]
-        draw.rounded_rectangle(panel, radius=26, fill=colors["panel"], outline=colors["edge"], width=2)
-        draw.ellipse([panel[0] + 20, panel[1] + 18, panel[0] + 48, panel[1] + 46], fill=colors["accent"])
-        _draw_wrapped_text(draw, row, (panel[0] + 70, panel[1] + 14), fonts["rail"], colors["text"], panel[2] - panel[0] - 96, line_spacing=6)
+        draw.rounded_rectangle(
+            panel, radius=26, fill=colors["panel"], outline=colors["edge"], width=2
+        )
+        draw.ellipse(
+            [panel[0] + 20, panel[1] + 18, panel[0] + 48, panel[1] + 46],
+            fill=colors["accent"],
+        )
+        _draw_wrapped_text(
+            draw,
+            row,
+            (panel[0] + 70, panel[1] + 14),
+            fonts["rail"],
+            colors["text"],
+            panel[2] - panel[0] - 96,
+            line_spacing=6,
+        )
 
 
 def _draw_concept_visual(
@@ -666,20 +882,47 @@ def _draw_concept_visual(
     mid_x = (x0 + x1) // 2
     mid_y = (y0 + y1) // 2
     core_box = [mid_x - 120, mid_y - 64, mid_x + 120, mid_y + 64]
-    draw.rounded_rectangle(core_box, radius=28, fill=colors["panel"], outline=colors["accent"], width=3)
+    draw.rounded_rectangle(
+        core_box, radius=28, fill=colors["panel"], outline=colors["accent"], width=3
+    )
     core_title = title.strip() or "Core idea"
-    _draw_wrapped_text(draw, core_title, (core_box[0] + 24, core_box[1] + 22), fonts["rail"], colors["text"], core_box[2] - core_box[0] - 48, line_spacing=6)
+    _draw_wrapped_text(
+        draw,
+        core_title,
+        (core_box[0] + 24, core_box[1] + 22),
+        fonts["rail"],
+        colors["text"],
+        core_box[2] - core_box[0] - 48,
+        line_spacing=6,
+    )
     satellites = [
         ([x0 + 24, y0 + 38, x0 + 220, y0 + 94], "Setup"),
         ([x1 - 220, y0 + 38, x1 - 24, y0 + 94], "Signal"),
         ([mid_x - 98, y1 - 94, mid_x + 98, y1 - 38], "Takeaway"),
     ]
     for sat_box, label in satellites:
-        draw.rounded_rectangle(sat_box, radius=22, fill=colors["panel"], outline=colors["edge"], width=2)
-        draw.text((sat_box[0] + 22, sat_box[1] + 16), label, font=fonts["small"], fill=colors["text"])
-    draw.line([(x0 + 220, y0 + 94), (core_box[0], core_box[1] + 30)], fill=colors["secondary"], width=3)
-    draw.line([(x1 - 220, y0 + 94), (core_box[2], core_box[1] + 30)], fill=colors["secondary"], width=3)
-    draw.line([(mid_x, y1 - 94), (mid_x, core_box[3])], fill=colors["secondary"], width=3)
+        draw.rounded_rectangle(
+            sat_box, radius=22, fill=colors["panel"], outline=colors["edge"], width=2
+        )
+        draw.text(
+            (sat_box[0] + 22, sat_box[1] + 16),
+            label,
+            font=fonts["small"],
+            fill=colors["text"],
+        )
+    draw.line(
+        [(x0 + 220, y0 + 94), (core_box[0], core_box[1] + 30)],
+        fill=colors["secondary"],
+        width=3,
+    )
+    draw.line(
+        [(x1 - 220, y0 + 94), (core_box[2], core_box[1] + 30)],
+        fill=colors["secondary"],
+        width=3,
+    )
+    draw.line(
+        [(mid_x, y1 - 94), (mid_x, core_box[3])], fill=colors["secondary"], width=3
+    )
 
 
 def _draw_badge(
@@ -714,8 +957,14 @@ def _draw_section(
 ) -> None:
     x0, y0, x1, y1 = box
     padding = 28
-    draw.text((x0 + padding, y0 + padding), heading, font=heading_font, fill=heading_color)
-    body_top = y0 + padding + int(heading_font.size * 1.4 if hasattr(heading_font, "size") else 48)
+    draw.text(
+        (x0 + padding, y0 + padding), heading, font=heading_font, fill=heading_color
+    )
+    body_top = (
+        y0
+        + padding
+        + int(heading_font.size * 1.4 if hasattr(heading_font, "size") else 48)
+    )
     wrapped = _wrap_text(draw, body, body_font, x1 - x0 - padding * 2)
     draw.multiline_text(
         (x0 + padding, body_top),
@@ -729,9 +978,13 @@ def _draw_section(
 def _description_bullets(description: str) -> list[str]:
     if not description.strip():
         return []
-    chunks = [item.strip() for item in re.split(r"(?<=[.!?])\s+", description) if item.strip()]
+    chunks = [
+        item.strip() for item in re.split(r"(?<=[.!?])\s+", description) if item.strip()
+    ]
     if len(chunks) <= 1:
-        chunks = [item.strip() for item in re.split(r",\s*", description) if item.strip()]
+        chunks = [
+            item.strip() for item in re.split(r",\s*", description) if item.strip()
+        ]
     bullets = []
     for item in chunks:
         cleaned = item.strip()
@@ -820,8 +1073,16 @@ def _hex_to_rgb(value: str) -> tuple[int, int, int]:
 
 def _load_font(size: int, bold: bool = False):
     candidates = [
-        "/System/Library/Fonts/Supplemental/Arial Bold.ttf" if bold else "/System/Library/Fonts/Supplemental/Arial.ttf",
-        "/System/Library/Fonts/Supplemental/Helvetica Bold.ttf" if bold else "/System/Library/Fonts/Supplemental/Helvetica.ttc",
+        (
+            "/System/Library/Fonts/Supplemental/Arial Bold.ttf"
+            if bold
+            else "/System/Library/Fonts/Supplemental/Arial.ttf"
+        ),
+        (
+            "/System/Library/Fonts/Supplemental/Helvetica Bold.ttf"
+            if bold
+            else "/System/Library/Fonts/Supplemental/Helvetica.ttc"
+        ),
         "/System/Library/Fonts/Menlo.ttc",
         "DejaVuSans-Bold.ttf" if bold else "DejaVuSans.ttf",
     ]

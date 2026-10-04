@@ -35,7 +35,7 @@ class VideoStage:
 
         safe_title = self._safe(title)
         frames_dir = self.cfg.frames_dir / safe_title
-        clips_dir  = self.cfg.clips_dir  / safe_title
+        clips_dir = self.cfg.clips_dir / safe_title
         clips_dir.mkdir(parents=True, exist_ok=True)
 
         global_style = scenes[0].get("global_style", "")
@@ -45,9 +45,9 @@ class VideoStage:
             if scene.get("renderer", "ltx") != "ltx":
                 continue
 
-            scene_id   = f"scene_{i+1:03d}"
+            scene_id = f"scene_{i+1:03d}"
             frame_path = frames_dir / f"{scene_id}.png"
-            clip_path  = clips_dir  / f"{scene_id}.mp4"
+            clip_path = clips_dir / f"{scene_id}.mp4"
 
             if clip_path.exists():
                 self.log.info(f"  [{scene_id}] ✓ clip already exists — skipping")
@@ -61,7 +61,7 @@ class VideoStage:
                 continue
 
             video_prompt = self._build_video_prompt(scene, global_style)
-            negative     = self._build_negative(scene)
+            negative = self._build_negative(scene)
 
             self.log.info(f"  [{scene_id}] Animating storyboard → video…")
             self.log.debug(f"    prompt: {video_prompt[:100]}")
@@ -89,8 +89,8 @@ class VideoStage:
         )
         motion = scene.get("motion", "")
         camera = scene.get("camera", "")
-        style  = scene.get("style", global_style)
-        parts  = [camera, base, motion, style, "cinematic, high quality, smooth motion"]
+        style = scene.get("style", global_style)
+        parts = [camera, base, motion, style, "cinematic, high quality, smooth motion"]
         return ", ".join(p for p in parts if p)
 
     def _build_negative(self, scene: dict) -> str:
@@ -135,13 +135,20 @@ class VideoStage:
                 (tmp_dir / f"frame_{idx:06d}.png").write_bytes(fb)
 
             cmd = [
-                "ffmpeg", "-y",
-                "-framerate", str(self.cfg.video_fps),
-                "-i", str(tmp_dir / "frame_%06d.png"),
-                "-c:v", self.cfg.output_codec,
-                "-crf", str(self.cfg.output_crf),
-                "-preset", self.cfg.output_preset,
-                "-pix_fmt", "yuv420p",
+                "ffmpeg",
+                "-y",
+                "-framerate",
+                str(self.cfg.video_fps),
+                "-i",
+                str(tmp_dir / "frame_%06d.png"),
+                "-c:v",
+                self.cfg.output_codec,
+                "-crf",
+                str(self.cfg.output_crf),
+                "-preset",
+                self.cfg.output_preset,
+                "-pix_fmt",
+                "yuv420p",
                 str(out_path),
             ]
             result = subprocess.run(cmd, capture_output=True, text=True)

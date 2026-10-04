@@ -19,7 +19,8 @@ def is_topic_document(candidate: Any) -> bool:
     if "scenes" in candidate:
         return False
     return candidate.get("kind") == "topic" or any(
-        key in candidate for key in ("lesson_id", "slug", "research_angles", "search_queries")
+        key in candidate
+        for key in ("lesson_id", "slug", "research_angles", "search_queries")
     )
 
 
@@ -54,7 +55,9 @@ def topic_signature(topic: TopicInput) -> str:
         signature = topic.get("signature")
         if isinstance(signature, str) and signature.strip():
             return signature.strip()
-        payload = json.dumps(topic, sort_keys=True, ensure_ascii=False, separators=(",", ":"))
+        payload = json.dumps(
+            topic, sort_keys=True, ensure_ascii=False, separators=(",", ":")
+        )
     else:
         payload = topic_title(topic)
 

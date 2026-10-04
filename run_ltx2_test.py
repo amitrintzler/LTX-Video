@@ -102,7 +102,11 @@ def build_parser() -> argparse.ArgumentParser:
 def _device_info() -> Dict[str, Any]:
     import torch
 
-    device = "cuda" if torch.cuda.is_available() else "mps" if torch.backends.mps.is_available() else "cpu"
+    device = (
+        "cuda"
+        if torch.cuda.is_available()
+        else "mps" if torch.backends.mps.is_available() else "cpu"
+    )
     return {
         "device": device,
         "torch_version": torch.__version__,
@@ -218,14 +222,26 @@ def main() -> None:
             event(run, "prompt_start", {"key": prompt_key, "prompt": prompt_text})
             if args.use_ltx2:
                 output_path = run_ltx2(args, output_tag=prompt_key)
-                event(run, "outputs", {"paths": [output_path], "mode": "ltx2", "prompt": prompt_key})
+                event(
+                    run,
+                    "outputs",
+                    {"paths": [output_path], "mode": "ltx2", "prompt": prompt_key},
+                )
             else:
                 try:
                     output_path = run_ltx2(args, output_tag=prompt_key)
-                    event(run, "outputs", {"paths": [output_path], "mode": "ltx2", "prompt": prompt_key})
+                    event(
+                        run,
+                        "outputs",
+                        {"paths": [output_path], "mode": "ltx2", "prompt": prompt_key},
+                    )
                 except ModuleNotFoundError:
                     outputs = run_ltx_video(args)
-                    event(run, "outputs", {"paths": outputs, "mode": "ltx_video", "prompt": prompt_key})
+                    event(
+                        run,
+                        "outputs",
+                        {"paths": outputs, "mode": "ltx_video", "prompt": prompt_key},
+                    )
             event(run, "prompt_end", {"key": prompt_key})
             _cleanup_device()
     except Exception as exc:

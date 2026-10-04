@@ -11,6 +11,7 @@ a seek hook the clock is stepped frame by frame, so the same input always gives
 the same output and a slow machine cannot drop frames. Without a hook it falls
 back to wall-clock capture, which works but is not reproducible - and says so.
 """
+
 from __future__ import annotations
 
 import shutil
@@ -24,8 +25,14 @@ class BrowserProvider(BaseProvider):
     name = "browser"
     media = ("video", "image")
 
-    def __init__(self, fps: int = 24, width: int = 1280, height: int = 720,
-                 scale: int = 1, settle_ms: int = 400) -> None:
+    def __init__(
+        self,
+        fps: int = 24,
+        width: int = 1280,
+        height: int = 720,
+        scale: int = 1,
+        settle_ms: int = 400,
+    ) -> None:
         self.fps = fps
         self.width = width
         self.height = height
@@ -60,7 +67,9 @@ class BrowserProvider(BaseProvider):
                 "&& python3 -m playwright install chromium"
             )
         if spec.kind == "video" and not shutil.which("ffmpeg"):
-            raise ProviderError("ffmpeg is needed to encode browser frames and is not on PATH")
+            raise ProviderError(
+                "ffmpeg is needed to encode browser frames and is not on PATH"
+            )
 
         out_dir = Path(out_dir)
         out_dir.mkdir(parents=True, exist_ok=True)
@@ -77,10 +86,16 @@ class BrowserProvider(BaseProvider):
 
             if spec.kind == "image":
                 out = out_dir / f"{spec.id}.png"
-                page.screenshot(path=str(out), full_page=bool(spec.extra.get("full_page")))
+                page.screenshot(
+                    path=str(out), full_page=bool(spec.extra.get("full_page"))
+                )
                 browser.close()
-                return Job(handle=spec.id, payload={"source": spec.extra.get("url") or spec.extra.get("html")},
-                           status=DONE, result={"path": str(out)})
+                return Job(
+                    handle=spec.id,
+                    payload={"source": spec.extra.get("url") or spec.extra.get("html")},
+                    status=DONE,
+                    result={"path": str(out)},
+                )
 
             fps = spec.extra.get("fps", self.fps)
             frames = max(1, int(round((spec.seconds or 0) * fps)))
@@ -98,16 +113,36 @@ class BrowserProvider(BaseProvider):
 
             out = out_dir / f"{spec.id}.mp4"
             subprocess.run(
-                ["ffmpeg", "-y", "-loglevel", "error", "-framerate", str(fps),
-                 "-i", str(seq / "f_%05d.png"), "-c:v", "libx264", "-crf", "16",
-                 "-pix_fmt", "yuv420p", str(out)],
+                [
+                    "ffmpeg",
+                    "-y",
+                    "-loglevel",
+                    "error",
+                    "-framerate",
+                    str(fps),
+                    "-i",
+                    str(seq / "f_%05d.png"),
+                    "-c:v",
+                    "libx264",
+                    "-crf",
+                    "16",
+                    "-pix_fmt",
+                    "yuv420p",
+                    str(out),
+                ],
                 check=True,
             )
-            return Job(handle=spec.id,
-                       payload={"source": spec.extra.get("url") or spec.extra.get("html"),
-                                "frames": frames, "fps": fps,
-                                "deterministic": bool(seek)},
-                       status=DONE, result={"path": str(out)})
+            return Job(
+                handle=spec.id,
+                payload={
+                    "source": spec.extra.get("url") or spec.extra.get("html"),
+                    "frames": frames,
+                    "fps": fps,
+                    "deterministic": bool(seek),
+                },
+                status=DONE,
+                result={"path": str(out)},
+            )
 
     def poll(self, job: Job) -> Job:
         return job

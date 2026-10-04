@@ -11,7 +11,11 @@ from pathlib import Path
 from typing import Optional
 
 from config import PipelineConfig
-from stages.claude_client import ClaudeCLIError, StructuredLLMResponseError, run_claude_json
+from stages.claude_client import (
+    ClaudeCLIError,
+    StructuredLLMResponseError,
+    run_claude_json,
+)
 from stages.research import ResearchStage
 from stages.topic_utils import (
     TopicInput,
@@ -34,7 +38,11 @@ class ScriptStage:
         modes = self._normalize_modes(mode)
         outputs: list[Path] = []
         for current_mode in modes:
-            outputs.append(self._generate_script(topic, slug, current_mode, research_path, outline_path))
+            outputs.append(
+                self._generate_script(
+                    topic, slug, current_mode, research_path, outline_path
+                )
+            )
         return outputs
 
     def _ensure_research(self, topic: TopicInput, slug: str) -> tuple[Path, Path]:
@@ -47,7 +55,9 @@ class ScriptStage:
                 meta = json.loads(meta_path.read_text())
             except json.JSONDecodeError:
                 meta = {}
-            if isinstance(meta, dict) and meta.get("topic_signature") == topic_signature(topic):
+            if isinstance(meta, dict) and meta.get(
+                "topic_signature"
+            ) == topic_signature(topic):
                 return research_path, outline_path
         self.log.info("  Research docs missing — generating them first")
         return ResearchStage(self.cfg, self.log).run(topic)
@@ -117,10 +127,17 @@ class ScriptStage:
                             return script_path
                         if self._is_valid_script(existing.get("structured_output")):
                             normalized = existing["structured_output"]
-                            script_path.write_text(json.dumps(normalized, indent=2, ensure_ascii=False) + "\n")
-                            self.log.warning(f"  Normalized wrapped script -> {script_path}")
+                            script_path.write_text(
+                                json.dumps(normalized, indent=2, ensure_ascii=False)
+                                + "\n"
+                            )
+                            self.log.warning(
+                                f"  Normalized wrapped script -> {script_path}"
+                            )
                             return script_path
-            self.log.warning(f"  Existing script is invalid, regenerating -> {script_path}")
+            self.log.warning(
+                f"  Existing script is invalid, regenerating -> {script_path}"
+            )
 
         preferred_renderer = self._suggest_renderer(topic, research_text, outline_text)
         try:
@@ -145,7 +162,9 @@ class ScriptStage:
                     exc=exc,
                 )
                 self.log.warning(f"  Script LLM debug saved -> {debug_path}")
-            self.log.warning(f"  Script LLM failed ({exc}); using deterministic fallback script")
+            self.log.warning(
+                f"  Script LLM failed ({exc}); using deterministic fallback script"
+            )
             script = self._fallback_script(
                 topic=topic,
                 slug=slug,
@@ -263,7 +282,9 @@ class ScriptStage:
         )
         scenes: list[dict] = []
         completed_summaries: list[str] = []
-        fallback_specs = self._fallback_scene_specs(topic, topic_title(topic), research_text, outline_text, mode)
+        fallback_specs = self._fallback_scene_specs(
+            topic, topic_title(topic), research_text, outline_text, mode
+        )
         debug_saved = False
 
         for chunk_index, (start, end) in enumerate(ranges, start=1):
@@ -319,7 +340,10 @@ class ScriptStage:
                     )
                 }
             chunk_scenes = chunk_script.get("scenes")
-            if not isinstance(chunk_scenes, list) or len(chunk_scenes) != chunk_scene_count:
+            if (
+                not isinstance(chunk_scenes, list)
+                or len(chunk_scenes) != chunk_scene_count
+            ):
                 raise ValueError(
                     f"Chunk {chunk_index} returned {len(chunk_scenes) if isinstance(chunk_scenes, list) else 0} scenes; expected {chunk_scene_count}"
                 )
@@ -338,7 +362,8 @@ class ScriptStage:
         fallback_count = sum(
             1
             for scene in scenes
-            if isinstance(scene, dict) and scene.get("generation_origin") == "deterministic_fallback"
+            if isinstance(scene, dict)
+            and scene.get("generation_origin") == "deterministic_fallback"
         )
         merged_script["quality_summary"] = {
             "fallback_scene_count": fallback_count,
@@ -457,7 +482,9 @@ class ScriptStage:
                 )
                 scene = scene_payload["scenes"][0]
             except (ClaudeCLIError, ValueError, TimeoutError) as exc:
-                self.log.warning(f"  Scene s{scene_number:02d} LLM generation failed ({exc}); using scene fallback")
+                self.log.warning(
+                    f"  Scene s{scene_number:02d} LLM generation failed ({exc}); using scene fallback"
+                )
                 scene = self._fallback_scene_for_index(
                     scene_number=scene_number,
                     mode=mode,
@@ -562,7 +589,9 @@ class ScriptStage:
         research_text: str,
         outline_text: str,
     ) -> dict:
-        brief = self._fallback_brief(topic, topic_title(topic), research_text, outline_text)
+        brief = self._fallback_brief(
+            topic, topic_title(topic), research_text, outline_text
+        )
         return {
             "title": f"{slug}-{mode}",
             "brief": brief,
@@ -592,7 +621,9 @@ class ScriptStage:
             return script
 
         script = dict(script)
-        primary_renderer = script.get("primary_renderer") or preferred_renderer or "manim"
+        primary_renderer = (
+            script.get("primary_renderer") or preferred_renderer or "manim"
+        )
         script["primary_renderer"] = primary_renderer
 
         scenes = script.get("scenes")
@@ -630,7 +661,9 @@ class ScriptStage:
             duration = float(duration_target)
 
         if not narration or not description or not style:
-            raise ValueError(f"Scene s{scene_number:02d} is missing narration, description, or style")
+            raise ValueError(
+                f"Scene s{scene_number:02d} is missing narration, description, or style"
+            )
 
         return {
             "id": f"s{scene_number:02d}",
@@ -653,7 +686,9 @@ class ScriptStage:
         try:
             title, narration, description = fallback_specs[scene_number - 1]
         except IndexError as exc:
-            raise ValueError(f"No fallback scene spec for scene {scene_number}") from exc
+            raise ValueError(
+                f"No fallback scene spec for scene {scene_number}"
+            ) from exc
         return {
             "title": title,
             "renderer": "slides",
@@ -678,10 +713,16 @@ class ScriptStage:
         topic_name = topic_title(topic)
         primary_renderer = "slides"
 
-        scene_specs = self._fallback_scene_specs(topic, topic_name, research_text, outline_text, mode)
+        scene_specs = self._fallback_scene_specs(
+            topic, topic_name, research_text, outline_text, mode
+        )
         scenes = []
-        for idx, (scene_title, narration, description) in enumerate(scene_specs, start=1):
-            layout_hint = self._fallback_layout_hint(scene_title, narration, description)
+        for idx, (scene_title, narration, description) in enumerate(
+            scene_specs, start=1
+        ):
+            layout_hint = self._fallback_layout_hint(
+                scene_title, narration, description
+            )
             scenes.append(
                 {
                     "id": f"s{idx:02d}",
@@ -735,9 +776,21 @@ class ScriptStage:
         misconceptions = self._topic_list_from_topic(topic, "misconceptions")
         teaching_notes = self._topic_notes(topic)
         key_term_text = ", ".join(key_terms[:3]) if key_terms else "core terms"
-        visual_hook_text = ", ".join(visual_hooks[:2]) if visual_hooks else "a payoff curve and a strike ladder"
-        misconception_text = ", ".join(misconceptions[:2]) if misconceptions else "common beginner mistakes"
-        note_text = " ".join(teaching_notes[:2]) if teaching_notes else "End with a practical summary that reinforces the core idea."
+        visual_hook_text = (
+            ", ".join(visual_hooks[:2])
+            if visual_hooks
+            else "a payoff curve and a strike ladder"
+        )
+        misconception_text = (
+            ", ".join(misconceptions[:2])
+            if misconceptions
+            else "common beginner mistakes"
+        )
+        note_text = (
+            " ".join(teaching_notes[:2])
+            if teaching_notes
+            else "End with a practical summary that reinforces the core idea."
+        )
         research_excerpt = self._truncate_text(research_text, 180)
         outline_excerpt = self._truncate_text(outline_text, 180)
 
@@ -900,7 +953,9 @@ class ScriptStage:
         return narrated_specs[:24]
 
     @staticmethod
-    def _fallback_layout_hint(scene_title: str, narration: str, description: str) -> str:
+    def _fallback_layout_hint(
+        scene_title: str, narration: str, description: str
+    ) -> str:
         title = scene_title.lower()
         base = "Keep the title in the top band and the main visual centered with labels pushed to the edges."
 
@@ -910,30 +965,24 @@ class ScriptStage:
                 + " Use a single headline and one clean diagram; do not stack paragraphs."
             )
         if title in {"key terms", "checklist", "common traps"}:
-            return (
-                "Use a side panel or vertical list on the right edge. Keep the center clear for one supporting diagram."
-            )
+            return "Use a side panel or vertical list on the right edge. Keep the center clear for one supporting diagram."
         if title in {"flow signal", "volume vs oi", "buyer vs seller"}:
-            return (
-                "Use a two-column layout with mirrored labels on the far left and far right. Keep arrows and markers in the center lane."
-            )
-        if title in {"call example", "put example", "premium", "strike ladder", "expiration"}:
-            return (
-                "Use a left-to-right story with the contract details on the far left edge and the payoff or timeline on the far right edge. Keep the middle 40 percent empty except for one connector, curve, or marker. Do not place bullet lists, strike ladders, or explanatory cards in the center."
-            )
+            return "Use a two-column layout with mirrored labels on the far left and far right. Keep arrows and markers in the center lane."
+        if title in {
+            "call example",
+            "put example",
+            "premium",
+            "strike ladder",
+            "expiration",
+        }:
+            return "Use a left-to-right story with the contract details on the far left edge and the payoff or timeline on the far right edge. Keep the middle 40 percent empty except for one connector, curve, or marker. Do not place bullet lists, strike ladders, or explanatory cards in the center."
         if title in {"delta", "gamma", "theta", "reading the curve"}:
-            return (
-                "Use one central curve or motion path and keep the derivative labels in small corner callouts."
-            )
+            return "Use one central curve or motion path and keep the derivative labels in small corner callouts."
         if title in {"false signals", "context", "example walkthrough"}:
-            return (
-                "Use a split layout with the explanatory text in an outer panel and the main diagram in the center-right."
-            )
+            return "Use a split layout with the explanatory text in an outer panel and the main diagram in the center-right."
 
         if "comparison" in narration.lower() or "comparison" in description.lower():
-            return (
-                "Use a strict side-by-side comparison layout. Put Case A on the left edge and Case B on the right edge, with a clean center gap."
-            )
+            return "Use a strict side-by-side comparison layout. Put Case A on the left edge and Case B on the right edge, with a clean center gap."
 
         return base
 
@@ -954,7 +1003,9 @@ class ScriptStage:
             key_terms = self._topic_list_from_topic(topic, "key_terms")[:5]
             visual_hooks = self._topic_list_from_topic(topic, "visual_hooks")[:3]
             learning_goals = self._topic_list_from_topic(topic, "learning_goals")[:3]
-            cues = [item for item in [*key_terms, *visual_hooks, *learning_goals] if item]
+            cues = [
+                item for item in [*key_terms, *visual_hooks, *learning_goals] if item
+            ]
             if cues:
                 return _compact(f"{topic_name}: " + ", ".join(cues[:6]))
             topic_brief = str(topic.get("brief") or "").strip()
@@ -988,7 +1039,11 @@ class ScriptStage:
             return []
         value = topic.get(key)
         if isinstance(value, list):
-            return [str(item).strip() for item in value if isinstance(item, str) and item.strip()]
+            return [
+                str(item).strip()
+                for item in value
+                if isinstance(item, str) and item.strip()
+            ]
         if isinstance(value, str) and value.strip():
             return [value.strip()]
         return []
@@ -1065,7 +1120,10 @@ class ScriptStage:
         topic_block = self._compact_topic_context(topic)
         research_excerpt = self._truncate_text(research_text, 900)
         outline_excerpt = self._truncate_text(outline_text, 700)
-        previous_block = "\n".join(f"- {item}" for item in completed_scene_summaries[-4:]) or "- None yet"
+        previous_block = (
+            "\n".join(f"- {item}" for item in completed_scene_summaries[-4:])
+            or "- None yet"
+        )
         return f"""
 Topic title: {topic_name}
 Slug: {slug}
@@ -1198,7 +1256,9 @@ Return JSON only.
         payload = f"{research_text}\n---outline---\n{outline_text}".encode("utf-8")
         return hashlib.sha256(payload).hexdigest()
 
-    def _script_signature(self, *, research_signature: str, mode: str, scene_count: int, acts: str) -> str:
+    def _script_signature(
+        self, *, research_signature: str, mode: str, scene_count: int, acts: str
+    ) -> str:
         payload = (
             f"{research_signature}\n"
             f"{self.cfg.llm_provider}\n"
@@ -1251,7 +1311,9 @@ Return JSON only.
                 practice_lines.append(self._truncate_text(description, 160))
             if isinstance(objectives, list):
                 objective_text = "; ".join(
-                    str(item).strip() for item in objectives[:3] if isinstance(item, str) and item.strip()
+                    str(item).strip()
+                    for item in objectives[:3]
+                    if isinstance(item, str) and item.strip()
                 )
                 if objective_text:
                     practice_lines.append(objective_text)
@@ -1267,29 +1329,76 @@ Return JSON only.
     # evidence about the content.
     PLACEHOLDER_BRIEF = "no live evidence was collected"
 
-    def _suggest_renderer(self, topic: TopicInput, research_text: str, outline_text: str) -> str:
+    def _suggest_renderer(
+        self, topic: TopicInput, research_text: str, outline_text: str
+    ) -> str:
         if self.PLACEHOLDER_BRIEF in research_text.lower():
             research_text = ""
-        haystack = " ".join([topic_context_json(topic), research_text[:4000], outline_text[:2000]]).lower()
+        haystack = " ".join(
+            [topic_context_json(topic), research_text[:4000], outline_text[:2000]]
+        ).lower()
 
-        if any(word in haystack for word in [
-            "option", "options", "strike", "premium", "payoff", "breakeven",
-            "expiration", "expiry", "theta", "delta", "gamma", "vega",
-            "call", "put", "intrinsic", "extrinsic",
-            "volatility", "implied vol", "moneyness", "greeks",
-        ]):
+        if any(
+            word in haystack
+            for word in [
+                "option",
+                "options",
+                "strike",
+                "premium",
+                "payoff",
+                "breakeven",
+                "expiration",
+                "expiry",
+                "theta",
+                "delta",
+                "gamma",
+                "vega",
+                "call",
+                "put",
+                "intrinsic",
+                "extrinsic",
+                "volatility",
+                "implied vol",
+                "moneyness",
+                "greeks",
+            ]
+        ):
             return "manim"
 
-        if any(word in haystack for word in [
-            "chart", "graph", "trend", "distribution", "histogram", "scatter",
-            "bar chart", "time-series", "timeseries", "data", "dashboard", "table",
-        ]):
+        if any(
+            word in haystack
+            for word in [
+                "chart",
+                "graph",
+                "trend",
+                "distribution",
+                "histogram",
+                "scatter",
+                "bar chart",
+                "time-series",
+                "timeseries",
+                "data",
+                "dashboard",
+                "table",
+            ]
+        ):
             return "d3"
 
-        if any(word in haystack for word in [
-            "slide", "presentation", "bullet", "checklist", "summary", "walkthrough", "explainer",
-            "story", "narrative", "step-by-step",
-        ]):
+        if any(
+            word in haystack
+            for word in [
+                "slide",
+                "presentation",
+                "bullet",
+                "checklist",
+                "summary",
+                "walkthrough",
+                "explainer",
+                "story",
+                "narrative",
+                "step-by-step",
+            ]
+        ):
             return "slides"
 
         return "manim"

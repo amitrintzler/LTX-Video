@@ -7,6 +7,7 @@ left-to-right, so Hebrew comes out reversed and Arabic letters never join.
 
 Both are handled here so no film has to think about them again.
 """
+
 from __future__ import annotations
 
 from PIL import ImageFont
@@ -30,8 +31,9 @@ def is_rtl() -> bool:
     return LOCALE.get("dir") == "rtl"
 
 
-def font(size: int, face: int, default_path: str,
-         heavy_face: int | None = None) -> ImageFont.FreeTypeFont:
+def font(
+    size: int, face: int, default_path: str, heavy_face: int | None = None
+) -> ImageFont.FreeTypeFont:
     """The right face for the active locale, at the requested weight.
 
     `heavy_face` names which index of the project's own collection counts as
@@ -42,7 +44,9 @@ def font(size: int, face: int, default_path: str,
     if entry:
         path, bold_idx, plain_idx = entry
         want_bold = heavy_face is not None and face == heavy_face
-        return ImageFont.truetype(path, size, index=bold_idx if want_bold else plain_idx)
+        return ImageFont.truetype(
+            path, size, index=bold_idx if want_bold else plain_idx
+        )
     return ImageFont.truetype(default_path, size, index=face)
 
 
@@ -87,8 +91,9 @@ def tracked_width(draw, text: str, f, spacing: float = 0.0) -> int:
     text = shaped(text)
     if is_rtl():
         return int(draw.textlength(text, font=f))
-    return int(sum(draw.textlength(c, font=f) for c in text)
-               + spacing * max(0, len(text) - 1))
+    return int(
+        sum(draw.textlength(c, font=f) for c in text) + spacing * max(0, len(text) - 1)
+    )
 
 
 def align(draw, text: str, f, spacing: float, margin: int, width: int = 1280) -> int:

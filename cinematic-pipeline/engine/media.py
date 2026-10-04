@@ -5,6 +5,7 @@ produced. Stills were side effects. Naming the kind up front lets one engine
 serve video, images and audio, and lets a provider refuse work it cannot do
 before a render starts rather than halfway through.
 """
+
 from __future__ import annotations
 
 from dataclasses import dataclass, field

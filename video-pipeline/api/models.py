@@ -13,7 +13,9 @@ class JobRequest(BaseModel):
         "all", "research", "script", "render", "tts", "stitch", "validate"
     ] = "all"
     mode: Literal["narrated", "companion-long", "both"] = "both"
-    output_mode: Optional[Literal["narrated", "companion-short", "companion-long"]] = None
+    output_mode: Optional[Literal["narrated", "companion-short", "companion-long"]] = (
+        None
+    )
     skip_validation: bool = False
     max_scenes: Optional[int] = None
     config_overrides: dict[str, Any] = {}

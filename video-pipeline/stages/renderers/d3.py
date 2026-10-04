@@ -58,9 +58,13 @@ def _capture_html_frame(
     description: str,
     style: str,
 ) -> None:
-    frame = Image.new("RGBA", (width, height), _hex_to_rgba(_theme_from_style(style)[0], 255))
+    frame = Image.new(
+        "RGBA", (width, height), _hex_to_rgba(_theme_from_style(style)[0], 255)
+    )
     draw = ImageDraw.Draw(frame, "RGBA")
-    bg_color, primary_color, secondary_color, text_color, muted_color = _theme_from_style(style)
+    bg_color, primary_color, secondary_color, text_color, muted_color = (
+        _theme_from_style(style)
+    )
 
     _paint_background(frame, primary_color, secondary_color)
 
@@ -75,9 +79,24 @@ def _capture_html_frame(
     left_x = pad_x
     right_x = left_x + left_w + gap
 
-    _draw_panel(draw, (pad_x, pad_y, width - pad_x, pad_y + header_h), fill=(255, 255, 255, 18), outline=(255, 255, 255, 32))
-    _draw_panel(draw, (left_x, panel_y, left_x + left_w, panel_y + panel_h), fill=(255, 255, 255, 14), outline=(255, 255, 255, 30))
-    _draw_panel(draw, (right_x, panel_y, right_x + right_w, panel_y + panel_h), fill=(255, 255, 255, 14), outline=(255, 255, 255, 30))
+    _draw_panel(
+        draw,
+        (pad_x, pad_y, width - pad_x, pad_y + header_h),
+        fill=(255, 255, 255, 18),
+        outline=(255, 255, 255, 32),
+    )
+    _draw_panel(
+        draw,
+        (left_x, panel_y, left_x + left_w, panel_y + panel_h),
+        fill=(255, 255, 255, 14),
+        outline=(255, 255, 255, 30),
+    )
+    _draw_panel(
+        draw,
+        (right_x, panel_y, right_x + right_w, panel_y + panel_h),
+        fill=(255, 255, 255, 14),
+        outline=(255, 255, 255, 30),
+    )
 
     eyebrow_font = _load_font(max(18, int(width * 0.012)), bold=True)
     title_font, title_lines = _fit_wrapped_text(
@@ -99,17 +118,43 @@ def _capture_html_frame(
     )
 
     draw.text((pad_x + 28, pad_y + 20), title, fill=muted_color, font=eyebrow_font)
-    _draw_multiline_text(draw, pad_x + 28, pad_y + 56, title_lines, title_font, fill=text_color, spacing=int(title_font.size * 0.14))
-    title_block_height = _text_block_height(draw, title_lines, title_font, spacing=int(title_font.size * 0.14))
+    _draw_multiline_text(
+        draw,
+        pad_x + 28,
+        pad_y + 56,
+        title_lines,
+        title_font,
+        fill=text_color,
+        spacing=int(title_font.size * 0.14),
+    )
+    title_block_height = _text_block_height(
+        draw, title_lines, title_font, spacing=int(title_font.size * 0.14)
+    )
     narration_y = pad_y + 56 + title_block_height + 16
-    _draw_multiline_text(draw, pad_x + 28, narration_y, narration_lines, narration_font, fill=muted_color, spacing=int(narration_font.size * 0.22))
+    _draw_multiline_text(
+        draw,
+        pad_x + 28,
+        narration_y,
+        narration_lines,
+        narration_font,
+        fill=muted_color,
+        spacing=int(narration_font.size * 0.22),
+    )
 
     # Left panel: chart
     chart_x0 = left_x + 48
     chart_y0 = panel_y + 54
     chart_x1 = left_x + left_w - 44
     chart_y1 = panel_y + panel_h - 44
-    _draw_chart(draw, (chart_x0, chart_y0, chart_x1, chart_y1), description, primary_color, secondary_color, muted_color, text_color)
+    _draw_chart(
+        draw,
+        (chart_x0, chart_y0, chart_x1, chart_y1),
+        description,
+        primary_color,
+        secondary_color,
+        muted_color,
+        text_color,
+    )
 
     # Right panel: signal cards and bullets
     cards_top = panel_y + 38
@@ -117,15 +162,39 @@ def _capture_html_frame(
     card_gap = int(height * 0.012)
     card_x = right_x + 24
     card_w = right_w - 48
-    for idx, (label, value, fill_ratio, accent) in enumerate(_signal_cards(description, primary_color, secondary_color)):
+    for idx, (label, value, fill_ratio, accent) in enumerate(
+        _signal_cards(description, primary_color, secondary_color)
+    ):
         y = cards_top + idx * (card_h + card_gap)
-        _draw_card(draw, (card_x, y, card_x + card_w, y + card_h), label, value, fill_ratio, accent, muted_color, text_color)
+        _draw_card(
+            draw,
+            (card_x, y, card_x + card_w, y + card_h),
+            label,
+            value,
+            fill_ratio,
+            accent,
+            muted_color,
+            text_color,
+        )
 
     bullets_top = cards_top + 3 * (card_h + card_gap) + 6
     bullets = _description_bullets(description)
     if not bullets:
-        bullets = ["Chart-driven scene.", "The visual language stays data-first.", "Each signal is grounded in the research."]
-    _draw_bullet_list(draw, card_x, bullets_top, card_w, panel_y + panel_h - 34, bullets, text_color, muted_color)
+        bullets = [
+            "Chart-driven scene.",
+            "The visual language stays data-first.",
+            "Each signal is grounded in the research.",
+        ]
+    _draw_bullet_list(
+        draw,
+        card_x,
+        bullets_top,
+        card_w,
+        panel_y + panel_h - 34,
+        bullets,
+        text_color,
+        muted_color,
+    )
 
     png_path.parent.mkdir(parents=True, exist_ok=True)
     frame.convert("RGB").save(png_path, format="PNG")
@@ -141,7 +210,9 @@ def _draw_chart(
     text_color: str,
 ) -> None:
     x0, y0, x1, y1 = box
-    draw.rounded_rectangle(box, radius=26, fill=(255, 255, 255, 10), outline=(255, 255, 255, 24), width=2)
+    draw.rounded_rectangle(
+        box, radius=26, fill=(255, 255, 255, 10), outline=(255, 255, 255, 24), width=2
+    )
 
     inner = (x0 + 20, y0 + 20, x1 - 20, y1 - 26)
     ix0, iy0, ix1, iy1 = inner
@@ -166,13 +237,22 @@ def _draw_chart(
 
     for idx, (sx, sy) in enumerate(mapped):
         draw.ellipse((sx - 12, sy - 12, sx + 12, sy + 12), fill=(0, 0, 0, 90))
-        draw.ellipse((sx - 9, sy - 9, sx + 9, sy + 9), fill=_hex_to_rgba("#FFFFFF", 235), outline=_hex_to_rgba(primary_color, 200), width=2)
+        draw.ellipse(
+            (sx - 9, sy - 9, sx + 9, sy + 9),
+            fill=_hex_to_rgba("#FFFFFF", 235),
+            outline=_hex_to_rgba(primary_color, 200),
+            width=2,
+        )
         label = f"P{idx + 1}"
-        draw.text((sx + 14, sy - 20), label, fill=muted_color, font=_load_font(14, bold=True))
+        draw.text(
+            (sx + 14, sy - 20), label, fill=muted_color, font=_load_font(14, bold=True)
+        )
 
     axis_font = _load_font(16, bold=False)
     draw.text((ix0, iy1 + 8), "Trend axis", fill=muted_color, font=axis_font)
-    draw.text((ix1 - 160, iy1 + 8), "Research-backed motion", fill=muted_color, font=axis_font)
+    draw.text(
+        (ix1 - 160, iy1 + 8), "Research-backed motion", fill=muted_color, font=axis_font
+    )
 
     header_font = _load_font(20, bold=True)
     draw.text((x0 + 24, y0 + 16), "Trend view", fill=text_color, font=header_font)
@@ -189,7 +269,9 @@ def _draw_card(
     text_color: str,
 ) -> None:
     x0, y0, x1, y1 = box
-    draw.rounded_rectangle(box, radius=20, fill=(255, 255, 255, 12), outline=(255, 255, 255, 24), width=2)
+    draw.rounded_rectangle(
+        box, radius=20, fill=(255, 255, 255, 12), outline=(255, 255, 255, 24), width=2
+    )
     label_font = _load_font(14, bold=True)
     value_font = _load_font(34, bold=True)
     draw.text((x0 + 18, y0 + 14), label, fill=muted_color, font=label_font)
@@ -197,9 +279,19 @@ def _draw_card(
 
     bar_h = 13
     bar_y = y1 - 22 - bar_h
-    draw.rounded_rectangle((x0 + 18, bar_y, x1 - 18, bar_y + bar_h), radius=999, fill=(255, 255, 255, 12), outline=(255, 255, 255, 18), width=1)
+    draw.rounded_rectangle(
+        (x0 + 18, bar_y, x1 - 18, bar_y + bar_h),
+        radius=999,
+        fill=(255, 255, 255, 12),
+        outline=(255, 255, 255, 18),
+        width=1,
+    )
     fill_w = int((x1 - x0 - 36) * max(0.18, min(fill_ratio, 1.0)))
-    draw.rounded_rectangle((x0 + 18, bar_y, x0 + 18 + fill_w, bar_y + bar_h), radius=999, fill=_hex_to_rgba(accent, 255))
+    draw.rounded_rectangle(
+        (x0 + 18, bar_y, x0 + 18 + fill_w, bar_y + bar_h),
+        radius=999,
+        fill=_hex_to_rgba(accent, 255),
+    )
 
 
 def _draw_bullet_list(
@@ -219,14 +311,20 @@ def _draw_bullet_list(
     bullet_width = width - 12
     for bullet in bullets[:5]:
         lines = _wrap_text(draw, bullet, body_font, bullet_width - 22)
-        draw.ellipse((x + 2, y + 8, x + 10, y + 16), fill=_hex_to_rgba(muted_color, 220))
-        _draw_multiline_text(draw, x + 18, y, lines, body_font, fill=text_color, spacing=4)
+        draw.ellipse(
+            (x + 2, y + 8, x + 10, y + 16), fill=_hex_to_rgba(muted_color, 220)
+        )
+        _draw_multiline_text(
+            draw, x + 18, y, lines, body_font, fill=text_color, spacing=4
+        )
         y += _text_block_height(draw, lines, body_font, spacing=4) + 14
         if y > bottom:
             break
 
 
-def _encode_frame_video(frame_path: Path, out_path: Path, duration_sec: int, fps: int) -> Path:
+def _encode_frame_video(
+    frame_path: Path, out_path: Path, duration_sec: int, fps: int
+) -> Path:
     out_path.parent.mkdir(parents=True, exist_ok=True)
     cmd = [
         "ffmpeg",
@@ -252,17 +350,23 @@ def _encode_frame_video(frame_path: Path, out_path: Path, duration_sec: int, fps
     try:
         result = subprocess.run(cmd, capture_output=True, text=True)
     except FileNotFoundError as e:
-        raise D3RenderError("FFmpeg not found. Install it with: brew install ffmpeg") from e
+        raise D3RenderError(
+            "FFmpeg not found. Install it with: brew install ffmpeg"
+        ) from e
 
     if result.returncode != 0:
         raise D3RenderError((result.stderr or result.stdout or "FFmpeg failed")[-2000:])
 
     if not out_path.exists():
-        raise D3RenderError("FFmpeg reported success but the output file was not created")
+        raise D3RenderError(
+            "FFmpeg reported success but the output file was not created"
+        )
     return out_path
 
 
-def _paint_background(frame: Image.Image, primary_color: str, secondary_color: str) -> None:
+def _paint_background(
+    frame: Image.Image, primary_color: str, secondary_color: str
+) -> None:
     width, height = frame.size
     overlay = Image.new("RGBA", frame.size, (0, 0, 0, 0))
     overlay_draw = ImageDraw.Draw(overlay, "RGBA")
@@ -279,7 +383,9 @@ def _paint_background(frame: Image.Image, primary_color: str, secondary_color: s
         (int(width * 0.42), int(height * 0.72), int(width * 0.82), int(height * 1.02)),
         fill=_hex_to_rgba("#FFFFFF", 20),
     )
-    overlay = overlay.filter(ImageFilter.GaussianBlur(radius=max(30, int(min(width, height) * 0.05))))
+    overlay = overlay.filter(
+        ImageFilter.GaussianBlur(radius=max(30, int(min(width, height) * 0.05)))
+    )
     frame.alpha_composite(overlay)
 
     grid = Image.new("RGBA", frame.size, (0, 0, 0, 0))
@@ -293,7 +399,13 @@ def _paint_background(frame: Image.Image, primary_color: str, secondary_color: s
     frame.alpha_composite(grid)
 
 
-def _draw_panel(draw: ImageDraw.ImageDraw, box: tuple[int, int, int, int], *, fill: tuple[int, int, int, int], outline: tuple[int, int, int, int]) -> None:
+def _draw_panel(
+    draw: ImageDraw.ImageDraw,
+    box: tuple[int, int, int, int],
+    *,
+    fill: tuple[int, int, int, int],
+    outline: tuple[int, int, int, int],
+) -> None:
     draw.rounded_rectangle(box, radius=28, fill=fill, outline=outline, width=2)
 
 
@@ -312,12 +424,18 @@ def _synthetic_points(description: str) -> list[tuple[float, float]]:
     points = []
     for i in range(7):
         x = 1 + i
-        y = 30 + ((seed * (i + 3)) % 50) + int(18 * math.sin((seed % 11 + 1) * (i + 1) / 3.0))
+        y = (
+            30
+            + ((seed * (i + 3)) % 50)
+            + int(18 * math.sin((seed % 11 + 1) * (i + 1) / 3.0))
+        )
         points.append((x, max(12, min(90, y))))
     return points
 
 
-def _map_points(points: list[tuple[float, float]], x0: int, y0: int, width: int, height: int) -> list[tuple[float, float]]:
+def _map_points(
+    points: list[tuple[float, float]], x0: int, y0: int, width: int, height: int
+) -> list[tuple[float, float]]:
     if not points:
         return []
     xs = [p[0] for p in points]
@@ -337,23 +455,36 @@ def _map_points(points: list[tuple[float, float]], x0: int, y0: int, width: int,
 def _description_bullets(description: str) -> list[str]:
     if not description.strip():
         return []
-    parts = [item.strip() for item in re.split(r"(?<=[.!?])\s+", description) if item.strip()]
+    parts = [
+        item.strip() for item in re.split(r"(?<=[.!?])\s+", description) if item.strip()
+    ]
     if len(parts) <= 1:
-        parts = [item.strip() for item in re.split(r",\s*", description) if item.strip()]
+        parts = [
+            item.strip() for item in re.split(r",\s*", description) if item.strip()
+        ]
     bullets = []
     for item in parts[:5]:
         bullets.append(item[:140].rstrip() + ("..." if len(item) > 140 else ""))
     return bullets
 
 
-def _signal_cards(description: str, primary_color: str, secondary_color: str) -> list[tuple[str, str, float, str]]:
+def _signal_cards(
+    description: str, primary_color: str, secondary_color: str
+) -> list[tuple[str, str, float, str]]:
     seed = sum(ord(c) for c in description) or 1
     cards = []
     labels = ["Signal 1", "Signal 2", "Signal 3"]
     suffixes = ["%", "x", "pts"]
     for idx, label in enumerate(labels):
         value = (seed * (idx + 3)) % 100
-        cards.append((label, f"{value:02d}{suffixes[idx]}", 0.42 + 0.18 * idx, primary_color if idx != 1 else secondary_color))
+        cards.append(
+            (
+                label,
+                f"{value:02d}{suffixes[idx]}",
+                0.42 + 0.18 * idx,
+                primary_color if idx != 1 else secondary_color,
+            )
+        )
     return cards
 
 
@@ -377,7 +508,7 @@ def _mix_hex(a: str, b: str, t: float) -> tuple[int, int, int, int]:
 
 def _hex_to_rgb(value: str) -> tuple[int, int, int]:
     value = value.lstrip("#")
-    return tuple(int(value[i:i + 2], 16) for i in (0, 2, 4))
+    return tuple(int(value[i : i + 2], 16) for i in (0, 2, 4))
 
 
 def _hex_to_rgba(value: str, alpha: int) -> tuple[int, int, int, int]:
@@ -387,12 +518,28 @@ def _hex_to_rgba(value: str, alpha: int) -> tuple[int, int, int, int]:
 
 def _load_font(size: int, bold: bool = False) -> ImageFont.ImageFont:
     candidates = [
-        "/System/Library/Fonts/Supplemental/Arial Bold.ttf" if bold else "/System/Library/Fonts/Supplemental/Arial.ttf",
-        "/System/Library/Fonts/Supplemental/Helvetica Neue Bold.ttf" if bold else "/System/Library/Fonts/Supplemental/Helvetica Neue.ttf",
+        (
+            "/System/Library/Fonts/Supplemental/Arial Bold.ttf"
+            if bold
+            else "/System/Library/Fonts/Supplemental/Arial.ttf"
+        ),
+        (
+            "/System/Library/Fonts/Supplemental/Helvetica Neue Bold.ttf"
+            if bold
+            else "/System/Library/Fonts/Supplemental/Helvetica Neue.ttf"
+        ),
         "/System/Library/Fonts/Supplemental/Helvetica.ttc",
         "/Library/Fonts/Arial Bold.ttf" if bold else "/Library/Fonts/Arial.ttf",
-        "/System/Library/Fonts/Supplemental/DejaVu Sans Bold.ttf" if bold else "/System/Library/Fonts/Supplemental/DejaVu Sans.ttf",
-        "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf" if bold else "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
+        (
+            "/System/Library/Fonts/Supplemental/DejaVu Sans Bold.ttf"
+            if bold
+            else "/System/Library/Fonts/Supplemental/DejaVu Sans.ttf"
+        ),
+        (
+            "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf"
+            if bold
+            else "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf"
+        ),
     ]
     for candidate in candidates:
         try:
@@ -421,7 +568,9 @@ def _fit_wrapped_text(
     return font, _wrap_text(draw, text, font, max_width)[:max_lines]
 
 
-def _wrap_text(draw: ImageDraw.ImageDraw, text: str, font: ImageFont.ImageFont, max_width: int) -> list[str]:
+def _wrap_text(
+    draw: ImageDraw.ImageDraw, text: str, font: ImageFont.ImageFont, max_width: int
+) -> list[str]:
     words = text.split()
     if not words:
         return [""]

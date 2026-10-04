@@ -131,9 +131,21 @@ def _accept_animation(src: Path, label: str) -> None:
     does not. (A YDIF-average gate was tried first and could not separate
     a statue at 3.8 from a Veo walk-through at 4.7.)"""
     probe = subprocess.run(
-        ["ffmpeg", "-v", "info", "-i", str(src), "-vf",
-         "freezedetect=n=0.01:d=1.5", "-an", "-f", "null", "-"],
-        capture_output=True, text=True,
+        [
+            "ffmpeg",
+            "-v",
+            "info",
+            "-i",
+            str(src),
+            "-vf",
+            "freezedetect=n=0.01:d=1.5",
+            "-an",
+            "-f",
+            "null",
+            "-",
+        ],
+        capture_output=True,
+        text=True,
     )
     if "freeze_start" in probe.stderr or Path(src).stat().st_size < 100_000:
         raise SystemExit(f"{label}: broken/static clip at {src} - not accepting it.")
@@ -315,9 +327,11 @@ def _font(size: int, bold: bool = True):
     from PIL import ImageFont
 
     for cand in (
-        "/System/Library/Fonts/Supplemental/Georgia Bold.ttf"
-        if bold
-        else "/System/Library/Fonts/Supplemental/Georgia.ttf",
+        (
+            "/System/Library/Fonts/Supplemental/Georgia Bold.ttf"
+            if bold
+            else "/System/Library/Fonts/Supplemental/Georgia.ttf"
+        ),
         "/System/Library/Fonts/Supplemental/Arial Bold.ttf",
         "/System/Library/Fonts/Helvetica.ttc",
     ):

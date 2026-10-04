@@ -18,19 +18,33 @@ from pathlib import Path
 import numpy as np
 
 W, H = 1280, 720
-GRID = 56           # template samples per side
-HALF = 150.0        # template half-extent in pixels, before clamping to the quad
-MIN_SCORE = 0.45    # below this the match is not trusted and the last pose is held
-REFRESH = 10        # frames between template refreshes
+GRID = 56  # template samples per side
+HALF = 150.0  # template half-extent in pixels, before clamping to the quad
+MIN_SCORE = 0.45  # below this the match is not trusted and the last pose is held
+REFRESH = 10  # frames between template refreshes
 REFRESH_SCORE = 0.55  # only refresh from a frame that matched well
 
 
 def read_gray(path: Path) -> np.ndarray:
     """Whole shot as float32 luma, shape (frames, H, W)."""
     proc = subprocess.run(
-        ["ffmpeg", "-v", "error", "-i", str(path),
-         "-f", "rawvideo", "-pix_fmt", "gray", "-s", f"{W}x{H}", "-"],
-        capture_output=True, check=True)
+        [
+            "ffmpeg",
+            "-v",
+            "error",
+            "-i",
+            str(path),
+            "-f",
+            "rawvideo",
+            "-pix_fmt",
+            "gray",
+            "-s",
+            f"{W}x{H}",
+            "-",
+        ],
+        capture_output=True,
+        check=True,
+    )
     buf = np.frombuffer(proc.stdout, dtype=np.uint8)
     return buf.reshape(-1, H, W).astype(np.float32)
 
@@ -50,8 +64,9 @@ def _zncc(a: np.ndarray, b: np.ndarray) -> np.ndarray:
     return (a @ b) / (na * nb)
 
 
-def track_global(frames, ratios=(0.985, 0.99, 0.995, 1.0, 1.005, 1.01, 1.015),
-                 shift=6, step=3.0):
+def track_global(
+    frames, ratios=(0.985, 0.99, 0.995, 1.0, 1.005, 1.01, 1.015), shift=6, step=3.0
+):
     """Estimate the shot's overall camera move: scale and shift, per frame.
 
     One wall can leave shot, go dark or be swallowed by a foreground building,
@@ -97,14 +112,23 @@ def track_global(frames, ratios=(0.985, 0.99, 0.995, 1.0, 1.005, 1.01, 1.015),
         poses.append(best[1])
         if f % 8 == 0:
             sc, tx, ty = best[1]
-            template = _sample(frames[f], cx + (ux - cx) * sc + tx,
-                               cy + (uy - cy) * sc + ty)
+            template = _sample(
+                frames[f], cx + (ux - cx) * sc + tx, cy + (uy - cy) * sc + ty
+            )
     return poses
 
 
-def track_quad_frames(frames, quad, ratios=(0.982, 0.988, 0.994, 1.0, 1.006, 1.012, 1.018),
-                      shift=7, step=2.0, grid=GRID, half=HALF, size=(W, H),
-                      prior=None):
+def track_quad_frames(
+    frames,
+    quad,
+    ratios=(0.982, 0.988, 0.994, 1.0, 1.006, 1.012, 1.018),
+    shift=7,
+    step=2.0,
+    grid=GRID,
+    half=HALF,
+    size=(W, H),
+    prior=None,
+):
     """Follow `quad` (frame-0 coordinates) through `clip`.
 
     Horizontal and vertical scale move apart when a wall recedes, so they are
@@ -120,8 +144,12 @@ def track_quad_frames(frames, quad, ratios=(0.982, 0.988, 0.994, 1.0, 1.006, 1.0
 
     # The grid spans the quad, padded a little so wall texture around the panel
     # contributes: a flat glass face on its own has too little to lock onto.
-    half_x = min(half, max(60.0 * half / HALF, (pts[:, 0].max() - pts[:, 0].min()) * 0.75))
-    half_y = min(half, max(60.0 * half / HALF, (pts[:, 1].max() - pts[:, 1].min()) * 0.75))
+    half_x = min(
+        half, max(60.0 * half / HALF, (pts[:, 0].max() - pts[:, 0].min()) * 0.75)
+    )
+    half_y = min(
+        half, max(60.0 * half / HALF, (pts[:, 1].max() - pts[:, 1].min()) * 0.75)
+    )
     lin = np.linspace(-1.0, 1.0, grid)
     gx, gy = np.meshgrid(lin, lin)
     ux = (cx + gx * half_x).ravel()
@@ -170,8 +198,10 @@ def track_quad_frames(frames, quad, ratios=(0.982, 0.988, 0.994, 1.0, 1.006, 1.0
                 sc = score_at(frames[f], sx0 * rx, sy0 * ry, tx0, ty0, ccx, ccy)
                 k = int(np.argmax(sc))
                 if sc[k] > best[0]:
-                    best = (float(sc[k]), (sx0 * rx, sy0 * ry,
-                                           tx0 + float(ccx[k]), ty0 + float(ccy[k])))
+                    best = (
+                        float(sc[k]),
+                        (sx0 * rx, sy0 * ry, tx0 + float(ccx[k]), ty0 + float(ccy[k])),
+                    )
         sx, sy, bx, by = best[1]
         sc = score_at(frames[f], sx, sy, bx, by, fx, fy)
         k = int(np.argmax(sc))
@@ -192,19 +222,24 @@ def track_quad_frames(frames, quad, ratios=(0.982, 0.988, 0.994, 1.0, 1.006, 1.0
         # and only from a frame that matched well, so shimmer cannot accumulate.
         if f % REFRESH == 0 and best[0] >= REFRESH_SCORE:
             sx, sy, tx, ty = best[1]
-            template = _sample(frames[f],
-                               cx + (ux - cx) * sx + tx,
-                               cy + (uy - cy) * sy + ty)
+            template = _sample(
+                frames[f], cx + (ux - cx) * sx + tx, cy + (uy - cy) * sy + ty
+            )
 
     out = []
     for sx, sy, tx, ty in poses:
-        out.append([[cx + (x - cx) * sx + tx, cy + (y - cy) * sy + ty] for x, y in quad])
+        out.append(
+            [[cx + (x - cx) * sx + tx, cy + (y - cy) * sy + ty] for x, y in quad]
+        )
     return out, scores
 
 
 def track_cached(clip: Path, quad, cache: Path):
-    key = {"clip": str(clip), "mtime": int(clip.stat().st_mtime),
-           "quad": [list(map(float, p)) for p in quad]}
+    key = {
+        "clip": str(clip),
+        "mtime": int(clip.stat().st_mtime),
+        "quad": [list(map(float, p)) for p in quad],
+    }
     if cache.is_file():
         try:
             blob = json.loads(cache.read_text())

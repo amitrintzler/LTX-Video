@@ -72,6 +72,5 @@ class TTSStage:
     def _check_imports(self):
         if KPipeline is None:
             raise ImportError(
-                "Kokoro TTS is required.\n"
-                "Install with: pip install kokoro soundfile"
+                "Kokoro TTS is required.\n" "Install with: pip install kokoro soundfile"
             )

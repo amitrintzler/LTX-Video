@@ -38,7 +38,9 @@ def submit_job(store: JobStore, job: Job, request_data: dict[str, Any]) -> None:
     future.add_done_callback(lambda f: _handle_future_error(store, job.job_id, f))
 
 
-def _handle_future_error(store: JobStore, job_id: str, future: concurrent.futures.Future) -> None:
+def _handle_future_error(
+    store: JobStore, job_id: str, future: concurrent.futures.Future
+) -> None:
     """Callback to handle executor crashes (shouldn't happen, but good safety net)."""
     try:
         future.result()
@@ -46,7 +48,10 @@ def _handle_future_error(store: JobStore, job_id: str, future: concurrent.future
         job = store.get(job_id)
         if job:
             store.update_status(
-                job_id, "failed", finished_at=time.time(), error=f"Executor error: {exc}"
+                job_id,
+                "failed",
+                finished_at=time.time(),
+                error=f"Executor error: {exc}",
             )
 
 
@@ -63,13 +68,19 @@ def _run_job(store: JobStore, job: Job, req: dict[str, Any]) -> None:
     """
     job_work_dir = API_WORK_BASE / job.job_id
     # Create logger with callback to store logs in job.log_history for replay
-    log = make_job_logger(job.job_id, job.log_queue, on_log=lambda msg: job.log_history.append(msg))
+    log = make_job_logger(
+        job.job_id, job.log_queue, on_log=lambda msg: job.log_history.append(msg)
+    )
 
-    store.update_status(job.job_id, "running", started_at=time.time(), work_dir=str(job_work_dir))
+    store.update_status(
+        job.job_id, "running", started_at=time.time(), work_dir=str(job_work_dir)
+    )
 
     try:
         # Build per-job config with work_dir isolation
-        cfg = build_config(BASE_CONFIG_PATH, job_work_dir, req.get("config_overrides", {}))
+        cfg = build_config(
+            BASE_CONFIG_PATH, job_work_dir, req.get("config_overrides", {})
+        )
 
         # Normalize stage: "all" -> None for pipeline internals
         stage = req.get("stage")
@@ -77,7 +88,11 @@ def _run_job(store: JobStore, job: Job, req: dict[str, Any]) -> None:
             stage = None
 
         log.info(f"Loading input: {req.get('topic', 'script JSON')}")
-        log.info("Render codegen backend: provider=%s model=%s", cfg.render_llm_provider, cfg.render_llm_model_name())
+        log.info(
+            "Render codegen backend: provider=%s model=%s",
+            cfg.render_llm_provider,
+            cfg.render_llm_model_name(),
+        )
 
         # Route based on input type
         if req.get("script_json"):
@@ -89,7 +104,9 @@ def _run_job(store: JobStore, job: Job, req: dict[str, Any]) -> None:
             script_path = scripts_dir / f"{slug}.json"
             script_path.write_text(json.dumps(script))
 
-            log.info(f"Project: '{script.get('title', 'untitled')}' — {len(script.get('scenes', []))} scenes")
+            log.info(
+                f"Project: '{script.get('title', 'untitled')}' — {len(script.get('scenes', []))} scenes"
+            )
 
             scenes = script.get("scenes", [])
             if needs_draw_things(scenes):

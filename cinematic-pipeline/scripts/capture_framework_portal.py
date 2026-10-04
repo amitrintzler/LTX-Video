@@ -1,6 +1,7 @@
 from pathlib import Path
 from playwright.sync_api import sync_playwright
-OUT = Path.home()/"LTX-Renders"/"framework-design"/"work"/"portal"
+
+OUT = Path.home() / "LTX-Renders" / "framework-design" / "work" / "portal"
 BASE = "https://gameofoptions.netlify.app"
 HIDE = """() => {
   const hid = [];
@@ -19,12 +20,15 @@ HIDE = """() => {
 }"""
 with sync_playwright() as pw:
     b = pw.chromium.launch()
-    for name, route in (("daily", "/daily-brief?locale=en"), ("lesson", "/learn/theta-clock?locale=en")):
-        pg = b.new_page(viewport={"width":1920,"height":1080})
-        pg.goto(BASE+route, wait_until="load", timeout=60000)
+    for name, route in (
+        ("daily", "/daily-brief?locale=en"),
+        ("lesson", "/learn/theta-clock?locale=en"),
+    ):
+        pg = b.new_page(viewport={"width": 1920, "height": 1080})
+        pg.goto(BASE + route, wait_until="load", timeout=60000)
         pg.wait_for_timeout(3500)
         print(name, pg.evaluate(HIDE))
         pg.wait_for_timeout(600)
-        pg.screenshot(path=str(OUT/f"{name}.png"))
+        pg.screenshot(path=str(OUT / f"{name}.png"))
         pg.close()
     b.close()

@@ -296,9 +296,7 @@ def snapshot() -> dict[str, Any]:
     cut_why = (
         "ffmpeg is not on PATH"
         if not ffmpeg
-        else ""
-        if numpy_ok
-        else "numpy is not installed for this Python"
+        else "" if numpy_ok else "numpy is not installed for this Python"
     )
 
     checks = {
@@ -306,12 +304,14 @@ def snapshot() -> dict[str, Any]:
         "compose-score": ready(True),
         "qa": ready(
             ffmpeg and bool(found_masters),
-            ""
-            if ffmpeg and found_masters
-            else (
-                "ffmpeg is not on PATH"
-                if not ffmpeg
-                else "no rendered video to check yet"
+            (
+                ""
+                if ffmpeg and found_masters
+                else (
+                    "ffmpeg is not on PATH"
+                    if not ffmpeg
+                    else "no rendered video to check yet"
+                )
             ),
         ),
         "vertical-cut": ready(
@@ -371,39 +371,49 @@ def snapshot() -> dict[str, Any]:
         ),
         "story-reel": ready(
             flow["ok"] and ffmpeg,
-            flow["detail"]
-            if not flow["ok"]
-            else ("" if ffmpeg else "ffmpeg is not on PATH"),
+            (
+                flow["detail"]
+                if not flow["ok"]
+                else ("" if ffmpeg else "ffmpeg is not on PATH")
+            ),
         ),
         "cinematic-project": ready(ffmpeg, "" if ffmpeg else "ffmpeg is not on PATH"),
         "remotion": ready(
             _remotion_ok(),
-            ""
-            if _remotion_ok()
-            else "Remotion is not installed - run: cd remotion-videos && npm install",
+            (
+                ""
+                if _remotion_ok()
+                else "Remotion is not installed - run: cd remotion-videos && npm install"
+            ),
         ),
         "animation": ready(
             _anim_python_ok(),
-            ""
-            if _anim_python_ok()
-            else "needs Python 3.11 with manim (see video-pipeline/README.md)",
+            (
+                ""
+                if _anim_python_ok()
+                else "needs Python 3.11 with manim (see video-pipeline/README.md)"
+            ),
         ),
         "flow-hero-shots": ready(
             flow["ok"] and not flow.get("quota_exceeded"),
-            flow["detail"]
-            if not flow["ok"]
-            else ("free-tier daily cap used" if flow.get("quota_exceeded") else ""),
+            (
+                flow["detail"]
+                if not flow["ok"]
+                else ("free-tier daily cap used" if flow.get("quota_exceeded") else "")
+            ),
         ),
         "flow": ready(
             flow["ok"] and not flow.get("quota_exceeded"),
-            flow["detail"]
-            if not flow["ok"]
-            else (
-                f"free-tier daily cap ({flow.get('daily_limit')}/day) already "
-                "used today - wait for tomorrow, or set FLOW_TIER=paid if this "
-                "account has unrestricted access"
-                if flow.get("quota_exceeded")
-                else ""
+            (
+                flow["detail"]
+                if not flow["ok"]
+                else (
+                    f"free-tier daily cap ({flow.get('daily_limit')}/day) already "
+                    "used today - wait for tomorrow, or set FLOW_TIER=paid if this "
+                    "account has unrestricted access"
+                    if flow.get("quota_exceeded")
+                    else ""
+                )
             ),
         ),
     }

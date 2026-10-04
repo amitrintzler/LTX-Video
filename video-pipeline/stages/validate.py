@@ -21,16 +21,26 @@ from stages.scene_utils import needs_draw_things
 
 
 SAFETY_KEYWORDS_MODERATE = [
-    "gore", "explicit", "pornographic", "nude", "naked",
+    "gore",
+    "explicit",
+    "pornographic",
+    "nude",
+    "naked",
 ]
 
 SAFETY_KEYWORDS_STRICT = SAFETY_KEYWORDS_MODERATE + [
     # violence (strict only)
-    "decapitation", "dismemberment", "torture", "mutilation",
+    "decapitation",
+    "dismemberment",
+    "torture",
+    "mutilation",
     # hate (strict only)
-    "slur", "genocide",
+    "slur",
+    "genocide",
     # self-harm (strict only)
-    "suicide", "self-harm", "self harm",
+    "suicide",
+    "self-harm",
+    "self harm",
 ]
 
 
@@ -47,7 +57,9 @@ class ValidationStage:
         if needs_draw_things(scenes):
             self._check_api_reachable()
         else:
-            self.log.info("  Skipping Draw Things API check — script uses renderer-based scenes only")
+            self.log.info(
+                "  Skipping Draw Things API check — script uses renderer-based scenes only"
+            )
         self._check_technical(script, scenes)
         self._check_safety(scenes)
         self._check_coherence(script, scenes)
@@ -97,9 +109,7 @@ class ValidationStage:
             # Check id first
             scene_id = scene.get("id", "")
             if not scene_id:
-                raise ValidationError(
-                    f"Scene {i + 1}: 'id' field is missing or empty."
-                )
+                raise ValidationError(f"Scene {i + 1}: 'id' field is missing or empty.")
             if scene_id in seen_ids:
                 raise ValidationError(
                     f"duplicate scene id '{scene_id}' found. All scene ids must be unique."
@@ -110,7 +120,10 @@ class ValidationStage:
             scene_ref = f"Scene {i + 1} (id={scene_id})"
             renderer = scene.get("renderer")
             LTX_RENDERERS = {"ltx", "animatediff", None}
-            if renderer in LTX_RENDERERS and not scene.get("storyboard_prompt", "").strip():
+            if (
+                renderer in LTX_RENDERERS
+                and not scene.get("storyboard_prompt", "").strip()
+            ):
                 raise ValidationError(
                     f"{scene_ref}: missing or empty 'storyboard_prompt'."
                 )
@@ -127,15 +140,17 @@ class ValidationStage:
         )
 
         for i, scene in enumerate(scenes):
-            text = " ".join([
-                scene.get("storyboard_prompt", ""),
-                scene.get("video_prompt", ""),
-                scene.get("description", ""),
-                scene.get("narration", ""),
-            ]).lower()
+            text = " ".join(
+                [
+                    scene.get("storyboard_prompt", ""),
+                    scene.get("video_prompt", ""),
+                    scene.get("description", ""),
+                    scene.get("narration", ""),
+                ]
+            ).lower()
 
             for kw in keywords:
-                if re.search(r'\b' + re.escape(kw) + r'\b', text):
+                if re.search(r"\b" + re.escape(kw) + r"\b", text):
                     raise ValidationError(
                         f"Content safety violation in scene {i + 1}: "
                         f"keyword '{kw}' found. "
@@ -184,9 +199,31 @@ class ValidationStage:
         # Extract capitalized words (potential proper names) that are not sentence starters
         # Split on sentence boundaries first, then find mid-sentence capitalized words
         _exclude = {
-            "The", "A", "An", "In", "On", "At", "And", "But", "With", "From",
-            "His", "Her", "Its", "This", "That", "These", "Those", "Wide", "Close",
-            "Camera", "Aerial", "Two", "Three", "Four", "Five",
+            "The",
+            "A",
+            "An",
+            "In",
+            "On",
+            "At",
+            "And",
+            "But",
+            "With",
+            "From",
+            "His",
+            "Her",
+            "Its",
+            "This",
+            "That",
+            "These",
+            "Those",
+            "Wide",
+            "Close",
+            "Camera",
+            "Aerial",
+            "Two",
+            "Three",
+            "Four",
+            "Five",
         }
         first_prompt = scenes[0].get("storyboard_prompt", "")
         words = first_prompt.split()
@@ -208,10 +245,12 @@ class ValidationStage:
         for char in characters:
             last_seen = 0
             for i, scene in enumerate(scenes):
-                text = " ".join([
-                    scene.get("storyboard_prompt", ""),
-                    scene.get("video_prompt", ""),
-                ])
+                text = " ".join(
+                    [
+                        scene.get("storyboard_prompt", ""),
+                        scene.get("video_prompt", ""),
+                    ]
+                )
                 if char in text:
                     last_seen = i
 
@@ -226,16 +265,90 @@ class ValidationStage:
     # ── Check 5: Content Relevance ────────────────────────────────────
 
     _STOPWORDS = {
-        "a", "an", "the", "and", "or", "but", "in", "on", "at", "to", "for",
-        "of", "with", "as", "is", "are", "was", "were", "be", "been", "being",
-        "that", "this", "these", "those", "it", "its", "by", "from", "about",
-        "into", "through", "during", "about", "above", "between", "out", "off",
-        "over", "under", "then", "than", "so", "if", "no", "not", "up", "do",
-        "can", "will", "which", "who", "how", "what", "when", "where", "video",
-        "scene", "cinematic", "camera", "show", "showing", "create", "make",
-        "broad", "lesson", "seed", "frames", "expand", "drifting", "generic",
-        "market", "snapshot", "research", "stage", "script", "generation",
-        "context", "downstream", "before", "enough", "should", "give", "topic",
+        "a",
+        "an",
+        "the",
+        "and",
+        "or",
+        "but",
+        "in",
+        "on",
+        "at",
+        "to",
+        "for",
+        "of",
+        "with",
+        "as",
+        "is",
+        "are",
+        "was",
+        "were",
+        "be",
+        "been",
+        "being",
+        "that",
+        "this",
+        "these",
+        "those",
+        "it",
+        "its",
+        "by",
+        "from",
+        "about",
+        "into",
+        "through",
+        "during",
+        "about",
+        "above",
+        "between",
+        "out",
+        "off",
+        "over",
+        "under",
+        "then",
+        "than",
+        "so",
+        "if",
+        "no",
+        "not",
+        "up",
+        "do",
+        "can",
+        "will",
+        "which",
+        "who",
+        "how",
+        "what",
+        "when",
+        "where",
+        "video",
+        "scene",
+        "cinematic",
+        "camera",
+        "show",
+        "showing",
+        "create",
+        "make",
+        "broad",
+        "lesson",
+        "seed",
+        "frames",
+        "expand",
+        "drifting",
+        "generic",
+        "market",
+        "snapshot",
+        "research",
+        "stage",
+        "script",
+        "generation",
+        "context",
+        "downstream",
+        "before",
+        "enough",
+        "should",
+        "give",
+        "topic",
     }
 
     def _check_content_relevance(self, script: dict, scenes: list[dict]):
@@ -254,13 +367,15 @@ class ValidationStage:
 
         # Build full text of all scene prompts
         all_scene_text = " ".join(
-            " ".join([
-                s.get("storyboard_prompt", ""),
-                s.get("video_prompt", ""),
-                s.get("description", ""),
-                s.get("narration", ""),
-                s.get("style", ""),
-            ])
+            " ".join(
+                [
+                    s.get("storyboard_prompt", ""),
+                    s.get("video_prompt", ""),
+                    s.get("description", ""),
+                    s.get("narration", ""),
+                    s.get("style", ""),
+                ]
+            )
             for s in scenes
         ).lower()
 
@@ -271,7 +386,7 @@ class ValidationStage:
         if coverage < 0.4:
             raise ValidationError(
                 f"Scene content does not match the brief.\n"
-                f"  Brief: \"{brief}\"\n"
+                f'  Brief: "{brief}"\n'
                 f"  Key concepts missing from scenes: {sorted(missing)}\n"
                 f"  Coverage: {coverage:.0%} — expected at least 40%.\n"
                 f"  Regenerate the scene script with content closer to the brief."
@@ -282,4 +397,6 @@ class ValidationStage:
                 f"Concepts not found in scenes: {sorted(missing)}"
             )
         else:
-            self.log.info(f"  ✅ Content relevance: {coverage:.0%} of brief concepts found in scenes")
+            self.log.info(
+                f"  ✅ Content relevance: {coverage:.0%} of brief concepts found in scenes"
+            )

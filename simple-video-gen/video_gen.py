@@ -59,7 +59,7 @@ class VideoGenerator:
     def _hex_to_rgb(self, hex_color: str) -> tuple:
         """Convert hex color to RGB tuple."""
         hex_color = hex_color.lstrip("#")
-        return tuple(int(hex_color[i:i+2], 16) for i in (0, 2, 4))
+        return tuple(int(hex_color[i : i + 2], 16) for i in (0, 2, 4))
 
     def _get_font(self, size: int):
         """Get system font. Falls back to default if not available."""
@@ -70,21 +70,35 @@ class VideoGenerator:
 
     def _create_frame(self, scene: Scene) -> Image.Image:
         """Create a single frame for a scene."""
-        img = Image.new("RGB", (self.width, self.height), self._hex_to_rgb(scene.background_color))
+        img = Image.new(
+            "RGB", (self.width, self.height), self._hex_to_rgb(scene.background_color)
+        )
         draw = ImageDraw.Draw(img)
 
         for element in scene.elements:
             if isinstance(element, TextElement):
                 font = self._get_font(element.font_size)
                 color = self._hex_to_rgb(element.color)
-                draw.text((element.x, element.y), element.text, font=font, fill=color, anchor=element.anchor)
+                draw.text(
+                    (element.x, element.y),
+                    element.text,
+                    font=font,
+                    fill=color,
+                    anchor=element.anchor,
+                )
             elif isinstance(element, LineElement):
                 color = self._hex_to_rgb(element.color)
-                draw.line([(element.x1, element.y1), (element.x2, element.y2)], fill=color, width=element.width)
+                draw.line(
+                    [(element.x1, element.y1), (element.x2, element.y2)],
+                    fill=color,
+                    width=element.width,
+                )
             elif isinstance(element, PolygonElement):
                 fill = self._hex_to_rgb(element.fill) if element.fill else None
                 outline = self._hex_to_rgb(element.outline) if element.outline else None
-                draw.polygon(element.points, fill=fill, outline=outline, width=element.width)
+                draw.polygon(
+                    element.points, fill=fill, outline=outline, width=element.width
+                )
 
         return img
 
@@ -128,12 +142,17 @@ class VideoGenerator:
             cmd = [
                 "ffmpeg",
                 "-y",
-                "-framerate", str(self.fps),
-                "-i", input_pattern,
-                "-c:v", "libx264",
-                "-pix_fmt", "yuv420p",
-                "-preset", "fast",
-                str(output_path)
+                "-framerate",
+                str(self.fps),
+                "-i",
+                input_pattern,
+                "-c:v",
+                "libx264",
+                "-pix_fmt",
+                "yuv420p",
+                "-preset",
+                "fast",
+                str(output_path),
             ]
 
             result = subprocess.run(cmd, capture_output=True, text=True)
@@ -168,21 +187,25 @@ def create_simple_video(title: str, scenes: list[dict], output_path: str = None)
             if isinstance(text_desc, str):
                 text_desc = {"text": text_desc, "x": 960, "y": 400 + i * 100}
 
-            elements.append(TextElement(
-                text=text_desc.get("text", ""),
-                x=text_desc.get("x", 960),
-                y=text_desc.get("y", 540),
-                font_size=text_desc.get("font_size", 48),
-                color=text_desc.get("color", "#FFFFFF"),
-                anchor=text_desc.get("anchor", "mm")
-            ))
+            elements.append(
+                TextElement(
+                    text=text_desc.get("text", ""),
+                    x=text_desc.get("x", 960),
+                    y=text_desc.get("y", 540),
+                    font_size=text_desc.get("font_size", 48),
+                    color=text_desc.get("color", "#FFFFFF"),
+                    anchor=text_desc.get("anchor", "mm"),
+                )
+            )
 
-        scene_objects.append(Scene(
-            title=scene_desc.get("title", ""),
-            duration_sec=scene_desc.get("duration_sec", 5),
-            background_color=scene_desc.get("bg_color", "#0d1117"),
-            elements=elements
-        ))
+        scene_objects.append(
+            Scene(
+                title=scene_desc.get("title", ""),
+                duration_sec=scene_desc.get("duration_sec", 5),
+                background_color=scene_desc.get("bg_color", "#0d1117"),
+                elements=elements,
+            )
+        )
 
     gen = VideoGenerator()
     return gen.create_video(scene_objects, output_path)
@@ -195,19 +218,51 @@ if __name__ == "__main__":
             "title": "Intro",
             "duration_sec": 3,
             "text": [
-                {"text": "Put Option Basics", "x": 960, "y": 300, "font_size": 80, "anchor": "mm"},
-                {"text": "The right to sell at a fixed price", "x": 960, "y": 500, "font_size": 48, "anchor": "mm"}
-            ]
+                {
+                    "text": "Put Option Basics",
+                    "x": 960,
+                    "y": 300,
+                    "font_size": 80,
+                    "anchor": "mm",
+                },
+                {
+                    "text": "The right to sell at a fixed price",
+                    "x": 960,
+                    "y": 500,
+                    "font_size": 48,
+                    "anchor": "mm",
+                },
+            ],
         },
         {
             "title": "Definition",
             "duration_sec": 5,
             "text": [
-                {"text": "Strike Price: $50", "x": 960, "y": 400, "font_size": 60, "anchor": "mm"},
-                {"text": "Stock Falls to: $40", "x": 960, "y": 550, "font_size": 60, "anchor": "mm", "color": "#FF4444"},
-                {"text": "Your Profit: $10/share", "x": 960, "y": 700, "font_size": 60, "anchor": "mm", "color": "#00C896"}
-            ]
-        }
+                {
+                    "text": "Strike Price: $50",
+                    "x": 960,
+                    "y": 400,
+                    "font_size": 60,
+                    "anchor": "mm",
+                },
+                {
+                    "text": "Stock Falls to: $40",
+                    "x": 960,
+                    "y": 550,
+                    "font_size": 60,
+                    "anchor": "mm",
+                    "color": "#FF4444",
+                },
+                {
+                    "text": "Your Profit: $10/share",
+                    "x": 960,
+                    "y": 700,
+                    "font_size": 60,
+                    "anchor": "mm",
+                    "color": "#00C896",
+                },
+            ],
+        },
     ]
 
     output = create_simple_video("put-option-demo", scenes)

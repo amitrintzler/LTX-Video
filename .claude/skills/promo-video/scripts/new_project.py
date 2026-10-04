@@ -37,21 +37,31 @@ def skeleton(slug: str, vertical: bool) -> dict:
         "character": "",
         "parallax_px": 24.0,
         "parallax_zoom": 0.12,
-        "look": {"letterbox": not vertical, "vignette": True,
-                 "grain": 0.035, "transition_sec": 0.5},
+        "look": {
+            "letterbox": not vertical,
+            "vignette": True,
+            "grain": 0.035,
+            "transition_sec": 0.5,
+        },
         "narration": "TODO: spoken script, benefit-led, ending on the CTA. "
-                     "(Audio is WIP — renders muted for now, but keep it here.)",
+        "(Audio is WIP — renders muted for now, but keep it here.)",
         "voice_model": "~/piper-voices/en_US-lessac-medium.onnx",
         "audio": {"music": None, "use_shot_audio": False},
         "subtitles": None,
-        "outro": {"brand": "TODO Brand", "tagline": "TODO tagline",
-                  "cta": "TODO call to action  →", "duration": 3.5},
+        "outro": {
+            "brand": "TODO Brand",
+            "tagline": "TODO tagline",
+            "cta": "TODO call to action  →",
+            "duration": 3.5,
+        },
         "shots": [
-            {"id": f"{i+1:02d}",
-             "text": f"TODO headline ({beat})",
-             "prompt": f"TODO ({beat}): cinematic, photorealistic, depth — one clear subject",
-             "duration": 4 if beat in ("Hook", "Payoff") else 5,
-             "seed": 3 + i * 7}
+            {
+                "id": f"{i+1:02d}",
+                "text": f"TODO headline ({beat})",
+                "prompt": f"TODO ({beat}): cinematic, photorealistic, depth — one clear subject",
+                "duration": 4 if beat in ("Hook", "Payoff") else 5,
+                "seed": 3 + i * 7,
+            }
             for i, beat in enumerate(BEATS)
         ],
     }
@@ -72,7 +82,9 @@ def main():
     out_file.write_text(json.dumps(skeleton(args.slug, args.vertical), indent=2) + "\n")
     print(f"created {out_file}")
     print("Next: fill narration + shot prompts/text + outro, then:")
-    print(f"  python cinematic-pipeline/pipeline.py {out_file.relative_to(ROOT)} --dry-run")
+    print(
+        f"  python cinematic-pipeline/pipeline.py {out_file.relative_to(ROOT)} --dry-run"
+    )
 
 
 if __name__ == "__main__":

@@ -26,8 +26,14 @@ def clip(cap, fn, *a, **k):
 
 clip(None, p.title, "Options Educator", "options, finally made clear", secs=1.6)
 clip(None, p.kinetic, ["Calls.", "Puts.", "Mastered."], 2.0)
-clip("Start learning today", p.cta, "Options Educator", "From zero to strategy.",
-     "Start Learning  →", secs=2.4)
+clip(
+    "Start learning today",
+    p.cta,
+    "Options Educator",
+    "From zero to strategy.",
+    "Start Learning  →",
+    secs=2.4,
+)
 
 print("frames:", p.n, "duration:", round(p.n / 24, 1), "s")
 
@@ -35,8 +41,9 @@ narr = "Calls. Puts. Mastered. Options Educator."
 voice = Path("~/piper-voices/en_US-lessac-medium.onnx").expanduser()
 narr_wav = audio.narrate(narr, voice, work / "narration.wav")
 music = Path("cinematic-pipeline/assets/music_promo.wav").resolve()
-bed = audio.build_bed({"audio": {"music": str(music)} if music.exists() else {}},
-                      p.n / 24, work, narr_wav)
+bed = audio.build_bed(
+    {"audio": {"music": str(music)} if music.exists() else {}}, p.n / 24, work, narr_wav
+)
 p.burn_captions(caps)
 p.encode(out)  # muted (audio TBD)
 print("DONE ->", out)

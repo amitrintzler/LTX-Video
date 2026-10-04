@@ -51,7 +51,7 @@
   ],
   "llm_model": "qwen/qwen3.8-27b",
   "render_llm_provider": "lmstudio",
-  "render_llm_model": "qwen/qwen3.8-27b",
+  "render_llm_model": "mistral-small-3.1-24b-instruct-2503",
   "block_degraded_output": true,
   "max_fallback_scene_ratio": 0.2,
   "lmstudio_base_url": "http://localhost:1234/v1",
@@ -66,5 +66,8 @@
   "animatediff_guidance_scale": 7.5,
   "content_safety": "strict",
   "min_scenes": 3,
-  "max_scenes": 50
+  "max_scenes": 50,
+  "render_backup_providers": [
+    "claude"
+  ]
 }

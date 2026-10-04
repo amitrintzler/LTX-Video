@@ -185,3 +185,7 @@ runs/
 /scripts/*.json
 /scripts/*.meta.json
 /video-pipeline/research/
+
+# Local caches: Remotion downloads headless Chrome here; Manim caches rendered text
+.remotion/
+**/media/texts/

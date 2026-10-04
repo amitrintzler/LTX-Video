@@ -27,9 +27,9 @@ def render(scene: dict, config: PipelineConfig, out_path: Path) -> Path:
     description = str(scene.get("description", "")).strip()
     style = str(scene.get("style", "")).strip()
     duration_sec = max(1, int(round(float(scene.get("duration_sec", 8)))))
-    width = int(getattr(config, "video_width", 1920))
-    height = int(getattr(config, "video_height", 1080))
-    fps = int(getattr(config, "video_fps", 60))
+    width = int(getattr(config, "render_width", 1920))
+    height = int(getattr(config, "render_height", 1080))
+    fps = int(getattr(config, "render_fps", 30))
 
     with tempfile.TemporaryDirectory(prefix="slides_render_") as tmp_dir:
         tmp_dir = Path(tmp_dir)

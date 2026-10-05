@@ -32,6 +32,7 @@ under ``_rejected/``.
 from __future__ import annotations
 
 import json
+import math
 import logging
 import os
 import re
@@ -836,10 +837,23 @@ _FINDING_WEIGHTS = (
 )
 
 
+_STATIC_SECONDS_RE = re.compile(r"\(([0-9.]+)s static\)")
+FROZEN_LIMIT_SEC = 2.0
+
+
 def finding_weight(finding: dict) -> int:
     if finding.get("section") == "runtime":
         return 5
     code = str(finding.get("code", ""))
+    if "frozen" in code:
+        # A freeze just past the limit is a beat too long; nine seconds of a
+        # still frame under narration is the defect this renderer exists to
+        # remove. Weighting them alike shipped the nine-second one over an
+        # attempt whose only fault was two overlapping tick labels.
+        match = _STATIC_SECONDS_RE.search(str(finding.get("message", "")))
+        if match:
+            excess = float(match.group(1)) - FROZEN_LIMIT_SEC
+            return min(12, 1 + math.ceil(max(0.0, excess)))
     return next((w for key, w in _FINDING_WEIGHTS if key in code), 2)
 
 

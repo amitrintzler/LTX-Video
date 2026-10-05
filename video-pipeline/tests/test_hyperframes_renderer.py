@@ -667,3 +667,26 @@ def test_real_cli_checks_and_renders_a_fixed_composition(tmp_path):
     assert stream["r_frame_rate"] == "30/1"
     assert abs(float(info["format"]["duration"]) - 3) < 0.5
     assert shutil.which("ffprobe")
+
+
+def test_a_long_freeze_outweighs_two_overlapping_labels():
+    """Scene 2 of the benchmark shipped a 9 s freeze plus an off-frame label
+    over an attempt with two overlapping tick labels and a 2.1 s freeze."""
+    from stages.renderers.hyperframes import defect_score
+
+    def frozen(sec):
+        return {
+            "section": "motion",
+            "code": "motion_frozen",
+            "severity": "error",
+            "message": f"nothing moves within #scene between 0s and {sec}s ({sec}s static)",
+        }
+
+    shipped = [
+        {"section": "motion", "code": "motion_off_frame", "severity": "error"},
+        frozen(9.15),
+    ]
+    claude = [
+        {"section": "layout", "code": "content_overlap", "severity": "error"}
+    ] * 2 + [frozen(2.1)]
+    assert defect_score(claude) < defect_score(shipped)

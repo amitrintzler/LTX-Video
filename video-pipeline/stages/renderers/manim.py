@@ -70,6 +70,10 @@ def _defect_score(problems: list[str]) -> int:
 # runs. At 600s most scenes timed out and fell back to static slides, which is
 # why "animations" did not animate. Raised above the observed worst case.
 CLAUDE_CODEGEN_TIMEOUT = 1200
+# Codegen is a single well-specified answer, and the checker feedback loop
+# does the refining, so it does not need deep reasoning. Override with
+# LTX_CLAUDE_CODEGEN_EFFORT (low, medium, high, xhigh, max).
+CLAUDE_CODEGEN_EFFORT = os.environ.get("LTX_CLAUDE_CODEGEN_EFFORT", "low")
 NAMED_COLOR_NAMES = (
     "CYAN",
     "TEAL",
@@ -475,18 +479,29 @@ def _call_claude_cli(
         model,
         "--system-prompt",
         system,
+        "--effort",
+        CLAUDE_CODEGEN_EFFORT,
         "--tools",
         "",
         "--dangerously-skip-permissions",
         user_content,
     ]
 
+    # The CLI is a full agent session. Run from the system temp dir
+    # so the repo's CLAUDE.md and project hooks do not load, close stdin so
+    # it never waits on an inherited pipe, and drop CLAUDE_EFFORT: a shell
+    # with CLAUDE_EFFORT=high made one scene take 20+ minutes (timing out)
+    # where --effort low answers in under a minute.
+    env = {k: v for k, v in os.environ.items() if k != "CLAUDE_EFFORT"}
     try:
         result = subprocess.run(
             cmd,
             capture_output=True,
             text=True,
             timeout=CLAUDE_CODEGEN_TIMEOUT,
+            stdin=subprocess.DEVNULL,
+            cwd=tempfile.gettempdir(),
+            env=env,
         )
     except FileNotFoundError as e:
         raise ManimRenderError(

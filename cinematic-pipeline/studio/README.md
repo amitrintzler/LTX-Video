@@ -187,6 +187,11 @@ curl -s localhost:8765/api/status     # engine readiness + reasons
 curl -s localhost:8765/api/catalogue  # what the studio can make, with samples
 ```
 
+Job history is kept in `~/LTX-Studio/jobs.json` (last 500 jobs) and reloaded when
+the studio starts, with logs in `~/LTX-Studio/logs/`. A job that was queued or
+running when the studio stopped comes back as `interrupted`; it is never re-run
+by itself, so a stopped GPU render does not restart on the next launch.
+
 ## Hard-won toolchain notes (so nobody re-learns them)
 
 - **Playwright**: comma OR-lists only work in the CSS engine —

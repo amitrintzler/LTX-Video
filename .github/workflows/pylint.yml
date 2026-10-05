@@ -38,3 +38,7 @@ jobs:
       working-directory: cinematic-pipeline/engine/tests
       run: |
         python test_http_provider.py
+    - name: Studio job history tests
+      working-directory: cinematic-pipeline/studio
+      run: |
+        pytest tests -q

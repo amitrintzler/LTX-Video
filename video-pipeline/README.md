@@ -166,7 +166,7 @@ The example uses `manim`, but the pipeline now chooses a renderer per scene from
 | Content type | Renderer |
 |---|---|
 | Renderer selection | Topic/research-driven, with fallback to `manim` |
-| Implemented renderers | `manim`, `slides`, `html_anim`, `d3`, `animatediff` |
+| Implemented renderers | `manim`, `slides`, `html_anim`, `d3`, `animatediff`, `hyperframes` (opt-in) |
 | Future/optional renderers | `motion-canvas` |
 
 ---
@@ -180,6 +180,38 @@ The example uses `manim`, but the pipeline now chooses a renderer per scene from
 - Max 3 annotation arrows visible at once
 - Labels inside regions, not below axes
 - Shift axes `UP * 0.8` when adding annotation text below
+
+### HyperFrames (opt-in)
+
+An HTML/GSAP composition for [HyperFrames](https://github.com/heygen-com/hyperframes),
+written by the model, gated by `hyperframes check`, rendered by `hyperframes render`.
+It is never chosen automatically and the script stage does not offer it; opt in per
+scene with `"renderer": "hyperframes"` or for a whole script with `"primary_renderer": "hyperframes"`.
+
+Setup once: `cd video-pipeline/hyperframes && npm ci` (Node 22+, ffmpeg; pins
+`hyperframes@0.8.134` and `gsap@3.14.2`). Without it the renderer raises a clear
+error and the stage falls back to slides, recorded as degraded.
+
+How a scene is produced (`stages/renderers/hyperframes.py`):
+- The model returns only a fragment: a `<style>` scoped to `#scene`, the elements inside
+  it, and a `<script>` of tweens on a ready-made timeline `tl`. The renderer owns the
+  root, `#scene` clip, local `gsap.min.js`, timeline registration, and the width / height /
+  fps / duration attributes (from `render_width`, `render_height`, `render_fps` and the
+  scene's `duration_sec`). CDN scripts, `<link>`, external URLs and any timeline the model
+  creates itself are stripped.
+- Gate, per attempt: `hyperframes check --json --strict --frame-check --at-transitions` plus a
+  generated `index.motion.json` (`keepsMoving` across the whole scene, one `staysInFrame`
+  per element id that holds text). Lint, runtime errors, text overflow / overlap /
+  occlusion, contrast, off-canvas motion and a frozen timeline are all errors. Any
+  error-severity finding or `sweep_static` fails the attempt; warnings are logged only.
+- Failed attempts feed up to 8 findings (`code selector: message (fix: ...)`) back to the
+  model. The provider ladder is the Manim one: cheapest first, the last attempt escalates.
+- If no attempt passes, the least-defective attempt that still plays and moves is rendered
+  and shipped with `scene_NNN.defects.json`. Attempts whose scripts threw, whose timeline is
+  frozen, or whose browser audit never ran are not shippable and the scene falls back to slides.
+- Beside each clip: `scene_NNN.html` (full composition; copy `gsap.min.js` next to it to
+  re-render), `scene_NNN.motion.json`, and `_rejected/` with every gated attempt's html and
+  check report. The rendered mp4 is verified with ffprobe (size, frame rate, duration).
 
 ### Motion Canvas & D3
 - **`ctx.save() / ctx.rect(x,y,w,h) / ctx.clip() / ctx.restore()` around every panel** — mandatory

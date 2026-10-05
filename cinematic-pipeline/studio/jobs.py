@@ -30,6 +30,10 @@ RENDER_ROOT = Path.home() / "LTX-Renders"
 STUDIO_HOME = Path.home() / "LTX-Studio"
 LOG_DIR = STUDIO_HOME / "logs"
 CONFIG_DIR = STUDIO_HOME / "configs"
+# Job history survives a restart: every state change rewrites this file, and
+# the runner reloads it on start. Kept to the most recent HISTORY_LIMIT jobs.
+HISTORY_FILE = STUDIO_HOME / "jobs.json"
+HISTORY_LIMIT = 500
 for d in (STUDIO_HOME, LOG_DIR, CONFIG_DIR):
     d.mkdir(parents=True, exist_ok=True)
 
@@ -44,7 +48,7 @@ class Job:
     type: str
     params: dict[str, Any]
     gpu: bool
-    status: str = "queued"  # queued | running | done | failed | cancelled
+    status: str = "queued"  # queued | running | done | failed | cancelled | interrupted
     created: str = field(default_factory=now)
     started: str | None = None
     finished: str | None = None
@@ -938,10 +942,12 @@ SPECS: dict[str, JobSpec] = {
 class Runner:
     """One serialized lane for GPU work, a small pool for everything else."""
 
-    def __init__(self, workers: int = 3) -> None:
+    def __init__(self, workers: int = 3, history: Path | None = HISTORY_FILE) -> None:
         self.jobs: dict[str, Job] = {}
         self.order: list[str] = []
         self.lock = threading.Lock()
+        self.history = history
+        self._load_history()
         self.gpu_q: queue.Queue[str] = queue.Queue()
         self.cpu_q: queue.Queue[str] = queue.Queue()
         self._procs: dict[str, subprocess.Popen] = {}
@@ -963,6 +969,7 @@ class Runner:
         with self.lock:
             self.jobs[job.id] = job
             self.order.append(job.id)
+        self._save_history()
         job.log_path.write_text(f"[{now()}] queued {job_type}\n")
         (self.gpu_q if spec.gpu else self.cpu_q).put(job.id)
         return job
@@ -974,6 +981,7 @@ class Runner:
         if job.status == "queued":
             job.status = "cancelled"
             job.finished = now()
+            self._save_history()
             return True
         proc = self._procs.get(job_id)
         if proc and job.status == "running":
@@ -992,9 +1000,16 @@ class Runner:
             q.task_done()
 
     def _run(self, job: Job) -> None:
+        try:
+            self._execute(job)
+        finally:
+            self._save_history()
+
+    def _execute(self, job: Job) -> None:
         spec = SPECS[job.type]
         job.status = "running"
         job.started = now()
+        self._save_history()
         try:
             cmd = spec.build(job.params, job)
         except Exception as exc:  # noqa: BLE001 - surfaced to the caller
@@ -1039,6 +1054,42 @@ class Runner:
                         line.split("=", 1)[-1].strip() if "=" in line else line.strip()
                     )
         return found[-6:]
+
+    def _load_history(self) -> None:
+        """Restore earlier jobs. Anything still queued or running when the
+        studio stopped is marked interrupted rather than re-run: its process is
+        gone, and silently restarting a 40-minute GPU render is not wanted."""
+        if not self.history or not self.history.exists():
+            return
+        try:
+            records = json.loads(self.history.read_text())
+        except (OSError, ValueError):
+            return
+        known = set(Job.__dataclass_fields__)
+        for rec in records if isinstance(records, list) else []:
+            if not isinstance(rec, dict) or "id" not in rec or "type" not in rec:
+                continue
+            job = Job(**{k: v for k, v in rec.items() if k in known})
+            if job.status in ("queued", "running"):
+                job.status = "interrupted"
+                job.error = job.error or "studio stopped before this job finished"
+                job.finished = job.finished or now()
+            self.jobs[job.id] = job
+            self.order.append(job.id)
+
+    def _save_history(self) -> None:
+        if not self.history:
+            return
+        with self.lock:
+            keep = self.order[-HISTORY_LIMIT:]
+            records = [self.jobs[i].as_dict() for i in keep if i in self.jobs]
+        try:
+            self.history.parent.mkdir(parents=True, exist_ok=True)
+            tmp = self.history.with_name(self.history.name + ".tmp")
+            tmp.write_text(json.dumps(records, indent=1))
+            tmp.replace(self.history)
+        except OSError:
+            pass  # history is a convenience; never fail a job over it
 
     def list_jobs(self, limit: int = 60) -> list[dict[str, Any]]:
         with self.lock:

@@ -104,7 +104,7 @@ async def stream_logs(job_id: str) -> StreamingResponse:
                     pos = len(text)
                     for line in chunk.splitlines():
                         yield f"data: {json.dumps({'line': line})}\n\n"
-            if job.status in {"done", "failed", "cancelled"}:
+            if job.status in {"done", "failed", "cancelled", "interrupted"}:
                 yield f"data: {json.dumps({'status': job.status, 'outputs': job.outputs})}\n\n"
                 return
             await asyncio.sleep(1.0)

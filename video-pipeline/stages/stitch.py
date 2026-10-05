@@ -27,7 +27,9 @@ class StitchStage:
         self.cfg = cfg
         self.log = log.getChild("stitch")
 
-    def run(self, scenes: list[dict], title: str, output_mode: str = "narrated") -> Path:
+    def run(
+        self, scenes: list[dict], title: str, output_mode: str = "narrated"
+    ) -> Path:
         safe_title = safe_slug(title)
         clips_dir = self.cfg.clips_dir / safe_title
         out_dir = self.cfg.output_dir
@@ -44,7 +46,11 @@ class StitchStage:
             "companion-long": "companion-long",
         }
         suffix = suffix_map.get(output_mode, output_mode)
-        out_basename = safe_title if safe_title.endswith(f"-{suffix}") else f"{safe_title}-{suffix}"
+        out_basename = (
+            safe_title
+            if safe_title.endswith(f"-{suffix}")
+            else f"{safe_title}-{suffix}"
+        )
         out_path = out_dir / f"{out_basename}.mp4"
 
         self.log.info(f"  Stitching {len(clips)} clips — mode={output_mode}")
@@ -88,30 +94,51 @@ class StitchStage:
                     f"  [scene_{i+1:03d}] audio +{overflow:.1f}s over video — extending with freeze frame"
                 )
                 cmd = [
-                    "ffmpeg", "-y",
-                    "-i", str(clip),
-                    "-i", str(audio_path),
+                    "ffmpeg",
+                    "-y",
+                    "-i",
+                    str(clip),
+                    "-i",
+                    str(audio_path),
                     "-filter_complex",
                     f"[0:v]tpad=stop_mode=clone:stop_duration={overflow:.3f}[vout]",
-                    "-map", "[vout]",
-                    "-map", "1:a",
-                    "-c:v", self.cfg.output_codec,
-                    "-crf", str(self.cfg.output_crf),
-                    "-preset", self.cfg.output_preset,
-                    "-pix_fmt", "yuv420p",
-                    "-af", "apad",
-                    "-c:a", "aac", "-b:a", "192k",
+                    "-map",
+                    "[vout]",
+                    "-map",
+                    "1:a",
+                    "-c:v",
+                    self.cfg.output_codec,
+                    "-crf",
+                    str(self.cfg.output_crf),
+                    "-preset",
+                    self.cfg.output_preset,
+                    "-pix_fmt",
+                    "yuv420p",
+                    "-af",
+                    "apad",
+                    "-c:a",
+                    "aac",
+                    "-b:a",
+                    "192k",
                     "-shortest",
                     str(out),
                 ]
             else:
                 cmd = [
-                    "ffmpeg", "-y",
-                    "-i", str(clip),
-                    "-i", str(audio_path),
-                    "-c:v", "copy",
-                    "-af", "apad",
-                    "-c:a", "aac", "-b:a", "192k",
+                    "ffmpeg",
+                    "-y",
+                    "-i",
+                    str(clip),
+                    "-i",
+                    str(audio_path),
+                    "-c:v",
+                    "copy",
+                    "-af",
+                    "apad",
+                    "-c:a",
+                    "aac",
+                    "-b:a",
+                    "192k",
                     "-shortest",
                     str(out),
                 ]
@@ -123,7 +150,9 @@ class StitchStage:
 
     def _stitch_with_xfade(self, clips: list[Path], out_path: Path):
         if len(clips) == 1:
-            self._ffmpeg(["ffmpeg", "-y", "-i", str(clips[0]), "-c", "copy", str(out_path)])
+            self._ffmpeg(
+                ["ffmpeg", "-y", "-i", str(clips[0]), "-c", "copy", str(out_path)]
+            )
             return
 
         durations = [self._get_duration(c) for c in clips]
@@ -161,7 +190,9 @@ class StitchStage:
 
         filtergraph = "; ".join(filter_parts)
 
-        audio_args = ["-map", "[aout]", "-c:a", "aac", "-b:a", "192k"] if has_audio else ["-an"]
+        audio_args = (
+            ["-map", "[aout]", "-c:a", "aac", "-b:a", "192k"] if has_audio else ["-an"]
+        )
 
         cmd = (
             ["ffmpeg", "-y"]
@@ -204,7 +235,15 @@ class StitchStage:
     def _clips_have_audio(self, path: Path) -> bool:
         import json
 
-        cmd = ["ffprobe", "-v", "quiet", "-print_format", "json", "-show_streams", str(path)]
+        cmd = [
+            "ffprobe",
+            "-v",
+            "quiet",
+            "-print_format",
+            "json",
+            "-show_streams",
+            str(path),
+        ]
         result = subprocess.run(cmd, capture_output=True, text=True)
         data = json.loads(result.stdout)
         return any(s.get("codec_type") == "audio" for s in data.get("streams", []))
@@ -212,7 +251,15 @@ class StitchStage:
     def _get_audio_duration(self, path: Path) -> float:
         import json
 
-        cmd = ["ffprobe", "-v", "quiet", "-print_format", "json", "-show_streams", str(path)]
+        cmd = [
+            "ffprobe",
+            "-v",
+            "quiet",
+            "-print_format",
+            "json",
+            "-show_streams",
+            str(path),
+        ]
         result = subprocess.run(cmd, capture_output=True, text=True)
         data = json.loads(result.stdout)
         for stream in data.get("streams", []):

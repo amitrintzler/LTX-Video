@@ -9,10 +9,8 @@ from __future__ import annotations
 
 import json
 import logging
-from typing import Optional
 
 from config import PipelineConfig
-from stages.claude_client import ClaudeCLIError
 
 
 class PlanningError(RuntimeError):
@@ -119,7 +117,9 @@ TASK WORKFLOW:
         duration_sec = scene.get("duration_sec", 8)
 
         if not description.strip():
-            self.log.warning(f"Scene '{title}' has empty description; using fallback plan")
+            self.log.warning(
+                f"Scene '{title}' has empty description; using fallback plan"
+            )
             return self._fallback_plan(title, duration_sec)
 
         prompt = f"""Scene Title: {title}
@@ -135,13 +135,14 @@ Create a detailed animation plan in JSON format."""
         try:
             # Call Claude CLI with structured output
             import subprocess
-            import tempfile
 
             cmd = [
                 "claude",
                 "--print",
-                "--model", self.cfg.claude_model,
-                "--system-prompt", self.PLANNING_SYSTEM_PROMPT,
+                "--model",
+                self.cfg.claude_model,
+                "--system-prompt",
+                self.PLANNING_SYSTEM_PROMPT,
                 prompt,
             ]
             result = subprocess.run(
@@ -167,7 +168,9 @@ Create a detailed animation plan in JSON format."""
 
             # Validate schema
             plan = self._validate_plan(plan_json, title, duration_sec)
-            self.log.info(f"Planned scene '{title}' with {len(plan.get('elements', []))} elements")
+            self.log.info(
+                f"Planned scene '{title}' with {len(plan.get('elements', []))} elements"
+            )
             return plan
 
         except PlanningError as e:
@@ -178,7 +181,6 @@ Create a detailed animation plan in JSON format."""
     @staticmethod
     def _extract_json(text: str) -> dict | None:
         """Extract JSON object from text (may contain prose)."""
-        import json
         import re
 
         text = text.strip()
@@ -211,7 +213,9 @@ Create a detailed animation plan in JSON format."""
             class_name = "".join(w.capitalize() for w in title.split())
             plan["scene_class"] = class_name or "AnimatedScene"
 
-        if "duration_sec" not in plan or not isinstance(plan.get("duration_sec"), (int, float)):
+        if "duration_sec" not in plan or not isinstance(
+            plan.get("duration_sec"), (int, float)
+        ):
             plan["duration_sec"] = duration_sec
 
         if "background_color" not in plan:

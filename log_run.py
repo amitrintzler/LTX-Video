@@ -21,7 +21,10 @@ def start_run(meta: dict) -> dict:
     record = {
         "run_id": run_id,
         "ts_start": time.time(),
-        "machine": {"platform": platform.platform(), "python": platform.python_version()},
+        "machine": {
+            "platform": platform.platform(),
+            "python": platform.python_version(),
+        },
         "repo_git_rev": _git_rev(),
         "meta": meta,
         "events": [],

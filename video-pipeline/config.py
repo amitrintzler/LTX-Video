@@ -17,10 +17,10 @@ def _default_work_dir() -> str:
 class PipelineConfig:
     # ── Draw Things API ──────────────────────────────────────────────
     api_host: str = "http://localhost:7859"
-    api_timeout: int = 600          # seconds per generation call
+    api_timeout: int = 600  # seconds per generation call
 
     # ── Storyboard (Flux / SDXL image per scene) ─────────────────────
-    image_model: str = ""           # empty = use whatever is loaded in DT
+    image_model: str = ""  # empty = use whatever is loaded in DT
     image_width: int = 1024
     image_height: int = 576
     image_steps: int = 25
@@ -31,18 +31,18 @@ class PipelineConfig:
 
     # ── Video (Wan 2.2 14B — I2V mode) ──────────────────────────────
     video_model: str = ""
-    video_refiner_model: str = ""   # Low Noise Expert refiner
+    video_refiner_model: str = ""  # Low Noise Expert refiner
     video_width: int = 1920
     video_height: int = 1080
     video_fps: int = 60
-    video_frames: int = 81          # ~1.4 sec @ 60fps
+    video_frames: int = 81  # ~1.4 sec @ 60fps
     video_steps: int = 30
     video_cfg: float = 6.0
     video_negative: str = (
         "morphing, warping, distortion, flickering, jittering, blurry, "
         "face deformation, extra objects, watermark"
     )
-    use_tea_cache: bool = True      # faster generation via step caching
+    use_tea_cache: bool = True  # faster generation via step caching
 
     # ── Code renderers (Manim, slides, D3, HTML) ─────────────────────
     # Drawn, not diffused, so they render at delivery size. Kept apart from
@@ -54,13 +54,13 @@ class PipelineConfig:
     render_fps: int = 30
 
     # ── Stitch (FFmpeg) ──────────────────────────────────────────────
-    crossfade_sec: float = 0.5      # dissolve duration between clips
-    output_codec: str = "libx264"   # libx264 | prores_ks (ProRes)
-    output_crf: int = 18            # quality (lower = better, 18–23 typical)
-    output_preset: str = "slow"     # encoding speed/quality tradeoff
-    add_music: bool = False         # set True + music_path to mix in audio
+    crossfade_sec: float = 0.5  # dissolve duration between clips
+    output_codec: str = "libx264"  # libx264 | prores_ks (ProRes)
+    output_crf: int = 18  # quality (lower = better, 18–23 typical)
+    output_preset: str = "slow"  # encoding speed/quality tradeoff
+    add_music: bool = False  # set True + music_path to mix in audio
     music_path: str = ""
-    music_volume: float = 0.3       # 0.0–1.0
+    music_volume: float = 0.3  # 0.0–1.0
 
     # ── Paths ────────────────────────────────────────────────────────
     work_dir: str = field(default_factory=_default_work_dir)
@@ -73,16 +73,16 @@ class PipelineConfig:
 
     # ── Retry / resilience ───────────────────────────────────────────
     max_retries: int = 3
-    retry_delay: int = 10           # seconds between retries
+    retry_delay: int = 10  # seconds between retries
 
     # ── Search ───────────────────────────────────────────────────────
-    brave_api_key: str = ""            # Brave Search API key (optional; falls back to DuckDuckGo)
+    brave_api_key: str = ""  # Brave Search API key (optional; falls back to DuckDuckGo)
 
     # ── Critic / semantic validation ─────────────────────────────────
-    critic_enabled: bool = True     # Enable visual critic for Manim scenes
-    critic_max_attempts: int = 3    # Max attempts to pass critic evaluation
+    critic_enabled: bool = True  # Enable visual critic for Manim scenes
+    critic_max_attempts: int = 3  # Max attempts to pass critic evaluation
     critic_score_threshold: float = 0.80  # Minimum score to pass (0.0–1.0)
-    llm_retry_delay_sec: float = 2.0     # Sleep between Manim LLM codegen retries
+    llm_retry_delay_sec: float = 2.0  # Sleep between Manim LLM codegen retries
     critic_retry_delay_sec: float = 5.0  # Sleep between critic loop iterations
 
     # ── Renderers ────────────────────────────────────────────────────
@@ -96,10 +96,10 @@ class PipelineConfig:
     # qwen3.8-27b wrote valid scene JSON; mistral-small wrote a usable Manim
     # scene in 68s with no reasoning tokens. codex was the old default and this
     # account rejects its model outright.
-    llm_provider: str = "lmstudio"   # claude | codex | lmstudio
+    llm_provider: str = "lmstudio"  # claude | codex | lmstudio
     script_backup_providers: list[str] = field(default_factory=lambda: ["lmstudio"])
     llm_model: str = "qwen/qwen3.8-27b"
-    render_llm_provider: str = "lmstudio"   # claude | lmstudio
+    render_llm_provider: str = "lmstudio"  # claude | lmstudio
     render_llm_model: str = "mistral-small-3.1-24b-instruct-2503"
     # Escalation for scene code, tried on the final attempt when the primary
     # cannot produce valid Manim. Empty by default so importing this config
@@ -143,7 +143,9 @@ class PipelineConfig:
         provider = str(provider).strip().lower()
         if provider == "lmstudio":
             if not self.render_llm_model:
-                raise ValueError("render_llm_model must be set when render_llm_provider is lmstudio")
+                raise ValueError(
+                    "render_llm_model must be set when render_llm_provider is lmstudio"
+                )
             return self.render_llm_model
         return self.claude_model
 
@@ -171,7 +173,7 @@ class PipelineConfig:
     tts_sample_rate: int = 24000
 
     # ── Output modes ────────────────────────────────────────────────
-    output_mode: str = "narrated"   # narrated | companion-short | companion-long
+    output_mode: str = "narrated"  # narrated | companion-short | companion-long
 
     # ── AnimateDiff (Sub-project 3) ──────────────────────────────────
     animatediff_checkpoint: str = "frankjoshua/toonyou_beta6"

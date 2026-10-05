@@ -9,13 +9,11 @@ project became workable, so it is enforced here rather than left to the caller.
 from __future__ import annotations
 
 import json
-import os
 import queue
 import shlex
 import subprocess
 import sys
 import threading
-import time
 import uuid
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
@@ -290,12 +288,14 @@ ANIM_PYTHON = "/opt/homebrew/bin/python3.11"
 
 
 def llm_choices() -> list[str]:
-    """"provider:model" for every language model this machine can reach, probed
+    """ "provider:model" for every language model this machine can reach, probed
     live. See scripts/llm_capabilities.py."""
     try:
         out = subprocess.run(
             [sys.executable, str(SCRIPTS / "llm_capabilities.py"), "--json"],
-            capture_output=True, text=True, timeout=40,
+            capture_output=True,
+            text=True,
+            timeout=40,
         )
         return json.loads(out.stdout).get("choices", [])
     except (subprocess.SubprocessError, OSError, ValueError):

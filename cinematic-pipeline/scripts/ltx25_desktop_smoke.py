@@ -14,7 +14,9 @@ import urllib.request
 from pathlib import Path
 
 
-DEFAULT_PROJECT = Path(__file__).resolve().parents[1] / "projects/gameofoptions_promo/project.json"
+DEFAULT_PROJECT = (
+    Path(__file__).resolve().parents[1] / "projects/gameofoptions_promo/project.json"
+)
 DEFAULT_OUTPUT_DIR = Path("/tmp/ltx25-desktop-smoke")
 DEFAULT_BASE_URL = "http://127.0.0.1:41954"
 
@@ -29,15 +31,21 @@ def _desktop_auth_token() -> str:
             stderr=subprocess.PIPE,
         )
     except (OSError, subprocess.CalledProcessError) as exc:
-        raise SystemExit("Could not inspect LTX Desktop process. Is LTX Desktop running?") from exc
+        raise SystemExit(
+            "Could not inspect LTX Desktop process. Is LTX Desktop running?"
+        ) from exc
 
     match = re.search(r"LTX_AUTH_TOKEN=([^ ]+)", proc.stdout)
     if match:
         return match.group(1)
-    raise SystemExit("Could not find LTX Desktop local auth token. Is the backend running?")
+    raise SystemExit(
+        "Could not find LTX Desktop local auth token. Is the backend running?"
+    )
 
 
-def _request(method: str, url: str, token: str, payload: dict | None = None, timeout: int = 30) -> dict:
+def _request(
+    method: str, url: str, token: str, payload: dict | None = None, timeout: int = 30
+) -> dict:
     data = None if payload is None else json.dumps(payload).encode("utf-8")
     req = urllib.request.Request(
         url,
@@ -77,7 +85,9 @@ def _select_shot(project: dict, shot_id: str | None) -> dict:
 def _build_prompt(project: dict, shot: dict) -> str:
     text = str(shot.get("text", "")).strip()
     prompt = str(shot.get("prompt", "")).strip()
-    project_name = str(project.get("project", "cinematic learning platform")).replace("_", " ")
+    project_name = str(project.get("project", "cinematic learning platform")).replace(
+        "_", " "
+    )
     return (
         f"Premium cinematic product promo for {project_name}. "
         f"Scene message: {text}. "
@@ -91,14 +101,25 @@ def _build_prompt(project: dict, shot: dict) -> str:
 def _ensure_ready(base_url: str, token: str) -> None:
     policy = _request("GET", f"{base_url}/api/runtime-policy", token)
     if policy.get("force_api_generations"):
-        raise SystemExit("LTX Desktop is still in API-only mode; local generation is unavailable.")
+        raise SystemExit(
+            "LTX Desktop is still in API-only mode; local generation is unavailable."
+        )
 
     versions = _request("GET", f"{base_url}/api/models/ltx-versions", token)
     version_items = versions.get("versions") or []
-    ltx25 = next((item for item in version_items if item.get("model_id") == "ltx-2.5-22b-distilled"), None)
+    ltx25 = next(
+        (
+            item
+            for item in version_items
+            if item.get("model_id") == "ltx-2.5-22b-distilled"
+        ),
+        None,
+    )
     if not ltx25 or not ltx25.get("installed"):
         missing = [] if not ltx25 else ltx25.get("cps_to_download", [])
-        raise SystemExit(f"LTX 2.5 local model is not fully installed yet. Missing: {missing}")
+        raise SystemExit(
+            f"LTX 2.5 local model is not fully installed yet. Missing: {missing}"
+        )
     if not ltx25.get("active"):
         _request(
             "POST",
@@ -109,11 +130,17 @@ def _ensure_ready(base_url: str, token: str) -> None:
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description="Run a local LTX Desktop 2.5 smoke render.")
+    parser = argparse.ArgumentParser(
+        description="Run a local LTX Desktop 2.5 smoke render."
+    )
     parser.add_argument("--project", type=Path, default=DEFAULT_PROJECT)
-    parser.add_argument("--shot-id", help="Project shot id to use. Defaults to the first shot.")
+    parser.add_argument(
+        "--shot-id", help="Project shot id to use. Defaults to the first shot."
+    )
     parser.add_argument("--base-url", default=DEFAULT_BASE_URL)
-    parser.add_argument("--resolution", default="540p", choices=["540p", "720p", "1080p"])
+    parser.add_argument(
+        "--resolution", default="540p", choices=["540p", "720p", "1080p"]
+    )
     parser.add_argument("--duration", type=int, default=5, choices=[5, 6, 8, 10, 20])
     parser.add_argument("--fps", type=int, default=24)
     parser.add_argument("--aspect-ratio", default="16:9", choices=["16:9", "9:16"])
@@ -156,7 +183,9 @@ def main() -> int:
     _ensure_ready(args.base_url, token)
 
     started = time.time()
-    result = _request("POST", f"{args.base_url}/api/generate", token, payload, timeout=3600)
+    result = _request(
+        "POST", f"{args.base_url}/api/generate", token, payload, timeout=3600
+    )
     print(f"request_seconds={time.time() - started:.1f}", file=sys.stderr)
     print(json.dumps(result, indent=2))
     if result.get("status") == "complete" and result.get("video_path"):

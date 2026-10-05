@@ -47,8 +47,12 @@ class LayoutAuditError(ManimRenderError):
 # under a shape, or printed over other text cannot be read; a sentence parked in
 # the diagram is clutter; a line through a label is ugly but still legible.
 _DEFECT_WEIGHTS = (
-    ("leaves the frame", 3), ("cut off at the frame edge", 3), ("covered by", 3),
-    ("overlaps text", 3), ("title or sentence", 2), ("text in the center band", 2),
+    ("leaves the frame", 3),
+    ("cut off at the frame edge", 3),
+    ("covered by", 3),
+    ("overlaps text", 3),
+    ("title or sentence", 2),
+    ("text in the center band", 2),
     ("crossed by", 1),
 )
 
@@ -129,7 +133,9 @@ def render(scene: dict, config: PipelineConfig, out_path: Path) -> Path:
     # the least-defective one ships instead of a static slide.
     candidates: list[dict] = []
     for attempt in range(config.renderer_max_retries):
-        log.info(f"Render attempt {attempt+1}/{config.renderer_max_retries} for {out_path.name}")
+        log.info(
+            f"Render attempt {attempt+1}/{config.renderer_max_retries} for {out_path.name}"
+        )
         sys.stderr.flush()
         sys.stdout.flush()
 
@@ -165,9 +171,13 @@ def render(scene: dict, config: PipelineConfig, out_path: Path) -> Path:
             sys.stderr.flush()
             sys.stdout.flush()
             rendered = _run_manim(
-                code, out_path,
+                code,
+                out_path,
                 timeout=render_timeout(
-                    duration_sec, config.render_width, config.render_height, config.render_fps
+                    duration_sec,
+                    config.render_width,
+                    config.render_height,
+                    config.render_fps,
                 ),
             )
             log.info(f"Manim render completed for {out_path.name}")
@@ -182,15 +192,19 @@ def render(scene: dict, config: PipelineConfig, out_path: Path) -> Path:
                 stem = f"{out_path.stem}_attempt{attempt + 1}"
                 shutil.copy2(rendered, rejected / f"{stem}.mp4")
                 if _layout_path(rendered).exists():
-                    shutil.copy2(_layout_path(rendered), rejected / f"{stem}.layout.json")
+                    shutil.copy2(
+                        _layout_path(rendered), rejected / f"{stem}.layout.json"
+                    )
                 (rejected / f"{stem}.py").write_text(code)
-                candidates.append({
-                    "attempt": attempt + 1,
-                    "video": rejected / f"{stem}.mp4",
-                    "code": rejected / f"{stem}.py",
-                    "problems": audit.problems,
-                    "score": _defect_score(audit.problems),
-                })
+                candidates.append(
+                    {
+                        "attempt": attempt + 1,
+                        "video": rejected / f"{stem}.mp4",
+                        "code": rejected / f"{stem}.py",
+                        "problems": audit.problems,
+                        "score": _defect_score(audit.problems),
+                    }
+                )
                 raise
             log.info(f"Layout audit passed for {out_path.name}")
             _defects_path(out_path).unlink(missing_ok=True)
@@ -199,7 +213,7 @@ def render(scene: dict, config: PipelineConfig, out_path: Path) -> Path:
         except ManimRenderError as e:
             last_error = str(e)
             # Log just the first line of the error for brevity
-            first_line = last_error.split('\n')[0][:300]
+            first_line = last_error.split("\n")[0][:300]
             log.error(f"Render failed attempt {attempt+1}: {first_line}")
             if attempt == config.renderer_max_retries - 1:
                 # Save generated code for debugging on final failure
@@ -207,7 +221,9 @@ def render(scene: dict, config: PipelineConfig, out_path: Path) -> Path:
                 debug_code_path.write_text(code)
                 log.error(f"Generated code saved to: {debug_code_path}")
                 # Log full error on final failure
-                log.error(f"Final render failure after {config.renderer_max_retries} attempts:\n{last_error[:1000]}")
+                log.error(
+                    f"Final render failure after {config.renderer_max_retries} attempts:\n{last_error[:1000]}"
+                )
                 if candidates:
                     return _ship_best_attempt(candidates, out_path, log)
                 raise
@@ -261,10 +277,16 @@ def _ship_best_attempt(candidates: list[dict], out_path: Path, log) -> Path:
     shutil.copy2(best["video"], out_path)
     if best.get("code") and Path(best["code"]).exists():
         shutil.copy2(best["code"], _code_path(out_path))
-    _defects_path(out_path).write_text(json.dumps(
-        {"attempt": best["attempt"], "score": best["score"], "problems": best["problems"]},
-        indent=1,
-    ))
+    _defects_path(out_path).write_text(
+        json.dumps(
+            {
+                "attempt": best["attempt"],
+                "score": best["score"],
+                "problems": best["problems"],
+            },
+            indent=1,
+        )
+    )
     log.warning(
         f"SHIPPED WITH LAYOUT DEFECTS: {out_path.name} is attempt {best['attempt']} of "
         f"{len(candidates)} that rendered (defect score {best['score']}): "
@@ -457,11 +479,15 @@ def _call_claude_cli(
             "Claude Code CLI not found on PATH. Install Claude Code or add 'claude' to PATH."
         ) from e
     except subprocess.TimeoutExpired as e:
-        raise ManimRenderError("Claude Code CLI timed out while generating Manim code") from e
+        raise ManimRenderError(
+            "Claude Code CLI timed out while generating Manim code"
+        ) from e
 
     if result.returncode != 0:
         stderr = (result.stderr or result.stdout or "").strip()
-        raise ManimRenderError(stderr[-2000:] or "Claude Code CLI failed without output")
+        raise ManimRenderError(
+            stderr[-2000:] or "Claude Code CLI failed without output"
+        )
 
     code = _extract_python_code(result.stdout)
     if not code.strip():
@@ -525,9 +551,7 @@ def _call_lmstudio_api(
 
     if isinstance(content, list):
         content = "".join(
-            part.get("text", "")
-            for part in content
-            if isinstance(part, dict)
+            part.get("text", "") for part in content if isinstance(part, dict)
         )
 
     if not isinstance(content, str):
@@ -618,14 +642,31 @@ class _ManimCodeNormalizer(ast.NodeTransformer):
     # the installed Manim: these all raise "Animation.__init__() got an
     # unexpected keyword argument 'shift'", which ended a scene outright.
     _NO_SHIFT_ANIMATIONS = {
-        "Write", "Unwrite", "Create", "Uncreate", "GrowArrow", "GrowFromCenter",
-        "GrowFromPoint", "GrowFromEdge", "DrawBorderThenFill", "Indicate",
-        "Circumscribe", "Flash", "FocusOn", "Wiggle", "SpinInFromNothing",
-        "Transform", "ReplacementTransform", "AddTextLetterByLetter",
+        "Write",
+        "Unwrite",
+        "Create",
+        "Uncreate",
+        "GrowArrow",
+        "GrowFromCenter",
+        "GrowFromPoint",
+        "GrowFromEdge",
+        "DrawBorderThenFill",
+        "Indicate",
+        "Circumscribe",
+        "Flash",
+        "FocusOn",
+        "Wiggle",
+        "SpinInFromNothing",
+        "Transform",
+        "ReplacementTransform",
+        "AddTextLetterByLetter",
     }
 
     def _drop_unsupported_shift(self, node: ast.Call) -> bool:
-        if not (isinstance(node.func, ast.Name) and node.func.id in self._NO_SHIFT_ANIMATIONS):
+        if not (
+            isinstance(node.func, ast.Name)
+            and node.func.id in self._NO_SHIFT_ANIMATIONS
+        ):
             return False
         kept = [kw for kw in node.keywords if kw.arg != "shift"]
         if len(kept) == len(node.keywords):
@@ -717,7 +758,9 @@ class _ManimCodeNormalizer(ast.NodeTransformer):
 
     def visit_Expr(self, node: ast.Expr):  # type: ignore[override]
         node = self.generic_visit(node)
-        if isinstance(node.value, ast.Call) and self._strip_redundant_kwargs(node.value):
+        if isinstance(node.value, ast.Call) and self._strip_redundant_kwargs(
+            node.value
+        ):
             self.changed = True
         return node
 
@@ -791,9 +834,21 @@ class _ManimCodeNormalizer(ast.NodeTransformer):
 
     def _rewrite_bare_math_call(self, call: ast.Call) -> bool:
         math_names = {
-            "sin", "cos", "tan", "asin", "acos", "atan",
-            "sinh", "cosh", "tanh", "sqrt", "log", "log10",
-            "exp", "ceil", "floor",
+            "sin",
+            "cos",
+            "tan",
+            "asin",
+            "acos",
+            "atan",
+            "sinh",
+            "cosh",
+            "tanh",
+            "sqrt",
+            "log",
+            "log10",
+            "exp",
+            "ceil",
+            "floor",
         }
         if not isinstance(call.func, ast.Name) or call.func.id not in math_names:
             return False
@@ -856,8 +911,13 @@ class _ManimCodeNormalizer(ast.NodeTransformer):
     def _rewrite_coordinate_tuples(self, call: ast.Call) -> bool:
         """Rewrite 2D coordinate tuples/lists to 3D in move_to, shift, next_to, etc."""
         coordinate_methods = {
-            "move_to", "shift", "next_to", "put_start_and_end_on",
-            "set_points", "set_points_as_corners", "set_points_smoothly",
+            "move_to",
+            "shift",
+            "next_to",
+            "put_start_and_end_on",
+            "set_points",
+            "set_points_as_corners",
+            "set_points_smoothly",
         }
         if not isinstance(call.func, ast.Attribute):
             return False
@@ -921,13 +981,25 @@ class _PadPointSequences(ast.NodeTransformer):
 
     @staticmethod
     def _looks_like_point_pair(elts: list[ast.AST]) -> bool:
-        allowed = (ast.Constant, ast.Name, ast.Attribute, ast.UnaryOp, ast.BinOp, ast.Call)
+        allowed = (
+            ast.Constant,
+            ast.Name,
+            ast.Attribute,
+            ast.UnaryOp,
+            ast.BinOp,
+            ast.Call,
+        )
         return all(isinstance(elt, allowed) for elt in elts)
 
 
 def _normalize_manim_code(code: str) -> str:
     # Fix stroke_width= parameter in set_stroke() calls (should be width=)
-    code = re.sub(r"set_stroke\s*\(\s*([^)]*?)\bstroke_width\s*=", r"set_stroke(\1width=", code, flags=re.DOTALL)
+    code = re.sub(
+        r"set_stroke\s*\(\s*([^)]*?)\bstroke_width\s*=",
+        r"set_stroke(\1width=",
+        code,
+        flags=re.DOTALL,
+    )
 
     # Remove invalid weight= parameter from Text() calls (Manim doesn't support this)
     code = re.sub(r",\s*weight\s*=\s*['\"][^'\"]*['\"]\s*(?=,|\))", "", code)
@@ -939,7 +1011,9 @@ def _normalize_manim_code(code: str) -> str:
     # ("VMobject.set_stroke() got an unexpected keyword argument 'dash_array'").
     # Dashes in Manim come from DashedVMobject/DashedLine, not a stroke kwarg,
     # so dropping it renders a solid line rather than failing the scene.
-    code = re.sub(r",\s*dash_array\s*=\s*(?:\[[^\]]*\]|\([^)]*\)|[0-9.]+)\s*(?=,|\))", "", code)
+    code = re.sub(
+        r",\s*dash_array\s*=\s*(?:\[[^\]]*\]|\([^)]*\)|[0-9.]+)\s*(?=,|\))", "", code
+    )
 
     # Easing names borrowed from CSS/JS (EaseInOutQuad, EaseOutCubic, ...) are
     # not defined in Manim and end the scene with a NameError. Manim has the
@@ -1088,7 +1162,11 @@ def _inject_point_compatibility_shim(code: str) -> str:
     if marker in code:
         return code
     if "from manim import *" in code:
-        return code.replace("from manim import *", f"from manim import *\n{_POINT_COMPAT_SHIM.strip()}", 1)
+        return code.replace(
+            "from manim import *",
+            f"from manim import *\n{_POINT_COMPAT_SHIM.strip()}",
+            1,
+        )
     return f"from manim import *\n{_POINT_COMPAT_SHIM.strip()}\n\n{code}"
 
 
@@ -1126,7 +1204,9 @@ def _text_core(tx: dict) -> tuple:
 
 
 def _overlap_area(a: tuple, b: tuple) -> float:
-    return max(0.0, min(a[2], b[2]) - max(a[0], b[0])) * max(0.0, min(a[3], b[3]) - max(a[1], b[1]))
+    return max(0.0, min(a[2], b[2]) - max(a[0], b[0])) * max(
+        0.0, min(a[3], b[3]) - max(a[1], b[1])
+    )
 
 
 def _audit_layout(layout: dict) -> list[str]:
@@ -1165,15 +1245,25 @@ def _audit_layout(layout: dict) -> list[str]:
         texts = snap.get("texts", [])
         for tx in texts:
             name = repr(tx["text"][:40])
-            if tx["x0"] < -hw - eps or tx["x1"] > hw + eps or tx["y0"] < -hh - eps or tx["y1"] > hh + eps:
-                once(("frame", tx["text"]), f"text {name} leaves the frame at t={t:.1f}s")
+            if (
+                tx["x0"] < -hw - eps
+                or tx["x1"] > hw + eps
+                or tx["y0"] < -hh - eps
+                or tx["y1"] > hh + eps
+            ):
+                once(
+                    ("frame", tx["text"]), f"text {name} leaves the frame at t={t:.1f}s"
+                )
             cx, cy = (tx["x0"] + tx["x1"]) / 2, (tx["y0"] + tx["y1"]) / 2
             if abs(cx) <= band_x and band_y0 <= cy <= band_y1:
                 share = (tx["x1"] - tx["x0"]) / fw
                 titleish = tx.get("font_size", 0) >= 32 and share > 0.12
                 if tx.get("lines", 1) > 1 or share > 0.22 or titleish:
-                    once(("centre", tx["text"]), f"text {name} is a title or sentence in the centre band at t={t:.1f}s "
-                         f"({100 * share:.0f}% of the frame wide) - only short labels belong there")
+                    once(
+                        ("centre", tx["text"]),
+                        f"text {name} is a title or sentence in the centre band at t={t:.1f}s "
+                        f"({100 * share:.0f}% of the frame wide) - only short labels belong there",
+                    )
         for i in range(len(texts)):
             for j in range(i + 1, len(texts)):
                 a, b = texts[i], texts[j]
@@ -1181,11 +1271,15 @@ def _audit_layout(layout: dict) -> list[str]:
                 oy = min(a["y1"], b["y1"]) - max(a["y0"], b["y0"])
                 if ox <= 0 or oy <= 0:
                     continue
-                smaller = min((a["x1"] - a["x0"]) * (a["y1"] - a["y0"]),
-                              (b["x1"] - b["x0"]) * (b["y1"] - b["y0"]))
+                smaller = min(
+                    (a["x1"] - a["x0"]) * (a["y1"] - a["y0"]),
+                    (b["x1"] - b["x0"]) * (b["y1"] - b["y0"]),
+                )
                 if smaller > 0 and ox * oy > 0.15 * smaller:
-                    once(("overlap", *sorted((a["text"], b["text"]))),
-                         f"text {a['text'][:30]!r} overlaps text {b['text'][:30]!r} at t={t:.1f}s")
+                    once(
+                        ("overlap", *sorted((a["text"], b["text"]))),
+                        f"text {a['text'][:30]!r} overlaps text {b['text'][:30]!r} at t={t:.1f}s",
+                    )
 
         # Text under a shape. Only renders made after the probe learned shapes
         # carry this; older layout records simply have none.
@@ -1200,7 +1294,9 @@ def _audit_layout(layout: dict) -> list[str]:
                     continue
                 pts = sh.get("pts", [])
                 crossed = any(
-                    _segment_hits_rect(pts[k][0], pts[k][1], pts[k + 1][0], pts[k + 1][1], core)
+                    _segment_hits_rect(
+                        pts[k][0], pts[k][1], pts[k + 1][0], pts[k + 1][1], core
+                    )
                     for k in range(len(pts) - 1)
                 )
                 if not crossed:
@@ -1208,12 +1304,15 @@ def _audit_layout(layout: dict) -> list[str]:
                 # A line under a label's own opaque background box is hidden.
                 masked = any(
                     sh["order"] < f["order"] < tx.get("order", 1 << 30)
-                    and _overlap_area((f["x0"], f["y0"], f["x1"], f["y1"]), core) >= 0.9 * core_area
+                    and _overlap_area((f["x0"], f["y0"], f["x1"], f["y1"]), core)
+                    >= 0.9 * core_area
                     for f in fills
                 )
                 if not masked:
-                    once(("crossed", tx["text"], sh["name"]),
-                         f"text {name} is crossed by the stroke of a {sh['name']} at t={t:.1f}s")
+                    once(
+                        ("crossed", tx["text"], sh["name"]),
+                        f"text {name} is crossed by the stroke of a {sh['name']} at t={t:.1f}s",
+                    )
             for f in fills:
                 # Drawn before the text it is a background, which is fine.
                 if f["order"] <= tx.get("order", -1):
@@ -1224,8 +1323,10 @@ def _audit_layout(layout: dict) -> list[str]:
                 # A big shape over much of the text, or a small one (a marker
                 # dot) sitting mostly on the letters.
                 if inter > 0.2 * core_area or inter > 0.5 * shape_area:
-                    once(("covered", tx["text"], f["name"]),
-                         f"text {name} is covered by a {f['name']} drawn over it at t={t:.1f}s")
+                    once(
+                        ("covered", tx["text"], f["name"]),
+                        f"text {name} is covered by a {f['name']} drawn over it at t={t:.1f}s",
+                    )
     return problems
 
 
@@ -1239,7 +1340,9 @@ def _audit_rendered_video(video_path: Path, duration_sec: int) -> None:
         problems = _audit_layout(json.loads(layout_file.read_text()))
         if problems:
             raise LayoutAuditError(
-                "Layout audit: " + "; ".join(problems[:3]) + ". Keep every text inside the "
+                "Layout audit: "
+                + "; ".join(problems[:3])
+                + ". Keep every text inside the "
                 "frame and clear of other text; put titles and sentences in the top band "
                 "or side panels.",
                 problems,
@@ -1255,7 +1358,9 @@ def _audit_rendered_video(video_path: Path, duration_sec: int) -> None:
             if not _extract_frame(video_path, sample_time, frame_path):
                 continue
             any_sampled = True
-            violations = [] if has_layout else _find_center_text_like_regions(frame_path)
+            violations = (
+                [] if has_layout else _find_center_text_like_regions(frame_path)
+            )
             if violations:
                 detail = violations[0]
                 message = (
@@ -1310,8 +1415,14 @@ def _probe_video_duration(video_path: Path) -> Optional[float]:
         str(video_path),
     ]
     try:
-        result = subprocess.run(cmd, capture_output=True, text=True, timeout=30, check=True)
-    except (FileNotFoundError, subprocess.CalledProcessError, subprocess.TimeoutExpired):
+        result = subprocess.run(
+            cmd, capture_output=True, text=True, timeout=30, check=True
+        )
+    except (
+        FileNotFoundError,
+        subprocess.CalledProcessError,
+        subprocess.TimeoutExpired,
+    ):
         return None
 
     raw = (result.stdout or "").strip()
@@ -1345,9 +1456,9 @@ def _extract_frame(video_path: Path, sample_time: float, out_path: Path) -> bool
         raise ManimRenderError(
             "ffmpeg is required for the Manim layout audit but was not found on PATH."
         ) from e
-    except subprocess.CalledProcessError as e:
+    except subprocess.CalledProcessError:
         return False
-    except subprocess.TimeoutExpired as e:
+    except subprocess.TimeoutExpired:
         return False
 
     return out_path.exists()
@@ -1416,11 +1527,16 @@ def _find_edge_content(image_path: Path, min_pixels: int = 20) -> list[str]:
     strip = max(2, round(w * 0.004))
     background = np.median(arr)
     strips = {
-        "left": arr[:, :strip], "right": arr[:, -strip:],
-        "top": arr[:strip, :], "bottom": arr[-strip:, :],
+        "left": arr[:, :strip],
+        "right": arr[:, -strip:],
+        "top": arr[:strip, :],
+        "bottom": arr[-strip:, :],
     }
-    return [side for side, band in strips.items()
-            if int((np.abs(band - background) > 24).sum()) >= min_pixels]
+    return [
+        side
+        for side, band in strips.items()
+        if int((np.abs(band - background) > 24).sum()) >= min_pixels
+    ]
 
 
 def _find_clipped_text_regions(image_path: Path, margin: int = 3) -> list[str]:
@@ -1444,7 +1560,9 @@ def _find_clipped_text_regions(image_path: Path, margin: int = 3) -> list[str]:
     threshold = int(max(60, np.percentile(arr, 92)))
     mask = arr >= threshold
     h, w = mask.shape
-    textish = [c for c in _connected_components(mask) if _is_text_like_component(c, w, h)]
+    textish = [
+        c for c in _connected_components(mask) if _is_text_like_component(c, w, h)
+    ]
     # Judged per glyph, not per row: at analysis size small lowercase letters
     # fall under the text-like area floor, so a clipped "Market Price" leaves
     # only "M" and "P" - too far apart to form a row. The prompt keeps content
@@ -1463,9 +1581,11 @@ def _find_clipped_text_regions(image_path: Path, margin: int = 3) -> list[str]:
             continue
         near = {
             "left": x0 <= margin + 1.5 * gh and mask[y0 : y1 + 1, : margin + 1].any(),
-            "right": x1 >= w - 1 - margin - 1.5 * gh and mask[y0 : y1 + 1, w - 1 - margin :].any(),
+            "right": x1 >= w - 1 - margin - 1.5 * gh
+            and mask[y0 : y1 + 1, w - 1 - margin :].any(),
             "top": y0 <= margin + gh and mask[: margin + 1, x0 : x1 + 1].any(),
-            "bottom": y1 >= h - 1 - margin - gh and mask[h - 1 - margin :, x0 : x1 + 1].any(),
+            "bottom": y1 >= h - 1 - margin - gh
+            and mask[h - 1 - margin :, x0 : x1 + 1].any(),
         }
         side = next((k for k, hit in near.items() if hit), "")
         if side:
@@ -1492,7 +1612,10 @@ def _text_lines(comps: list[dict]) -> list[tuple[int, int, int, int, int]]:
             hl = last["y1"] - last["y0"] + 1
             hc = cand["y1"] - cand["y0"] + 1
             tall = max(hl, hc)
-            same_line = abs((cand["y0"] + cand["y1"]) - (last["y0"] + last["y1"])) / 2.0 <= 0.5 * tall
+            same_line = (
+                abs((cand["y0"] + cand["y1"]) - (last["y0"] + last["y1"])) / 2.0
+                <= 0.5 * tall
+            )
             same_size = min(hl, hc) >= 0.4 * tall
             gap = cand["x0"] - last["x1"]
             letter_spaced = -2 <= gap <= 1.2 * tall
@@ -1503,14 +1626,18 @@ def _text_lines(comps: list[dict]) -> list[tuple[int, int, int, int, int]]:
         # letter-shaped - a glyph is roughly as wide as it is tall, while an
         # arrowhead beside a dot (a common diagram pairing) is not.
         glyph_shaped = sum(
-            1 for c in row
-            if (c["x1"] - c["x0"] + 1) <= 1.6 * (c["y1"] - c["y0"] + 1)
+            1 for c in row if (c["x1"] - c["x0"] + 1) <= 1.6 * (c["y1"] - c["y0"] + 1)
         )
         if len(row) >= 3 or (len(row) == 2 and glyph_shaped == 2):
-            lines.append((
-                min(c["x0"] for c in row), min(c["y0"] for c in row),
-                max(c["x1"] for c in row), max(c["y1"] for c in row), len(row),
-            ))
+            lines.append(
+                (
+                    min(c["x0"] for c in row),
+                    min(c["y0"] for c in row),
+                    max(c["x1"] for c in row),
+                    max(c["y1"] for c in row),
+                    len(row),
+                )
+            )
     return lines
 
 
@@ -1613,24 +1740,34 @@ def _run_manim(code: str, out_path: Path, timeout: int = 120) -> Path:
         layout_file = tmp_dir_path / "layout.json"
         probed = code
         if "_ltx_snapshot" not in probed:
-            probed = probed.replace(
-                "from manim import *", f"from manim import *\n{_LAYOUT_PROBE.strip()}\n", 1
-            ) if "from manim import *" in probed else f"from manim import *\n{_LAYOUT_PROBE.strip()}\n\n{probed}"
+            probed = (
+                probed.replace(
+                    "from manim import *",
+                    f"from manim import *\n{_LAYOUT_PROBE.strip()}\n",
+                    1,
+                )
+                if "from manim import *" in probed
+                else f"from manim import *\n{_LAYOUT_PROBE.strip()}\n\n{probed}"
+            )
         code_file.write_text(probed)
 
         # Log the generated code for debugging
         import logging
-        import sys
+
         log = logging.getLogger("manim")
         log.debug(f"Generated Manim code for {out_path.name}:\n{code}")
 
         try:
             result = subprocess.run(
                 [
-                    "manim", "render",
-                    str(code_file), "VideoScene",
-                    "--format", "mp4",
-                    "--media_dir", str(tmp_dir_path),
+                    "manim",
+                    "render",
+                    str(code_file),
+                    "VideoScene",
+                    "--format",
+                    "mp4",
+                    "--media_dir",
+                    str(tmp_dir_path),
                     "--disable_caching",
                 ],
                 capture_output=True,
@@ -1641,8 +1778,13 @@ def _run_manim(code: str, out_path: Path, timeout: int = 120) -> Path:
                 # the one word that mattered ("unexpected keyword argument
                 # '...") in half, in the logs and in the retry feedback the
                 # model reads to fix its own code. Wide and uncoloured instead.
-                env={**os.environ, "COLUMNS": "400", "NO_COLOR": "1", "TERM": "dumb",
-                     "LTX_LAYOUT_OUT": str(layout_file)},
+                env={
+                    **os.environ,
+                    "COLUMNS": "400",
+                    "NO_COLOR": "1",
+                    "TERM": "dumb",
+                    "LTX_LAYOUT_OUT": str(layout_file),
+                },
             )
         except subprocess.TimeoutExpired:
             raise ManimRenderError(f"Manim render timed out after {timeout}s")
@@ -1657,7 +1799,9 @@ def _run_manim(code: str, out_path: Path, timeout: int = 120) -> Path:
                 stderr = "(no stderr captured — process may have crashed silently)"
             else:
                 stderr = stderr[-3000:]  # Increased from 2000 to 3000
-            repeated_kw = re.search(r"keyword argument repeated: ([A-Za-z_]\w*)", stderr)
+            repeated_kw = re.search(
+                r"keyword argument repeated: ([A-Za-z_]\w*)", stderr
+            )
             if repeated_kw:
                 keyword = repeated_kw.group(1)
                 raise ManimRenderError(
@@ -1673,7 +1817,9 @@ def _run_manim(code: str, out_path: Path, timeout: int = 120) -> Path:
             raise ManimRenderError("Manim succeeded but produced no MP4 file")
 
         out_path.parent.mkdir(parents=True, exist_ok=True)
-        shutil.move(str(mp4_files[0]), out_path)  # shutil.move handles cross-device moves
+        shutil.move(
+            str(mp4_files[0]), out_path
+        )  # shutil.move handles cross-device moves
         layout_dest = _layout_path(out_path)
         if layout_file.exists():
             shutil.copy2(layout_file, layout_dest)

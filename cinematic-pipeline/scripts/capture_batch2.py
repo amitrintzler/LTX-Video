@@ -60,9 +60,7 @@ with sync_playwright() as pw:
     shot(page, ROOT / "mini-games/assets/games_b.png")
 
     # --- market-maker-defense ---
-    page.goto(
-        f"{BASE}/career/arcade?locale=en", wait_until="load", timeout=60000
-    )
+    page.goto(f"{BASE}/career/arcade?locale=en", wait_until="load", timeout=60000)
     page.wait_for_timeout(2000)
     shot(page, ROOT / "market-maker-defense/assets/mmd_a.png")
     page.get_by_text("Start Trading Session", exact=False).first.click(timeout=8000)

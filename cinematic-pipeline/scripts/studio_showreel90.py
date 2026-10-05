@@ -251,9 +251,11 @@ def _font(size: int, bold: bool = True):
     from PIL import ImageFont
 
     for cand in (
-        "/System/Library/Fonts/Supplemental/Arial Bold.ttf"
-        if bold
-        else "/System/Library/Fonts/Supplemental/Arial.ttf",
+        (
+            "/System/Library/Fonts/Supplemental/Arial Bold.ttf"
+            if bold
+            else "/System/Library/Fonts/Supplemental/Arial.ttf"
+        ),
         "/System/Library/Fonts/Avenir Next.ttc",
         "/System/Library/Fonts/Helvetica.ttc",
     ):

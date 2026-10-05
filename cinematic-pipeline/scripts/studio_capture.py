@@ -29,7 +29,9 @@ def main() -> int:
         from playwright.sync_api import sync_playwright
     except ImportError:
         print("Playwright is not installed in this interpreter.")
-        print("Install it with:  pip install playwright && python -m playwright install chromium")
+        print(
+            "Install it with:  pip install playwright && python -m playwright install chromium"
+        )
         return 1
 
     with sync_playwright() as pw:

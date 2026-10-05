@@ -4,11 +4,11 @@ Only drawn text and screenshots change between locales: generated footage, the
 panels and the score are language-neutral, so a locale render reuses all of them
 and costs no GPU time.
 """
+
 from __future__ import annotations
 
 import json
 from pathlib import Path
-
 
 
 def load(locale_dir: Path, code: str) -> dict:

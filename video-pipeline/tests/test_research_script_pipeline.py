@@ -138,7 +138,12 @@ def test_research_stage_writes_docs(tmp_path, log, monkeypatch):
         stage,
         "_collect_evidence",
         lambda topic, queries: [
-            {"source": "wikipedia", "title": topic, "url": "https://example.com", "snippet": "Facts"}
+            {
+                "source": "wikipedia",
+                "title": topic,
+                "url": "https://example.com",
+                "snippet": "Facts",
+            }
         ],
     )
 
@@ -197,7 +202,6 @@ def test_script_stage_writes_both_modes(tmp_path, log, monkeypatch):
     outline_path = research_dir / f"{slug}-outline.md"
     research_path.write_text("# Research\n\nNotes.\n")
     outline_path.write_text("# Outline\n\n- Act 1\n- Act 2\n- Act 3\n- Act 4\n")
-    research_signature = stage._research_signature(research_path.read_text(), outline_path.read_text())
     (research_dir / f"{slug}.meta.json").write_text(
         json.dumps(
             {
@@ -210,13 +214,23 @@ def test_script_stage_writes_both_modes(tmp_path, log, monkeypatch):
         + "\n"
     )
 
-    monkeypatch.setattr(stage, "_ensure_research", lambda topic, slug: (research_path, outline_path))
+    monkeypatch.setattr(
+        stage, "_ensure_research", lambda topic, slug: (research_path, outline_path)
+    )
 
     def fake_run_claude_json(**kwargs):
         assert kwargs["provider"] == cfg.llm_provider
         assert kwargs["model"] == cfg.llm_model_name()
-        title = "black-scholes-narrated" if "Mode: narrated" in kwargs["prompt"] else "black-scholes-companion-long"
-        expected_timeout = cfg.script_timeout_sec if title.endswith("narrated") else max(cfg.script_timeout_sec, 300)
+        title = (
+            "black-scholes-narrated"
+            if "Mode: narrated" in kwargs["prompt"]
+            else "black-scholes-companion-long"
+        )
+        expected_timeout = (
+            cfg.script_timeout_sec
+            if title.endswith("narrated")
+            else max(cfg.script_timeout_sec, 300)
+        )
         assert kwargs["timeout"] == expected_timeout
         return _chunk_payload_from_prompt(kwargs["prompt"], title)
 
@@ -242,9 +256,13 @@ def test_script_stage_normalizes_wrapped_cache(tmp_path, log, monkeypatch):
     outline_path = research_dir / f"{slug}-outline.md"
     research_path.write_text("# Research\n\nNotes.\n")
     outline_path.write_text("# Outline\n\n- Act 1\n- Act 2\n- Act 3\n- Act 4\n")
-    research_signature = stage._research_signature(research_path.read_text(), outline_path.read_text())
+    research_signature = stage._research_signature(
+        research_path.read_text(), outline_path.read_text()
+    )
 
-    monkeypatch.setattr(stage, "_ensure_research", lambda topic, slug: (research_path, outline_path))
+    monkeypatch.setattr(
+        stage, "_ensure_research", lambda topic, slug: (research_path, outline_path)
+    )
 
     payload = _script_payload(title="black-scholes-narrated", scene_count=9)
     wrapped_path = cfg.scripts_dir / f"{slug}-narrated.json"
@@ -279,7 +297,9 @@ def test_script_stage_normalizes_wrapped_cache(tmp_path, log, monkeypatch):
     )
 
     def fail_if_called(**kwargs):
-        raise AssertionError("Claude should not be called when a wrapped cache can be normalized")
+        raise AssertionError(
+            "Claude should not be called when a wrapped cache can be normalized"
+        )
 
     monkeypatch.setattr("stages.script.run_claude_json", fail_if_called)
 
@@ -292,7 +312,9 @@ def test_script_stage_normalizes_wrapped_cache(tmp_path, log, monkeypatch):
     assert isinstance(saved["scenes"], list)
 
 
-def test_script_stage_uses_deterministic_generator_for_structured_topic(tmp_path, log, monkeypatch):
+def test_script_stage_uses_deterministic_generator_for_structured_topic(
+    tmp_path, log, monkeypatch
+):
     from stages.script import ScriptStage
 
     cfg = PipelineConfig(work_dir=str(tmp_path))
@@ -306,7 +328,9 @@ def test_script_stage_uses_deterministic_generator_for_structured_topic(tmp_path
     research_path.write_text("# Research\n\nCore lesson notes.\n")
     outline_path.write_text("# Outline\n\n- Act 1\n- Act 2\n- Act 3\n- Act 4\n")
 
-    monkeypatch.setattr(stage, "_ensure_research", lambda topic, slug: (research_path, outline_path))
+    monkeypatch.setattr(
+        stage, "_ensure_research", lambda topic, slug: (research_path, outline_path)
+    )
 
     def fake_run_claude_json(**kwargs):
         assert kwargs["provider"] == cfg.llm_provider
@@ -340,7 +364,9 @@ def test_script_stage_repairs_chunked_json_before_fallback(tmp_path, log, monkey
     research_path.write_text("# Research\n\nCore lesson notes.\n")
     outline_path.write_text("# Outline\n\n- Act 1\n- Act 2\n- Act 3\n- Act 4\n")
 
-    monkeypatch.setattr(stage, "_ensure_research", lambda topic, slug: (research_path, outline_path))
+    monkeypatch.setattr(
+        stage, "_ensure_research", lambda topic, slug: (research_path, outline_path)
+    )
 
     calls = {"count": 0}
 
@@ -364,7 +390,9 @@ def test_script_stage_repairs_chunked_json_before_fallback(tmp_path, log, monkey
     assert calls["count"] == 2
 
 
-def test_script_stage_retries_chunk_scene_by_scene_before_full_fallback(tmp_path, log, monkeypatch):
+def test_script_stage_retries_chunk_scene_by_scene_before_full_fallback(
+    tmp_path, log, monkeypatch
+):
     from stages.script import ScriptStage
     from stages.claude_client import StructuredLLMResponseError
 
@@ -380,7 +408,9 @@ def test_script_stage_retries_chunk_scene_by_scene_before_full_fallback(tmp_path
     research_path.write_text("# Research\n\nCore lesson notes.\n")
     outline_path.write_text("# Outline\n\n- Act 1\n- Act 2\n- Act 3\n- Act 4\n")
 
-    monkeypatch.setattr(stage, "_ensure_research", lambda topic, slug: (research_path, outline_path))
+    monkeypatch.setattr(
+        stage, "_ensure_research", lambda topic, slug: (research_path, outline_path)
+    )
 
     calls: list[str] = []
 
@@ -408,7 +438,9 @@ def test_script_stage_retries_chunk_scene_by_scene_before_full_fallback(tmp_path
     assert any("scenes s03 through s03" in prompt for prompt in calls)
 
 
-def test_script_stage_uses_scene_level_fallback_before_full_fallback(tmp_path, log, monkeypatch):
+def test_script_stage_uses_scene_level_fallback_before_full_fallback(
+    tmp_path, log, monkeypatch
+):
     from stages.script import ScriptStage
     from stages.claude_client import ClaudeCLIError
 
@@ -424,7 +456,9 @@ def test_script_stage_uses_scene_level_fallback_before_full_fallback(tmp_path, l
     research_path.write_text("# Research\n\nCore lesson notes.\n")
     outline_path.write_text("# Outline\n\n- Act 1\n- Act 2\n- Act 3\n- Act 4\n")
 
-    monkeypatch.setattr(stage, "_ensure_research", lambda topic, slug: (research_path, outline_path))
+    monkeypatch.setattr(
+        stage, "_ensure_research", lambda topic, slug: (research_path, outline_path)
+    )
 
     def fake_run_claude_json(**kwargs):
         prompt = kwargs["prompt"]
@@ -444,7 +478,9 @@ def test_script_stage_uses_scene_level_fallback_before_full_fallback(tmp_path, l
     assert any(scene["renderer"] != "slides" for scene in script["scenes"][1:])
 
 
-def test_script_stage_tries_backup_provider_before_scene_fallback(tmp_path, log, monkeypatch):
+def test_script_stage_tries_backup_provider_before_scene_fallback(
+    tmp_path, log, monkeypatch
+):
     from stages.script import ScriptStage
     from stages.claude_client import ClaudeCLIError
 
@@ -462,7 +498,9 @@ def test_script_stage_tries_backup_provider_before_scene_fallback(tmp_path, log,
     research_path.write_text("# Research\n\nCore lesson notes.\n")
     outline_path.write_text("# Outline\n\n- Act 1\n- Act 2\n- Act 3\n- Act 4\n")
 
-    monkeypatch.setattr(stage, "_ensure_research", lambda topic, slug: (research_path, outline_path))
+    monkeypatch.setattr(
+        stage, "_ensure_research", lambda topic, slug: (research_path, outline_path)
+    )
 
     provider_calls: list[str] = []
 
@@ -501,7 +539,9 @@ def test_script_stage_tries_codex_after_claude_backup_fails(tmp_path, log, monke
     research_path.write_text("# Research\n\nCore lesson notes.\n")
     outline_path.write_text("# Outline\n\n- Act 1\n- Act 2\n- Act 3\n- Act 4\n")
 
-    monkeypatch.setattr(stage, "_ensure_research", lambda topic, slug: (research_path, outline_path))
+    monkeypatch.setattr(
+        stage, "_ensure_research", lambda topic, slug: (research_path, outline_path)
+    )
 
     provider_calls: list[str] = []
 
@@ -555,13 +595,18 @@ def test_fallback_script_uses_full_scene_counts(tmp_path, log):
     assert all(scene["renderer"] == "slides" for scene in narrated["scenes"])
     assert narrated["scenes"][5]["layout_hint"].startswith("Use a left-to-right story")
     assert "middle 40 percent empty" in narrated["scenes"][7]["layout_hint"]
-    assert "far left edge as a narrow vertical rail" in narrated["scenes"][7]["description"]
+    assert (
+        "far left edge as a narrow vertical rail"
+        in narrated["scenes"][7]["description"]
+    )
     assert len(companion_long["scenes"]) == 24
     assert companion_long["primary_renderer"] == "slides"
     assert companion_long["quality_summary"]["fallback_scene_count"] == 24
     assert all(scene["renderer"] == "slides" for scene in companion_long["scenes"])
     assert companion_long["scenes"][0]["duration_sec"] == 12
-    assert "Keep the title in the top band" in companion_long["scenes"][0]["layout_hint"]
+    assert (
+        "Keep the title in the top band" in companion_long["scenes"][0]["layout_hint"]
+    )
     assert "side-by-side comparison layout" in stage._fallback_layout_hint(
         "Comparison", "Compare the two cases.", "Comparison"
     )
@@ -602,10 +647,14 @@ def test_script_stage_falls_back_when_llm_fails(tmp_path, log, monkeypatch):
     research_path.write_text("# Research\n\nCore lesson notes.\n")
     outline_path.write_text("# Outline\n\n- Act 1\n- Act 2\n- Act 3\n- Act 4\n")
 
-    monkeypatch.setattr(stage, "_ensure_research", lambda topic, slug: (research_path, outline_path))
+    monkeypatch.setattr(
+        stage, "_ensure_research", lambda topic, slug: (research_path, outline_path)
+    )
     monkeypatch.setattr(
         "stages.script.run_claude_json",
-        lambda **kwargs: (_ for _ in ()).throw(ClaudeCLIError("LLM backend did not return valid JSON")),
+        lambda **kwargs: (_ for _ in ()).throw(
+            ClaudeCLIError("LLM backend did not return valid JSON")
+        ),
     )
 
     outputs = stage.run(topic, mode="narrated")
@@ -635,13 +684,21 @@ def test_pipeline_blocks_degraded_scripts_before_render(tmp_path, log, monkeypat
     }
     script_path.write_text(json.dumps(script, indent=2))
 
-    monkeypatch.setattr(RenderStage, "run", lambda *args, **kwargs: (_ for _ in ()).throw(AssertionError("render should not run")))
+    monkeypatch.setattr(
+        RenderStage,
+        "run",
+        lambda *args, **kwargs: (_ for _ in ()).throw(
+            AssertionError("render should not run")
+        ),
+    )
 
     with pytest.raises(RuntimeError, match="Quality gate failed"):
         pipeline_mod.run(str(script_path), "render", cfg, skip_validation=True)
 
 
-def test_script_stage_persists_invalid_llm_json_for_debugging(tmp_path, log, monkeypatch):
+def test_script_stage_persists_invalid_llm_json_for_debugging(
+    tmp_path, log, monkeypatch
+):
     from stages.script import ScriptStage
     from stages.claude_client import StructuredLLMResponseError
 
@@ -656,7 +713,9 @@ def test_script_stage_persists_invalid_llm_json_for_debugging(tmp_path, log, mon
     research_path.write_text("# Research\n\nCore lesson notes.\n")
     outline_path.write_text("# Outline\n\n- Act 1\n- Act 2\n- Act 3\n- Act 4\n")
 
-    monkeypatch.setattr(stage, "_ensure_research", lambda topic, slug: (research_path, outline_path))
+    monkeypatch.setattr(
+        stage, "_ensure_research", lambda topic, slug: (research_path, outline_path)
+    )
     monkeypatch.setattr(
         "stages.script.run_claude_json",
         lambda **kwargs: (_ for _ in ()).throw(
@@ -701,24 +760,60 @@ def test_topic_all_routes_through_new_flow(tmp_path, log, monkeypatch):
     narrated_path = scripts_dir / f"{slug}-narrated.json"
     companion_path = scripts_dir / f"{slug}-companion-long.json"
     narrated_path.write_text(json.dumps(_script_payload(f"{slug}-narrated"), indent=2))
-    companion_path.write_text(json.dumps(_script_payload(f"{slug}-companion-long"), indent=2))
+    companion_path.write_text(
+        json.dumps(_script_payload(f"{slug}-companion-long"), indent=2)
+    )
 
     calls = []
 
-    monkeypatch.setattr(ResearchStage, "run", lambda self, topic: calls.append(("research", topic)) or (
-        cfg.research_dir / f"{slug}.md",
-        cfg.research_dir / f"{slug}-outline.md",
-    ))
-    monkeypatch.setattr(ScriptStage, "run", lambda self, topic, mode="both": calls.append(("script", topic, mode)) or [narrated_path, companion_path])
-    monkeypatch.setattr(RenderStage, "run", lambda self, script, scenes, title: calls.append(("render", title, script.get("primary_renderer"), len(scenes))))
-    monkeypatch.setattr(TTSStage, "run", lambda self, scenes, title: calls.append(("tts", title, len(scenes))))
-    monkeypatch.setattr(StitchStage, "run", lambda self, scenes, title, output_mode="narrated": calls.append(("stitch", title, output_mode, len(scenes))))
-    monkeypatch.setattr(ValidationStage, "run", lambda self, script, scenes, title: calls.append(("validate", title, len(scenes))))
+    monkeypatch.setattr(
+        ResearchStage,
+        "run",
+        lambda self, topic: calls.append(("research", topic))
+        or (
+            cfg.research_dir / f"{slug}.md",
+            cfg.research_dir / f"{slug}-outline.md",
+        ),
+    )
+    monkeypatch.setattr(
+        ScriptStage,
+        "run",
+        lambda self, topic, mode="both": calls.append(("script", topic, mode))
+        or [narrated_path, companion_path],
+    )
+    monkeypatch.setattr(
+        RenderStage,
+        "run",
+        lambda self, script, scenes, title: calls.append(
+            ("render", title, script.get("primary_renderer"), len(scenes))
+        ),
+    )
+    monkeypatch.setattr(
+        TTSStage,
+        "run",
+        lambda self, scenes, title: calls.append(("tts", title, len(scenes))),
+    )
+    monkeypatch.setattr(
+        StitchStage,
+        "run",
+        lambda self, scenes, title, output_mode="narrated": calls.append(
+            ("stitch", title, output_mode, len(scenes))
+        ),
+    )
+    monkeypatch.setattr(
+        ValidationStage,
+        "run",
+        lambda self, script, scenes, title: calls.append(
+            ("validate", title, len(scenes))
+        ),
+    )
 
     narrated_path = scripts_dir / f"{slug}-narrated.json"
     companion_path = scripts_dir / f"{slug}-companion-long.json"
     narrated_path.write_text(json.dumps(_script_payload(f"{slug}-narrated"), indent=2))
-    companion_path.write_text(json.dumps(_script_payload(f"{slug}-companion-long"), indent=2))
+    companion_path.write_text(
+        json.dumps(_script_payload(f"{slug}-companion-long"), indent=2)
+    )
 
     pipeline_mod.run(topic, None, cfg)
 
@@ -749,28 +844,60 @@ def test_topic_document_file_routes_through_new_flow(tmp_path, log, monkeypatch)
 
     calls = []
 
-    monkeypatch.setattr(ResearchStage, "run", lambda self, topic: calls.append(("research", topic)) or (
-        cfg.research_dir / "black-scholes-pricing.md",
-        cfg.research_dir / "black-scholes-pricing-outline.md",
-    ))
+    monkeypatch.setattr(
+        ResearchStage,
+        "run",
+        lambda self, topic: calls.append(("research", topic))
+        or (
+            cfg.research_dir / "black-scholes-pricing.md",
+            cfg.research_dir / "black-scholes-pricing-outline.md",
+        ),
+    )
     monkeypatch.setattr(
         ScriptStage,
         "run",
-        lambda self, topic, mode="both": calls.append(("script", topic, mode)) or [
+        lambda self, topic, mode="both": calls.append(("script", topic, mode))
+        or [
             cfg.scripts_dir / "black-scholes-pricing-narrated.json",
             cfg.scripts_dir / "black-scholes-pricing-companion-long.json",
         ],
     )
-    monkeypatch.setattr(RenderStage, "run", lambda self, script, scenes, title: calls.append(("render", title, script.get("primary_renderer"), len(scenes))))
-    monkeypatch.setattr(TTSStage, "run", lambda self, scenes, title: calls.append(("tts", title, len(scenes))))
-    monkeypatch.setattr(StitchStage, "run", lambda self, scenes, title, output_mode="narrated": calls.append(("stitch", title, output_mode, len(scenes))))
-    monkeypatch.setattr(ValidationStage, "run", lambda self, script, scenes, title: calls.append(("validate", title, len(scenes))))
+    monkeypatch.setattr(
+        RenderStage,
+        "run",
+        lambda self, script, scenes, title: calls.append(
+            ("render", title, script.get("primary_renderer"), len(scenes))
+        ),
+    )
+    monkeypatch.setattr(
+        TTSStage,
+        "run",
+        lambda self, scenes, title: calls.append(("tts", title, len(scenes))),
+    )
+    monkeypatch.setattr(
+        StitchStage,
+        "run",
+        lambda self, scenes, title, output_mode="narrated": calls.append(
+            ("stitch", title, output_mode, len(scenes))
+        ),
+    )
+    monkeypatch.setattr(
+        ValidationStage,
+        "run",
+        lambda self, script, scenes, title: calls.append(
+            ("validate", title, len(scenes))
+        ),
+    )
 
     narrated_path = cfg.scripts_dir / "black-scholes-pricing-narrated.json"
     companion_path = cfg.scripts_dir / "black-scholes-pricing-companion-long.json"
     narrated_path.parent.mkdir(parents=True, exist_ok=True)
-    narrated_path.write_text(json.dumps(_script_payload("black-scholes-pricing-narrated"), indent=2))
-    companion_path.write_text(json.dumps(_script_payload("black-scholes-pricing-companion-long"), indent=2))
+    narrated_path.write_text(
+        json.dumps(_script_payload("black-scholes-pricing-narrated"), indent=2)
+    )
+    companion_path.write_text(
+        json.dumps(_script_payload("black-scholes-pricing-companion-long"), indent=2)
+    )
 
     pipeline_mod.run(str(topic_path), None, cfg)
 
@@ -780,7 +907,9 @@ def test_topic_document_file_routes_through_new_flow(tmp_path, log, monkeypatch)
     assert ("render", "black-scholes-pricing-companion-long", "manim", 3) in calls
 
 
-def test_topic_pipeline_max_scenes_only_limits_runtime_execution(tmp_path, log, monkeypatch):
+def test_topic_pipeline_max_scenes_only_limits_runtime_execution(
+    tmp_path, log, monkeypatch
+):
     import pipeline as pipeline_mod
     from stages.research import ResearchStage
     from stages.script import ScriptStage
@@ -797,21 +926,49 @@ def test_topic_pipeline_max_scenes_only_limits_runtime_execution(tmp_path, log, 
 
     calls = []
 
-    monkeypatch.setattr(ResearchStage, "run", lambda self, topic: calls.append(("research", topic)) or (
-        cfg.research_dir / f"{slug}.md",
-        cfg.research_dir / f"{slug}-outline.md",
-    ))
+    monkeypatch.setattr(
+        ResearchStage,
+        "run",
+        lambda self, topic: calls.append(("research", topic))
+        or (
+            cfg.research_dir / f"{slug}.md",
+            cfg.research_dir / f"{slug}-outline.md",
+        ),
+    )
     monkeypatch.setattr(
         ScriptStage,
         "run",
-        lambda self, topic, mode="both": calls.append(("script", topic, mode)) or [
+        lambda self, topic, mode="both": calls.append(("script", topic, mode))
+        or [
             scripts_dir / f"{slug}-narrated.json",
         ],
     )
-    monkeypatch.setattr(RenderStage, "run", lambda self, script, scenes, title: calls.append(("render", title, len(scenes))))
-    monkeypatch.setattr(TTSStage, "run", lambda self, scenes, title: calls.append(("tts", title, len(scenes))))
-    monkeypatch.setattr(StitchStage, "run", lambda self, scenes, title, output_mode="narrated": calls.append(("stitch", title, output_mode, len(scenes))))
-    monkeypatch.setattr(ValidationStage, "run", lambda self, script, scenes, title: calls.append(("validate", title, len(scenes))))
+    monkeypatch.setattr(
+        RenderStage,
+        "run",
+        lambda self, script, scenes, title: calls.append(
+            ("render", title, len(scenes))
+        ),
+    )
+    monkeypatch.setattr(
+        TTSStage,
+        "run",
+        lambda self, scenes, title: calls.append(("tts", title, len(scenes))),
+    )
+    monkeypatch.setattr(
+        StitchStage,
+        "run",
+        lambda self, scenes, title, output_mode="narrated": calls.append(
+            ("stitch", title, output_mode, len(scenes))
+        ),
+    )
+    monkeypatch.setattr(
+        ValidationStage,
+        "run",
+        lambda self, script, scenes, title: calls.append(
+            ("validate", title, len(scenes))
+        ),
+    )
 
     narrated_path = scripts_dir / f"{slug}-narrated.json"
     narrated_path.write_text(json.dumps(_script_payload(f"{slug}-narrated"), indent=2))

@@ -7,6 +7,7 @@ output, which could be any process that merely mentions the variable, and a
 bogus token surfaced as a 401 halfway through a render that looked for all the
 world like the GPU had gone away.
 """
+
 from __future__ import annotations
 
 import json
@@ -23,18 +24,26 @@ from .base import DONE, BaseProvider, Job, ProviderError
 BASE_URL = "http://127.0.0.1:41954"
 
 
-def request(method: str, url: str, token: str, payload: dict | None = None,
-            timeout: int = 30) -> dict:
+def request(
+    method: str, url: str, token: str, payload: dict | None = None, timeout: int = 30
+) -> dict:
     body = None if payload is None else json.dumps(payload).encode()
     req = urllib.request.Request(
-        url, data=body, method=method,
-        headers={"Authorization": f"Bearer {token}", "Content-Type": "application/json"},
+        url,
+        data=body,
+        method=method,
+        headers={
+            "Authorization": f"Bearer {token}",
+            "Content-Type": "application/json",
+        },
     )
     try:
         with urllib.request.urlopen(req, timeout=timeout) as response:
             return json.loads(response.read().decode() or "{}")
     except urllib.error.HTTPError as exc:
-        raise ProviderError(f"{method} {url} -> {exc.code}: {exc.read().decode()[:200]}")
+        raise ProviderError(
+            f"{method} {url} -> {exc.code}: {exc.read().decode()[:200]}"
+        )
 
 
 def auth_token(base_url: str = BASE_URL) -> str:
@@ -44,13 +53,18 @@ def auth_token(base_url: str = BASE_URL) -> str:
     grep for the variable - so candidates are filtered to plausible tokens and
     then verified against the backend before one is returned.
     """
-    proc = subprocess.run(["ps", "eww", "-ax"], check=True, text=True, capture_output=True)
+    proc = subprocess.run(
+        ["ps", "eww", "-ax"], check=True, text=True, capture_output=True
+    )
     candidates = [
-        t for t in dict.fromkeys(re.findall(r"LTX_AUTH_TOKEN=([^\s]+)", proc.stdout))
+        t
+        for t in dict.fromkeys(re.findall(r"LTX_AUTH_TOKEN=([^\s]+)", proc.stdout))
         if len(t) >= 16 and re.fullmatch(r"[A-Za-z0-9._\-]+", t)
     ]
     if not candidates:
-        raise ProviderError("LTX Desktop is not running, or its local token is unavailable.")
+        raise ProviderError(
+            "LTX Desktop is not running, or its local token is unavailable."
+        )
     for token in candidates:
         try:
             req = urllib.request.Request(
@@ -61,15 +75,18 @@ def auth_token(base_url: str = BASE_URL) -> str:
                 return token
         except Exception:  # noqa: BLE001 - try the next candidate
             continue
-    raise ProviderError("Found LTX token candidates but none were accepted. Is LTX Desktop still running?")
+    raise ProviderError(
+        "Found LTX token candidates but none were accepted. Is LTX Desktop still running?"
+    )
 
 
 class LTXDesktopProvider(BaseProvider):
     name = "ltx-desktop"
     media = ("video",)
 
-    def __init__(self, base_url: str = BASE_URL, timeout: int = 7200,
-                 payload_builder=None) -> None:
+    def __init__(
+        self, base_url: str = BASE_URL, timeout: int = 7200, payload_builder=None
+    ) -> None:
         self.base_url = base_url
         self.timeout = timeout
         # The film owns the exact payload vocabulary; the provider only posts it.
@@ -104,10 +121,14 @@ class LTXDesktopProvider(BaseProvider):
         payload = self.build_payload(spec)
         print(f"Generating {spec.id}...", flush=True)
         started = time.time()
-        result = request("POST", f"{self.base_url}/api/generate",
-                         self.token(), payload, self.timeout)
-        print(f"Completed {spec.id} in {time.time() - started:.1f}s",
-              file=sys.stderr, flush=True)
+        result = request(
+            "POST", f"{self.base_url}/api/generate", self.token(), payload, self.timeout
+        )
+        print(
+            f"Completed {spec.id} in {time.time() - started:.1f}s",
+            file=sys.stderr,
+            flush=True,
+        )
         return Job(handle=spec.id, payload=payload, status=DONE, result=result)
 
     def poll(self, job: Job) -> Job:

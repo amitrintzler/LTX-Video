@@ -22,7 +22,7 @@ from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
-import config as cfg                       # noqa: E402
+import config as cfg  # noqa: E402
 from stages import generate, edit, audio, keyframes  # noqa: E402
 
 STAGES = ["keyframes", "generate", "audio", "edit"]
@@ -39,9 +39,13 @@ def run(project_path: Path, only: str | None, dry_run: bool, tier_override: str 
     dev = cfg.detect_device()
     tier = cfg.select_tier(dev, prefer=tier_override or project.get("tier"))
     print(f"== {project.get('project', project_path.stem)} ==")
-    print(f"Device {dev.kind.upper()} {dev.name} | {dev.vram_gb}GB | tier={tier['name']}")
-    print(f"Shots: {len(project['shots'])}  fps={project.get('fps')}  "
-          f"res={project['resolution']['width']}x{project['resolution']['height']}")
+    print(
+        f"Device {dev.kind.upper()} {dev.name} | {dev.vram_gb}GB | tier={tier['name']}"
+    )
+    print(
+        f"Shots: {len(project['shots'])}  fps={project.get('fps')}  "
+        f"res={project['resolution']['width']}x{project['resolution']['height']}"
+    )
 
     stages = [only] if only else STAGES
 
@@ -67,19 +71,26 @@ def run(project_path: Path, only: str | None, dry_run: bool, tier_override: str 
                     shot["keyframe"] = str(existing[shot["id"]].relative_to(proj_dir))
             elif not dry_run:
                 from stages import sdxl_keyframes
+
                 made = sdxl_keyframes.generate(
-                    char, project["shots"], work,
-                    kf_res["width"], kf_res["height"],
+                    char,
+                    project["shots"],
+                    work,
+                    kf_res["width"],
+                    kf_res["height"],
                     base_seed=project.get("keyframe_base_seed", 1000),
                     ip_scale=project.get("ip_adapter_scale", 0.6),
                     hero_prompt=project.get("hero_prompt"),
-                    use_ip=project.get("ip_adapter", True))
+                    use_ip=project.get("ip_adapter", True),
+                )
                 for shot in project["shots"]:
                     shot["keyframe"] = str((made[shot["id"]]).relative_to(proj_dir))
-                sdxl_keyframes.release()   # free ~12GB before LTX generation
+                sdxl_keyframes.release()  # free ~12GB before LTX generation
             else:
                 for shot in project["shots"]:
-                    shot["keyframe"] = str((work / f"kf_{shot['id']}.png").relative_to(proj_dir))
+                    shot["keyframe"] = str(
+                        (work / f"kf_{shot['id']}.png").relative_to(proj_dir)
+                    )
         else:
             for shot in project["shots"]:
                 if shot.get("keyframe") is None and project.get("auto_keyframes"):
@@ -96,6 +107,7 @@ def run(project_path: Path, only: str | None, dry_run: bool, tier_override: str 
         for shot in project["shots"]:
             if motion == "parallax":
                 from stages import parallax
+
                 fps = int(project.get("fps", 24))
                 nframes = int(round(shot.get("duration", 5) * fps))
                 kf = Path(shot["keyframe"])
@@ -103,13 +115,24 @@ def run(project_path: Path, only: str | None, dry_run: bool, tier_override: str 
                 out = work / f"shot_{shot['id']}.mp4"
                 print(f"  [{shot['id']}] parallax {nframes}f @ {fps}fps")
                 if not dry_run:
-                    parallax.animate(kf, out, nframes, fps,
-                                     parallax_px=shot.get("parallax_px", project.get("parallax_px", 22.0)),
-                                     zoom=shot.get("parallax_zoom", project.get("parallax_zoom", 0.10)),
-                                     pan=tuple(shot.get("pan", (1.0, 0.25))))
+                    parallax.animate(
+                        kf,
+                        out,
+                        nframes,
+                        fps,
+                        parallax_px=shot.get(
+                            "parallax_px", project.get("parallax_px", 22.0)
+                        ),
+                        zoom=shot.get(
+                            "parallax_zoom", project.get("parallax_zoom", 0.10)
+                        ),
+                        pan=tuple(shot.get("pan", (1.0, 0.25))),
+                    )
                 clips.append(out)
             else:
-                clips.append(generate.generate_shot(shot, project, tier, work, dev, dry_run))
+                clips.append(
+                    generate.generate_shot(shot, project, tier, work, dev, dry_run)
+                )
     else:
         clips = sorted(work.glob("shot_*.mp4"))
 
@@ -138,7 +161,7 @@ def run(project_path: Path, only: str | None, dry_run: bool, tier_override: str 
         srt = proj_dir / project["subtitles"] if project.get("subtitles") else None
         final = out_dir / f"{project.get('project', 'film')}_final.mp4"
         if bed is None and (work / "bed.wav").exists():
-            bed = work / "bed.wav"   # reuse audio from a prior run on --stage edit
+            bed = work / "bed.wav"  # reuse audio from a prior run on --stage edit
         edit.assemble(clips, project, final, audio=bed, subtitles=srt)
         print(f"\n✅ {final}")
     elif dry_run:
@@ -150,12 +173,17 @@ def main():
     ap.add_argument("project", nargs="?", help="path to project.json")
     ap.add_argument("--stage", choices=STAGES, help="run a single stage")
     ap.add_argument("--tier", help="force a model tier (see config.TIERS)")
-    ap.add_argument("--dry-run", action="store_true", help="print plan without rendering")
-    ap.add_argument("--probe", action="store_true", help="show detected hardware and exit")
+    ap.add_argument(
+        "--dry-run", action="store_true", help="print plan without rendering"
+    )
+    ap.add_argument(
+        "--probe", action="store_true", help="show detected hardware and exit"
+    )
     args = ap.parse_args()
 
     if args.probe:
         import subprocess
+
         subprocess.run([sys.executable, str(HERE / "config.py")])
         return
     if not args.project:

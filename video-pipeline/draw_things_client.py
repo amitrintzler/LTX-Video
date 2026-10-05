@@ -150,6 +150,8 @@ class DrawThingsClient:
         data = r.json()
         images_b64 = data.get("images", [])
         if not images_b64:
-            raise DrawThingsError(f"No images returned from {endpoint}. Response: {data}")
+            raise DrawThingsError(
+                f"No images returned from {endpoint}. Response: {data}"
+            )
 
         return [base64.b64decode(img) for img in images_b64]

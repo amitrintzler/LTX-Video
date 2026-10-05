@@ -5,13 +5,14 @@ The goal: one codebase that runs the *best quality the current machine allows*,
 auto-selecting LTX-Video model size, precision, and resolution caps from the
 detected device (Apple Silicon MPS / NVIDIA CUDA / CPU) and available memory.
 """
+
 from __future__ import annotations
 import json
 import os
 import platform
 import shutil
 import subprocess
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Optional
 
@@ -24,10 +25,10 @@ CONFIGS = REPO_ROOT / "configs"
 # ---------------------------------------------------------------------------
 @dataclass
 class Device:
-    kind: str          # "cuda" | "mps" | "cpu"
+    kind: str  # "cuda" | "mps" | "cpu"
     name: str
-    vram_gb: float     # GPU memory (CUDA) or unified memory (MPS) in GiB
-    supports_fp8: bool # fp8 kernels only on recent CUDA (Ada/Hopper/Blackwell)
+    vram_gb: float  # GPU memory (CUDA) or unified memory (MPS) in GiB
+    supports_fp8: bool  # fp8 kernels only on recent CUDA (Ada/Hopper/Blackwell)
 
 
 def detect_device() -> Device:
@@ -38,7 +39,7 @@ def detect_device() -> Device:
 
     if torch.cuda.is_available():
         props = torch.cuda.get_device_properties(0)
-        vram = props.total_memory / (1024 ** 3)
+        vram = props.total_memory / (1024**3)
         # fp8 needs compute capability >= 8.9 (Ada) for practical use
         cc = props.major + props.minor / 10
         return Device("cuda", props.name, round(vram, 1), cc >= 8.9)
@@ -53,7 +54,9 @@ def detect_device() -> Device:
 def _system_ram_gb() -> float:
     try:
         if hasattr(os, "sysconf") and "SC_PAGE_SIZE" in os.sysconf_names:
-            return round(os.sysconf("SC_PAGE_SIZE") * os.sysconf("SC_PHYS_PAGES") / (1024 ** 3), 1)
+            return round(
+                os.sysconf("SC_PAGE_SIZE") * os.sysconf("SC_PHYS_PAGES") / (1024**3), 1
+            )
     except (ValueError, OSError):
         pass
     return 0.0
@@ -76,11 +79,11 @@ def _mac_chip_name() -> str:
 # Ordered best-quality first; we pick the heaviest tier the device can sustain.
 TIERS = [
     # name              config yaml                              min_vram  max_pixels (w*h)  cuda_only
-    ("13b-dev-fp8",     "ltxv-13b-0.9.8-dev-fp8.yaml",           24,       1280 * 720,       True),
-    ("13b-dev",         "ltxv-13b-0.9.8-dev.yaml",               24,       1280 * 720,       False),
-    ("13b-distilled",   "ltxv-13b-0.9.8-distilled.yaml",         16,       1216 * 704,       False),
-    ("2b-distilled",    "ltxv-2b-0.9.8-distilled.yaml",          8,        1024 * 576,       False),
-    ("2b-distilled-fp8","ltxv-2b-0.9.8-distilled-fp8.yaml",      6,        768 * 512,        True),
+    ("13b-dev-fp8", "ltxv-13b-0.9.8-dev-fp8.yaml", 24, 1280 * 720, True),
+    ("13b-dev", "ltxv-13b-0.9.8-dev.yaml", 24, 1280 * 720, False),
+    ("13b-distilled", "ltxv-13b-0.9.8-distilled.yaml", 16, 1216 * 704, False),
+    ("2b-distilled", "ltxv-2b-0.9.8-distilled.yaml", 8, 1024 * 576, False),
+    ("2b-distilled-fp8", "ltxv-2b-0.9.8-distilled-fp8.yaml", 6, 768 * 512, True),
 ]
 
 
@@ -102,14 +105,18 @@ MPS_CAPS = {
     # 13b t2v fits at 832x480; i2v adds keyframe-conditioning memory (~5GB) so
     # i2v needs a smaller budget to stay under 48GB. Lowered for safety.
     "13b-distilled": (704 * 384, 41),
-    "2b-distilled":  (768 * 448, 73),
+    "2b-distilled": (768 * 448, 73),
 }
 MPS_CAPS_DEFAULT = (768 * 448, 49)
 
 
 def _tier_dict(name, cfg, maxpx, max_frames):
-    return {"name": name, "config": str(CONFIGS / cfg),
-            "max_pixels": maxpx, "max_frames": max_frames}
+    return {
+        "name": name,
+        "config": str(CONFIGS / cfg),
+        "max_pixels": maxpx,
+        "max_frames": max_frames,
+    }
 
 
 def _mps_caps(name):
@@ -172,6 +179,7 @@ def ffmpeg_bin() -> str:
         return sys_ff
     try:
         import imageio_ffmpeg
+
         return imageio_ffmpeg.get_ffmpeg_exe()
     except ImportError:
         raise RuntimeError("No ffmpeg found. Install with `brew install ffmpeg`.")

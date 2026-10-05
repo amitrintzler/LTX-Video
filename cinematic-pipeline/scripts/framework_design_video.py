@@ -298,7 +298,11 @@ def designed_bg(t: float) -> Image.Image:
     f = bg_base().copy()
     for rgb, cx, cy in (
         (ACC_A, 330 + 320 * math.sin(t * 0.33), 220 + 140 * math.cos(t * 0.27)),
-        (ACC_B, 1560 + 260 * math.sin(t * 0.29 + 2), 900 + 120 * math.cos(t * 0.36 + 1)),
+        (
+            ACC_B,
+            1560 + 260 * math.sin(t * 0.29 + 2),
+            900 + 120 * math.cos(t * 0.36 + 1),
+        ),
     ):
         sp = glow_sprite(rgb)
         f.paste(sp, (int(cx - 500), int(cy - 500)), sp)
@@ -532,12 +536,29 @@ def spotlight(frame, rect_screen, dim, pad=18, radius=20):
     x, y, w, h = rect_screen
     box = [x - pad, y - pad, x + w + pad, y + h + pad]
     m = Image.new("L", (fw // 2, fh // 2), 0)
-    ImageDraw.Draw(m).rounded_rectangle([c / 2 for c in box], radius=radius / 2, fill=255)
+    ImageDraw.Draw(m).rounded_rectangle(
+        [c / 2 for c in box], radius=radius / 2, fill=255
+    )
     m = m.filter(ImageFilter.GaussianBlur(7)).resize((fw, fh), RS.BILINEAR)
     dark = Image.blend(frame, Image.new("RGB", (fw, fh), (3, 5, 12)), dim)
     out = Image.composite(frame, dark, m)
-    aa = AA((max(0, int(box[0]) - 8), max(0, int(box[1]) - 8), min(fw, int(box[2]) + 8), min(fh, int(box[3]) + 8)))
-    aa.rrect(box[0], box[1], box[2] - box[0], box[3] - box[1], radius, outline=(*ACC_A, int(230 * min(1, dim / 0.4))), width=3)
+    aa = AA(
+        (
+            max(0, int(box[0]) - 8),
+            max(0, int(box[1]) - 8),
+            min(fw, int(box[2]) + 8),
+            min(fh, int(box[3]) + 8),
+        )
+    )
+    aa.rrect(
+        box[0],
+        box[1],
+        box[2] - box[0],
+        box[3] - box[1],
+        radius,
+        outline=(*ACC_A, int(230 * min(1, dim / 0.4))),
+        width=3,
+    )
     aa.composite_onto(out)
     return out
 
@@ -586,7 +607,9 @@ class PageScene:
     def render(self, t: float) -> Image.Image:
         lt = t - bt(self.b0)
         cx, cy, z, rect, dim = self.state(lt)
-        z = min(2.0, z * (1 + 0.004 * max(0.0, lt)))  # slow push, never a locked-off frame
+        z = min(
+            2.0, z * (1 + 0.004 * max(0.0, lt))
+        )  # slow push, never a locked-off frame
         cx += 7 * math.sin(lt * 0.55)
         fr = self.cam.frame(cx, cy, z)
         x0, y0 = cx - (W / z) / 2, cy - (H / z) / 2
@@ -596,7 +619,9 @@ class PageScene:
         if self.chip_txt:
             chip(fr, 96, 84, self.chip_txt, alpha=e_out((lt - 0.2) / 0.5))
         for tin, tout, k, ti, su, *pos in self.lowers:
-            lower_third(fr, lt, bt(tin), bt(tout), k, ti, su, pos[0] if pos else "bottom")
+            lower_third(
+                fr, lt, bt(tin), bt(tout), k, ti, su, pos[0] if pos else "bottom"
+            )
         return fr
 
 
@@ -934,7 +959,12 @@ def draw_chain(fr, lt, t, ch):
             )
             if lt > s + 1.2:  # a pulse keeps travelling once the arrow is drawn
                 u = (t * 0.9 + k * 0.35) % 1.0
-                aa.dot(lerp(xs[k] + w + 14, xs[k + 1] - 14, u), y + h / 2, 6, (255, 255, 255, 235))
+                aa.dot(
+                    lerp(xs[k] + w + 14, xs[k + 1] - 14, u),
+                    y + h / 2,
+                    6,
+                    (255, 255, 255, 235),
+                )
     if ch["final"] and lt > 3.2:
         draw_check(aa, xs[2] + w - 78, y + 70, 64, clamp((lt - 3.2) / 0.5), 1.0)
     aa.composite_onto(fr)
@@ -961,7 +991,17 @@ def examples_scene(t: float) -> Image.Image:
 
 
 # ---- "what you get": one idea -> every format, then real proof ---------------
-PORTAL_TILES = ["Lessons", "Videos", "Podcasts", "Stories", "Games", "Open world", "Simulator", "AI assistant", "and more"]
+PORTAL_TILES = [
+    "Lessons",
+    "Videos",
+    "Podcasts",
+    "Stories",
+    "Games",
+    "Open world",
+    "Simulator",
+    "AI assistant",
+    "and more",
+]
 REPO_ASSETS = HERE.parent / "trailers"
 
 
@@ -978,7 +1018,11 @@ def tile_icon(kind: int) -> Image.Image:
         aa.polygon([(22, 21), (22, 35), (36, 28)], ac)
     elif kind == 2:  # podcasts: microphone
         aa.rrect(21, 5, 14, 24, 7, fill=c)
-        aa.line([(14, 26), (14, 30), (20, 38), (28, 40), (36, 38), (42, 30), (42, 26)], ac, 3)
+        aa.line(
+            [(14, 26), (14, 30), (20, 38), (28, 40), (36, 38), (42, 30), (42, 26)],
+            ac,
+            3,
+        )
         aa.line([(28, 40), (28, 50)], c, 3)
     elif kind == 3:  # stories: a page with lines
         aa.rrect(11, 7, 34, 42, 4, outline=c, width=3)
@@ -996,7 +1040,11 @@ def tile_icon(kind: int) -> Image.Image:
         aa.rrect(38, 22, 11, 27, 2, fill=dim)
         aa.dot(29, 20, 2.5, ac)
     elif kind == 6:  # simulator: candles
-        for x, top, bot, col in ((16, 24, 44, (34, 197, 94, 255)), (28, 14, 36, (34, 197, 94, 255)), (40, 26, 46, (239, 68, 68, 255))):
+        for x, top, bot, col in (
+            (16, 24, 44, (34, 197, 94, 255)),
+            (28, 14, 36, (34, 197, 94, 255)),
+            (40, 26, 46, (239, 68, 68, 255)),
+        ):
             aa.line([(x, top - 6), (x, bot + 6)], col, 2)
             aa.rrect(x - 5, top, 10, bot - top, 2, fill=col)
     elif kind == 7:  # assistant: speech bubble
@@ -1014,9 +1062,24 @@ def draw_portal_hub(fr, lt, t):
     by = 4 * math.sin(t * 1.25)
     a_h = e_out((lt - 0.1) / 0.5)
     chip(fr, 96, 84, "What you get", alpha=a_h)
-    paste(fr, text_img("One idea. A whole learning portal.", "eb", 74, TXT), (90, 160 + (1 - a_h) * 24), alpha=a_h)
+    paste(
+        fr,
+        text_img("One idea. A whole learning portal.", "eb", 74, TXT),
+        (90, 160 + (1 - a_h) * 24),
+        alpha=a_h,
+    )
     a_s = e_out((lt - 0.35) / 0.5)
-    paste(fr, text_img("Lessons, videos, podcasts, stories, games and an open world, all fitted to your idea.", "qs", 36, MUTED), (96, 262 + (1 - a_s) * 16), alpha=a_s)
+    paste(
+        fr,
+        text_img(
+            "Lessons, videos, podcasts, stories, games and an open world, all fitted to your idea.",
+            "qs",
+            36,
+            MUTED,
+        ),
+        (96, 262 + (1 - a_s) * 16),
+        alpha=a_s,
+    )
     aa = AA((120, 372, 1830, 800))
     idea = (120, 513 + by, 520, 130)
     a_idea = e_out((lt - 0.4) / 0.5)
@@ -1039,14 +1102,30 @@ def draw_portal_hub(fr, lt, t):
             px_, py_ = bezier(p0, c1, c2, end, u)
             aa.dot(px_, py_, 5, (255, 255, 255, 230))
     labels = []
-    for k, label, x, y, st in geo:  # tiles drawn after every line so lines pass behind them
+    for (
+        k,
+        label,
+        x,
+        y,
+        st,
+    ) in geo:  # tiles drawn after every line so lines pass behind them
         a = e_out((lt - st - 0.45) / 0.35)
         if a > 0:
             node_card(aa, x + (1 - a) * 24, y, 340, 104, a, ACC_B if k % 2 else ACC_A)
             labels.append((k, x + (1 - a) * 24, y, a, label))
     aa.composite_onto(fr)
-    paste(fr, text_img("YOUR IDEA", "sb", 22, ACC_A), (idea[0] + 34, idea[1] + 24), alpha=a_idea)
-    paste(fr, text_img("How to trade earnings", "eb", 36, TXT), (idea[0] + 34, idea[1] + 62), alpha=a_idea)
+    paste(
+        fr,
+        text_img("YOUR IDEA", "sb", 22, ACC_A),
+        (idea[0] + 34, idea[1] + 24),
+        alpha=a_idea,
+    )
+    paste(
+        fr,
+        text_img("How to trade earnings", "eb", 36, TXT),
+        (idea[0] + 34, idea[1] + 62),
+        alpha=a_idea,
+    )
     for k, x, y, a, label in labels:
         paste(fr, tile_icon(k), (x + 22, y + 24), alpha=a)
         paste(fr, text_img(label, "b", 30, TXT), (x + 96 - 6, y + 34 - 6), alpha=a)
@@ -1054,26 +1133,42 @@ def draw_portal_hub(fr, lt, t):
 
 PROOFS = [
     dict(
-        src="lesson", crop=(236, 190, 1448, 469), scale=1.19,
-        kicker="EVERY LESSON", title="Every format, one lesson",
+        src="lesson",
+        crop=(236, 190, 1448, 469),
+        scale=1.19,
+        kicker="EVERY LESSON",
+        title="Every format, one lesson",
         sub="Listen / Watch · Storybook explanation · Games · Story · Quiz · Ask assistant",
         spots=[(0.5, (934, 284, 712, 44)), (1.5, (276, 500, 1368, 58))],
     ),
     dict(
-        src="daily", crop=(488, 335, 944, 470), scale=1.3,
-        kicker="EVERY DAY", title="Podcasts and videos",
+        src="daily",
+        crop=(488, 335, 944, 470),
+        scale=1.3,
+        kicker="EVERY DAY",
+        title="Podcasts and videos",
         sub="Every trading day, one real market event taken apart.",
-        spots=[(0.5, (553, 458, 395, 256)), (1.2, (972, 458, 395, 256)), (1.9, (553, 736, 571, 62))],
+        spots=[
+            (0.5, (553, 458, 395, 256)),
+            (1.2, (972, 458, 395, 256)),
+            (1.9, (553, 736, 571, 62)),
+        ],
     ),
     dict(
-        src="games", crop=(236, 420, 1448, 571), scale=1.19,
-        kicker="GAMES", title="Practice you can play",
+        src="games",
+        crop=(236, 420, 1448, 571),
+        scale=1.19,
+        kicker="GAMES",
+        title="Practice you can play",
         sub="Fast playable drills for options mechanics, strategy, and market-making.",
         spots=[(0.5, (276, 436, 1368, 244)), (1.5, (276, 697, 910, 242))],
     ),
     dict(
-        src="city", crop=(0, 60, 1920, 800), scale=0.9,
-        kicker="OPEN WORLD", title="A city you can trade in",
+        src="city",
+        crop=(0, 60, 1920, 800),
+        scale=0.9,
+        kicker="OPEN WORLD",
+        title="A city you can trade in",
         sub="Walk the city, take missions, make options decisions.",
         spots=[],
     ),
@@ -1094,7 +1189,9 @@ def proof_src(name: str) -> Image.Image:
 @lru_cache(maxsize=8)
 def round_mask(size: tuple, r: int) -> Image.Image:
     m = Image.new("L", (size[0] * 2, size[1] * 2), 0)
-    ImageDraw.Draw(m).rounded_rectangle([0, 0, size[0] * 2 - 1, size[1] * 2 - 1], radius=r * 2, fill=255)
+    ImageDraw.Draw(m).rounded_rectangle(
+        [0, 0, size[0] * 2 - 1, size[1] * 2 - 1], radius=r * 2, fill=255
+    )
     return m.resize(size, RS.LANCZOS)
 
 
@@ -1102,7 +1199,9 @@ def round_mask(size: tuple, r: int) -> Image.Image:
 def card_shadow(size: tuple) -> Image.Image:
     pad = 60
     m = Image.new("L", (size[0] + 2 * pad, size[1] + 2 * pad), 0)
-    ImageDraw.Draw(m).rounded_rectangle([pad, pad + 16, pad + size[0], pad + 16 + size[1]], radius=24, fill=150)
+    ImageDraw.Draw(m).rounded_rectangle(
+        [pad, pad + 16, pad + size[0], pad + 16 + size[1]], radius=24, fill=150
+    )
     return m.filter(ImageFilter.GaussianBlur(26))
 
 
@@ -1131,19 +1230,41 @@ def proof_frame(i: int, lt: float, t: float) -> Image.Image:
     cw2, ch2 = cw / z, ch / z
     x0 = cx0 + (cw - cw2) / 2 + 8 * math.sin(lt * 0.55)
     y0 = cy0 + (ch - ch2) / 2 + 5 * math.cos(lt * 0.45)
-    card = src.transform((dw, dh), Image.Transform.AFFINE, (cw2 / dw, 0, x0, 0, ch2 / dh, y0), resample=RS.BICUBIC, fillcolor=(9, 11, 20))
+    card = src.transform(
+        (dw, dh),
+        Image.Transform.AFFINE,
+        (cw2 / dw, 0, x0, 0, ch2 / dh, y0),
+        resample=RS.BICUBIC,
+        fillcolor=(9, 11, 20),
+    )
     rect, dim = spot_state(P["spots"], lt)
     if rect is not None:
-        rc = ((rect[0] - x0) * dw / cw2, (rect[1] - y0) * dh / ch2, rect[2] * dw / cw2, rect[3] * dh / ch2)
+        rc = (
+            (rect[0] - x0) * dw / cw2,
+            (rect[1] - y0) * dh / ch2,
+            rect[2] * dw / cw2,
+            rect[3] * dh / ch2,
+        )
         card = spotlight(card, rc, dim, pad=10, radius=14)
     fr = designed_bg(t)
     a = e_out(lt / 0.4)
     chip(fr, 96, 84, P["kicker"], alpha=a)
     paste(fr, text_img(P["title"], "eb", 64, TXT), (90, 150 + (1 - a) * 20), alpha=a)
-    paste(fr, text_img(P["sub"], "qs", 34, MUTED), (96, 236 + (1 - a) * 14), alpha=e_out((lt - 0.15) / 0.4))
-    x, y = (W - dw) // 2, min(330, 1050 - dh) + int(5 * math.sin(t * 1.2)) + int((1 - a) * 26)
+    paste(
+        fr,
+        text_img(P["sub"], "qs", 34, MUTED),
+        (96, 236 + (1 - a) * 14),
+        alpha=e_out((lt - 0.15) / 0.4),
+    )
+    x, y = (W - dw) // 2, min(330, 1050 - dh) + int(5 * math.sin(t * 1.2)) + int(
+        (1 - a) * 26
+    )
     sh = card_shadow((dw, dh))
-    fr.paste(Image.new("RGB", sh.size, (2, 3, 8)), (x - 60, y - 60), ImageChops.multiply(sh, Image.new("L", sh.size, int(255 * a))))
+    fr.paste(
+        Image.new("RGB", sh.size, (2, 3, 8)),
+        (x - 60, y - 60),
+        ImageChops.multiply(sh, Image.new("L", sh.size, int(255 * a))),
+    )
     m = round_mask((dw, dh), 22)
     if a < 0.999:
         m = ImageChops.multiply(m, Image.new("L", m.size, int(255 * a)))
@@ -1157,7 +1278,11 @@ def proof_frame(i: int, lt: float, t: float) -> Image.Image:
 def portal_close(lt: float, t: float) -> Image.Image:
     fr = designed_bg(t)
     paste(fr, logo_mark(88), (W // 2 - 44, 170), alpha=e_out(lt / 0.5))
-    rows = [("One idea.", "eb", 150, True, 0.0, 300), ("A full learning portal", "eb", 92, False, 0.55, 500), ("for you only.", "eb", 92, True, 1.1, 616)]
+    rows = [
+        ("One idea.", "eb", 150, True, 0.0, 300),
+        ("A full learning portal", "eb", 92, False, 0.55, 500),
+        ("for you only.", "eb", 92, True, 1.1, 616),
+    ]
     for txt, fn, sz, grad, st, y in rows:
         a = e_out((lt - st) / 0.5)
         lay = gradient_text(txt, fn, sz) if grad else text_img(txt, fn, sz, TXT)
@@ -1224,11 +1349,35 @@ def poster_frame() -> Image.Image:
     with_particles(fr, 3.0, n=34)
     chip(fr, 150, 150, "Framework design")
     for i, line in enumerate(["Turn any idea into a", "course + simulator blueprint"]):
-        paste(fr, gradient_text(line, "eb", 104) if i else text_img(line, "eb", 104, TXT), (144, 250 + i * 128))
-    paste(fr, text_img("One idea becomes a full learning portal, for you only:", "qs", 40, (196, 206, 226)), (150, 540))
-    paste(fr, text_img("lessons, videos, podcasts, stories, games and an open world.", "qs", 40, (196, 206, 226)), (150, 594))
+        paste(
+            fr,
+            gradient_text(line, "eb", 104) if i else text_img(line, "eb", 104, TXT),
+            (144, 250 + i * 128),
+        )
+    paste(
+        fr,
+        text_img(
+            "One idea becomes a full learning portal, for you only:",
+            "qs",
+            40,
+            (196, 206, 226),
+        ),
+        (150, 540),
+    )
+    paste(
+        fr,
+        text_img(
+            "lessons, videos, podcasts, stories, games and an open world.",
+            "qs",
+            40,
+            (196, 206, 226),
+        ),
+        (150, 594),
+    )
     aa = AA((150, 800, 1770, 1000))
-    aa.line([(SPINE_X[0], SPINE_Y - 100), (SPINE_X[-1], SPINE_Y - 100)], (*ACC_A, 255), 5)
+    aa.line(
+        [(SPINE_X[0], SPINE_Y - 100), (SPINE_X[-1], SPINE_Y - 100)], (*ACC_A, 255), 5
+    )
     for x in SPINE_X:
         aa.dot(x, SPINE_Y - 100, 15, (*ACC_A, 255))
         aa.dot(x, SPINE_Y - 100, 5, (255, 255, 255, 255))
@@ -1289,10 +1438,22 @@ def build_scenes(cam: PageCam):
             focus(6.0, right, 1.3),
         ],
         [
-            (0.4, 5.6, "COURSE BLUEPRINT STRUCTURE", "Every module, the same shape",
-             "A consistent format keeps every module easy to follow and easy to scale.", "top"),
-            (6.3, 11.6, "SIMULATOR STRUCTURE", "Every run, one milestone",
-             "Each simulator run should reinforce a specific milestone.", "top"),
+            (
+                0.4,
+                5.6,
+                "COURSE BLUEPRINT STRUCTURE",
+                "Every module, the same shape",
+                "A consistent format keeps every module easy to follow and easy to scale.",
+                "top",
+            ),
+            (
+                6.3,
+                11.6,
+                "SIMULATOR STRUCTURE",
+                "Every run, one milestone",
+                "Each simulator run should reinforce a specific milestone.",
+                "top",
+            ),
         ],
     )
     return hook, struct
@@ -1377,11 +1538,17 @@ def frame_at(t: float, scenes) -> Image.Image:
             fr = Image.blend(chain[idx - 1][1](t), fr, e_io(x / 0.3))
     # the drop: a brief white flash
     if 0 <= t - t_drop < 0.2:
-        fr = Image.blend(fr, Image.new("RGB", (W, H), (255, 255, 255)), 0.55 * (1 - (t - t_drop) / 0.2))
+        fr = Image.blend(
+            fr,
+            Image.new("RGB", (W, H), (255, 255, 255)),
+            0.55 * (1 - (t - t_drop) / 0.2),
+        )
     if t < 0.5:
         fr = Image.blend(Image.new("RGB", (W, H), (0, 0, 0)), fr, e_out(t / 0.5))
     if t > T_END - 1.3:
-        fr = Image.blend(fr, Image.new("RGB", (W, H), (0, 0, 0)), e_in((t - (T_END - 1.3)) / 1.3))
+        fr = Image.blend(
+            fr, Image.new("RGB", (W, H), (0, 0, 0)), e_in((t - (T_END - 1.3)) / 1.3)
+        )
     return fr
 
 
@@ -1393,7 +1560,11 @@ def voice_script():
     return [
         ("One idea.", 0.92, 2.85),
         ("A whole learning portal.", 0.92, 4.1),
-        ("Lessons, videos, podcasts, stories, games, and an open world.", 1.0, bt(B_PORTAL) + 0.2),
+        (
+            "Lessons, videos, podcasts, stories, games, and an open world.",
+            1.0,
+            bt(B_PORTAL) + 0.2,
+        ),
         ("One idea.", 0.92, cl + 0.05),
         ("A full learning portal.", 0.92, cl + 1.05),
         ("For you only.", 0.9, cl + 2.45),
@@ -1428,15 +1599,29 @@ def build_score() -> Path:
 
 def _measure_lufs(path: Path) -> float:
     r = subprocess.run(
-        ["ffmpeg", "-hide_banner", "-nostats", "-i", str(path), "-af",
-         "loudnorm=I=-16:TP=-1.5:LRA=11:print_format=json", "-f", "null", "-"],
-        capture_output=True, text=True, check=True,
+        [
+            "ffmpeg",
+            "-hide_banner",
+            "-nostats",
+            "-i",
+            str(path),
+            "-af",
+            "loudnorm=I=-16:TP=-1.5:LRA=11:print_format=json",
+            "-f",
+            "null",
+            "-",
+        ],
+        capture_output=True,
+        text=True,
+        check=True,
     )
     blob = re.search(r"\{[^{}]*\}", r.stderr, re.S).group(0)
     return float(json.loads(blob)["input_i"])
 
 
-def mix_and_mux(video: Path, score: Path, out: Path, target_lufs: float = -16.0) -> None:
+def mix_and_mux(
+    video: Path, score: Path, out: Path, target_lufs: float = -16.0
+) -> None:
     """Inputs: 0 = silent video (copied, never re-encoded), 1 = the score.
     Loudness is a single static gain to the target, then a ceiling limiter:
     an adaptive loudnorm would flatten the dynamics the score is built on."""
@@ -1448,14 +1633,30 @@ def mix_and_mux(video: Path, score: Path, out: Path, target_lufs: float = -16.0)
     )
     subprocess.run(
         [
-            "ffmpeg", "-y", "-loglevel", "error",
-            "-i", str(video),
-            "-i", str(score),
-            "-filter_complex", fc,
-            "-map", "0:v", "-map", "[a]",
-            "-c:v", "copy", "-c:a", "aac_at", "-b:a", "224k",
-            "-t", f"{T_END:.3f}",
-            "-movflags", "+faststart",
+            "ffmpeg",
+            "-y",
+            "-loglevel",
+            "error",
+            "-i",
+            str(video),
+            "-i",
+            str(score),
+            "-filter_complex",
+            fc,
+            "-map",
+            "0:v",
+            "-map",
+            "[a]",
+            "-c:v",
+            "copy",
+            "-c:a",
+            "aac_at",
+            "-b:a",
+            "224k",
+            "-t",
+            f"{T_END:.3f}",
+            "-movflags",
+            "+faststart",
             str(out),
         ],
         check=True,

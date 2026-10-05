@@ -53,12 +53,17 @@ def run_claude_research(
     cmd = [
         "claude",
         "--print",
-        "--output-format", "json",
-        "--model", model,
-        "--system-prompt", system_prompt,
-        "--allowedTools", "WebSearch",
+        "--output-format",
+        "json",
+        "--model",
+        model,
+        "--system-prompt",
+        system_prompt,
+        "--allowedTools",
+        "WebSearch",
         "--dangerously-skip-permissions",
-        "--json-schema", json.dumps(schema),
+        "--json-schema",
+        json.dumps(schema),
         prompt,
     ]
     try:
@@ -69,9 +74,7 @@ def run_claude_research(
             timeout=timeout,
         )
     except FileNotFoundError as e:
-        raise ClaudeCLIError(
-            "Claude Code CLI not found on PATH."
-        ) from e
+        raise ClaudeCLIError("Claude Code CLI not found on PATH.") from e
     except subprocess.TimeoutExpired as e:
         raise ClaudeCLIError("Claude Code CLI timed out during research") from e
 
@@ -96,7 +99,8 @@ def run_claude_research(
         inner = envelope.get("result") or envelope.get("content") or ""
         if isinstance(inner, list):
             inner = "".join(
-                c.get("text", "") for c in inner
+                c.get("text", "")
+                for c in inner
                 if isinstance(c, dict) and c.get("type") == "text"
             )
         if isinstance(inner, str) and inner.strip():
@@ -376,7 +380,9 @@ def _run_lmstudio(
     max_tokens: int = 32768,
 ) -> str:
     url = base_url.rstrip("/") + "/chat/completions"
-    messages = _build_lmstudio_messages(system_prompt=system_prompt, prompt=prompt, model=model)
+    messages = _build_lmstudio_messages(
+        system_prompt=system_prompt, prompt=prompt, model=model
+    )
     body: dict[str, Any] = {
         "model": model,
         "messages": messages,
@@ -451,7 +457,9 @@ def _run_codex(
         cmd.extend(["--output-last-message", str(output_path)])
         if output_format == "json" and json_schema is not None:
             schema_path = tmp_path / "schema.json"
-            schema_path.write_text(json.dumps(json_schema, indent=2, ensure_ascii=False) + "\n")
+            schema_path.write_text(
+                json.dumps(json_schema, indent=2, ensure_ascii=False) + "\n"
+            )
             cmd.extend(["--output-schema", str(schema_path)])
         cmd.append(prompt)
 
@@ -482,7 +490,9 @@ def _run_codex(
         raise CodexCLIError("Codex CLI returned empty output")
 
 
-def _post_lmstudio_request(*, url: str, body: dict[str, Any], api_key: str, timeout: int) -> dict[str, Any]:
+def _post_lmstudio_request(
+    *, url: str, body: dict[str, Any], api_key: str, timeout: int
+) -> dict[str, Any]:
     req = urllib.request.Request(
         url,
         data=json.dumps(body).encode("utf-8"),
@@ -519,9 +529,7 @@ def _extract_lmstudio_choice(payload: dict[str, Any]) -> str:
 
     if isinstance(choice, list):
         choice = "".join(
-            part.get("text", "")
-            for part in choice
-            if isinstance(part, dict)
+            part.get("text", "") for part in choice if isinstance(part, dict)
         )
 
     if not isinstance(choice, str):
@@ -529,7 +537,9 @@ def _extract_lmstudio_choice(payload: dict[str, Any]) -> str:
     return choice
 
 
-def _build_lmstudio_messages(*, system_prompt: str, prompt: str, model: str) -> list[dict[str, str]]:
+def _build_lmstudio_messages(
+    *, system_prompt: str, prompt: str, model: str
+) -> list[dict[str, str]]:
     """Build chat messages for LM Studio.
 
     Gemma instruction-tuned models are documented as user/model-only, so we fold
@@ -567,7 +577,11 @@ def _extract_json_payload(output: str) -> Any:
             raise ClaudeCLIError("LLM backend did not return valid JSON")
         data = json.loads(text[start : end + 1])
 
-    if isinstance(data, dict) and "content" in data and isinstance(data["content"], list):
+    if (
+        isinstance(data, dict)
+        and "content" in data
+        and isinstance(data["content"], list)
+    ):
         chunks = []
         for chunk in data["content"]:
             if isinstance(chunk, dict) and chunk.get("type") == "text":

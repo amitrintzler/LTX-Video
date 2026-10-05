@@ -110,7 +110,11 @@ def live_digests() -> dict[str, str | None]:
         r = subprocess.run(
             ["curl", "-sfL", "--max-time", "180", url], capture_output=True
         )
-        out[f.name] = hashlib.sha1(r.stdout).hexdigest() if r.returncode == 0 and r.stdout else None
+        out[f.name] = (
+            hashlib.sha1(r.stdout).hexdigest()
+            if r.returncode == 0 and r.stdout
+            else None
+        )
     return out
 
 
@@ -120,7 +124,8 @@ def live_cache_headers() -> dict[str, str]:
     for f in (VIDEO, POSTER):
         head = subprocess.run(
             ["curl", "-sfSI", "--max-time", "60", f"{R2_BASE}/{R2_PREFIX}/{f.name}"],
-            capture_output=True, text=True,
+            capture_output=True,
+            text=True,
         ).stdout
         value = ""
         for line in head.splitlines():
@@ -149,8 +154,24 @@ MEDIA_BRANCH = "media/framework-demo"
 
 def _latest_run_id() -> str:
     runs = json.loads(
-        sh(["gh", "run", "list", "--repo", REPO_SLUG, "--workflow", UPLOAD_WORKFLOW,
-            "--limit", "1", "--json", "databaseId"], cwd=SITE_REPO, check=False) or "[]"
+        sh(
+            [
+                "gh",
+                "run",
+                "list",
+                "--repo",
+                REPO_SLUG,
+                "--workflow",
+                UPLOAD_WORKFLOW,
+                "--limit",
+                "1",
+                "--json",
+                "databaseId",
+            ],
+            cwd=SITE_REPO,
+            check=False,
+        )
+        or "[]"
     )
     return str(runs[0]["databaseId"]) if runs else ""
 
@@ -166,12 +187,23 @@ def _push_media_branch() -> None:
     dest.mkdir(parents=True, exist_ok=True)
     shutil.copy2(VIDEO, dest / VIDEO.name)
     shutil.copy2(POSTER, dest / POSTER.name)
-    sh(["git", "add", "-f", str(REL_DIR / VIDEO.name), str(REL_DIR / POSTER.name)], cwd=wt)
-    sh(["git", "commit", "--quiet", "-m",
-        "Carry the rebuilt framework demo video for the R2 upload workflow\n\n"
-        "Short-lived: this prefix is served from R2 and is not kept in git.\n"
-        "The upload workflow reads its files from a checkout, so they travel\n"
-        "on this branch and it is deleted once the upload is verified."], cwd=wt)
+    sh(
+        ["git", "add", "-f", str(REL_DIR / VIDEO.name), str(REL_DIR / POSTER.name)],
+        cwd=wt,
+    )
+    sh(
+        [
+            "git",
+            "commit",
+            "--quiet",
+            "-m",
+            "Carry the rebuilt framework demo video for the R2 upload workflow\n\n"
+            "Short-lived: this prefix is served from R2 and is not kept in git.\n"
+            "The upload workflow reads its files from a checkout, so they travel\n"
+            "on this branch and it is deleted once the upload is verified.",
+        ],
+        cwd=wt,
+    )
     sh(["git", "push", "--force", "-u", "origin", MEDIA_BRANCH], cwd=wt)
     print(f"  pushed {MEDIA_BRANCH} carrying the two files", flush=True)
 
@@ -197,9 +229,23 @@ def upload_to_media_host(sha_video: str, sha_poster: str, dry: bool) -> int:
     before = _latest_run_id()
     _push_media_branch()
     try:
-        sh(["gh", "workflow", "run", UPLOAD_WORKFLOW, "--repo", REPO_SLUG,
-            "-f", f"prefix={R2_PREFIX}", "-f", f"ref={MEDIA_BRANCH}",
-            "-f", f"dry_run={'true' if dry else 'false'}"], cwd=SITE_REPO)
+        sh(
+            [
+                "gh",
+                "workflow",
+                "run",
+                UPLOAD_WORKFLOW,
+                "--repo",
+                REPO_SLUG,
+                "-f",
+                f"prefix={R2_PREFIX}",
+                "-f",
+                f"ref={MEDIA_BRANCH}",
+                "-f",
+                f"dry_run={'true' if dry else 'false'}",
+            ],
+            cwd=SITE_REPO,
+        )
         print("  dispatched; waiting for the run to appear", flush=True)
 
         run_id = ""
@@ -212,32 +258,67 @@ def upload_to_media_host(sha_video: str, sha_poster: str, dry: bool) -> int:
             print("  the run never appeared - nothing was uploaded", flush=True)
             keep_branch = True
             return 1
-        url = sh(["gh", "run", "view", run_id, "--repo", REPO_SLUG,
-                  "--json", "url", "-q", ".url"], cwd=SITE_REPO, check=False)
+        url = sh(
+            [
+                "gh",
+                "run",
+                "view",
+                run_id,
+                "--repo",
+                REPO_SLUG,
+                "--json",
+                "url",
+                "-q",
+                ".url",
+            ],
+            cwd=SITE_REPO,
+            check=False,
+        )
         print(f"  run {run_id}: {url}", flush=True)
 
         for _ in range(240):
             state = json.loads(
-                sh(["gh", "run", "view", run_id, "--repo", REPO_SLUG,
-                    "--json", "status,conclusion"], cwd=SITE_REPO, check=False) or "{}"
+                sh(
+                    [
+                        "gh",
+                        "run",
+                        "view",
+                        run_id,
+                        "--repo",
+                        REPO_SLUG,
+                        "--json",
+                        "status,conclusion",
+                    ],
+                    cwd=SITE_REPO,
+                    check=False,
+                )
+                or "{}"
             )
             if state.get("status") == "completed":
                 break
             time.sleep(5)
         else:
-            print("  the run did not finish in time; check it before retrying", flush=True)
+            print(
+                "  the run did not finish in time; check it before retrying", flush=True
+            )
             keep_branch = True
             return 1
 
         if state.get("conclusion") != "success":
-            print(f"  the upload run ended as {state.get('conclusion')} - see {url}", flush=True)
+            print(
+                f"  the upload run ended as {state.get('conclusion')} - see {url}",
+                flush=True,
+            )
             keep_branch = True
             return 1
         print("  the run succeeded", flush=True)
 
         if dry:
-            print("\nDry run only: the workflow previewed the upload and wrote nothing. "
-                  "Re-run this without the dry-run mode to upload for real.", flush=True)
+            print(
+                "\nDry run only: the workflow previewed the upload and wrote nothing. "
+                "Re-run this without the dry-run mode to upload for real.",
+                flush=True,
+            )
             return 0
 
         # An upload is only believed once the media host serves those bytes.
@@ -248,18 +329,31 @@ def upload_to_media_host(sha_video: str, sha_poster: str, dry: bool) -> int:
                 for n, v in heads.items():
                     print(f"  live {n}: Cache-Control: {v}", flush=True)
                 if stale_cache(heads):
-                    print("\nThe bytes are right but the immutable cache header is still being "
-                          "served; the edge may take a moment. Re-check before assuming it failed.",
-                          flush=True)
-                print("\nDelivered: the media host now serves exactly this render.", flush=True)
-                print(f"delivered={R2_BASE}/{R2_PREFIX}/{VIDEO.name} (uploaded and verified by sha1)",
-                      flush=True)
+                    print(
+                        "\nThe bytes are right but the immutable cache header is still being "
+                        "served; the edge may take a moment. Re-check before assuming it failed.",
+                        flush=True,
+                    )
+                print(
+                    "\nDelivered: the media host now serves exactly this render.",
+                    flush=True,
+                )
+                print(
+                    f"delivered={R2_BASE}/{R2_PREFIX}/{VIDEO.name} (uploaded and verified by sha1)",
+                    flush=True,
+                )
                 return 0
             time.sleep(10)
-        print("\nThe run succeeded but the media host is still serving different bytes.", flush=True)
+        print(
+            "\nThe run succeeded but the media host is still serving different bytes.",
+            flush=True,
+        )
         for n, d in live.items():
             print(f"  live {n}: {d[:12] if d else 'unreadable'}", flush=True)
-        print("Not deleting the branch, so the upload can be retried or inspected.", flush=True)
+        print(
+            "Not deleting the branch, so the upload can be retried or inspected.",
+            flush=True,
+        )
         keep_branch = True
         return 1
     finally:
@@ -271,31 +365,45 @@ def report_offloaded(sha_video: str, sha_poster: str) -> int:
     """`assets/videos` is served from R2 and is no longer in git, so there is
     nothing to commit. Say what is live, and be exact about the gap if the
     render differs from it."""
-    print(f"\n{REL_DIR} is no longer in git: it was offloaded to R2 and the local copy "
-          "deleted (docs/MEDIA_OFFLOAD.md). Comparing the render with what is live instead.",
-          flush=True)
+    print(
+        f"\n{REL_DIR} is no longer in git: it was offloaded to R2 and the local copy "
+        "deleted (docs/MEDIA_OFFLOAD.md). Comparing the render with what is live instead.",
+        flush=True,
+    )
     live = live_digests()
     want = {VIDEO.name: sha_video, POSTER.name: sha_poster}
     unreachable = [n for n, d in live.items() if d is None]
     if unreachable:
-        print(f"could not read {', '.join(unreachable)} from {R2_BASE} - "
-              "cannot say what is live, so nothing is claimed here.", flush=True)
+        print(
+            f"could not read {', '.join(unreachable)} from {R2_BASE} - "
+            "cannot say what is live, so nothing is claimed here.",
+            flush=True,
+        )
         return 1
 
     differing = [n for n in want if live[n] != want[n]]
     for n in want:
-        state = "matches the render" if live[n] == want[n] else "DIFFERS from the render"
+        state = (
+            "matches the render" if live[n] == want[n] else "DIFFERS from the render"
+        )
         print(f"  live {n}: {live[n][:12]} {state}", flush=True)
     if not differing:
-        print("\nAlready delivered: the media host is serving exactly this render. "
-              "Nothing to upload, nothing to commit.", flush=True)
-        print(f"delivered={R2_BASE}/{R2_PREFIX}/{VIDEO.name} (already live, verified by sha1)",
-              flush=True)
+        print(
+            "\nAlready delivered: the media host is serving exactly this render. "
+            "Nothing to upload, nothing to commit.",
+            flush=True,
+        )
+        print(
+            f"delivered={R2_BASE}/{R2_PREFIX}/{VIDEO.name} (already live, verified by sha1)",
+            flush=True,
+        )
         return 0
 
-    print(f"\n{', '.join(differing)} differs from what is live. This needs an upload to the "
-          "media host: re-run in an upload mode (start with the dry run, which writes nothing).",
-          flush=True)
+    print(
+        f"\n{', '.join(differing)} differs from what is live. This needs an upload to the "
+        "media host: re-run in an upload mode (start with the dry run, which writes nothing).",
+        flush=True,
+    )
     return 1
 
 
@@ -398,8 +506,20 @@ def motion() -> dict:
 
     w, h, fps = 480, 270, 10
     raw = subprocess.run(
-        ["ffmpeg", "-v", "error", "-i", str(VIDEO), "-vf", f"fps={fps},scale={w}:{h}",
-         "-pix_fmt", "gray", "-f", "rawvideo", "-"],
+        [
+            "ffmpeg",
+            "-v",
+            "error",
+            "-i",
+            str(VIDEO),
+            "-vf",
+            f"fps={fps},scale={w}:{h}",
+            "-pix_fmt",
+            "gray",
+            "-f",
+            "rawvideo",
+            "-",
+        ],
         capture_output=True,
     ).stdout
     a = np.frombuffer(raw, np.uint8).reshape(-1, h, w).astype(np.int16)
@@ -475,7 +595,9 @@ def qa() -> tuple[list[str], dict[str, str]]:
 
     m = motion()
     if m["identical_pairs"]:
-        bad.append(f"{m['identical_pairs']} identical consecutive frames - the picture is frozen")
+        bad.append(
+            f"{m['identical_pairs']} identical consecutive frames - the picture is frozen"
+        )
     if m["longest_static"] > 3.0:
         bad.append(f"{m['longest_static']:.1f}s with no visible movement")
     print(
@@ -655,12 +777,39 @@ def upsert_pr(wt: Path, block: str, dry: bool) -> None:
     reviewer - so an update rewrites the delimited block and nothing else.
     Merging is never automated here, and neither is auto-merge.
     """
-    slug = sh(["gh", "repo", "view", "--json", "nameWithOwner", "-q", ".nameWithOwner"], cwd=wt)
-    base = sh(["gh", "repo", "view", "--json", "defaultBranchRef",
-               "-q", ".defaultBranchRef.name"], cwd=wt)
+    slug = sh(
+        ["gh", "repo", "view", "--json", "nameWithOwner", "-q", ".nameWithOwner"],
+        cwd=wt,
+    )
+    base = sh(
+        [
+            "gh",
+            "repo",
+            "view",
+            "--json",
+            "defaultBranchRef",
+            "-q",
+            ".defaultBranchRef.name",
+        ],
+        cwd=wt,
+    )
     open_prs = json.loads(
-        sh(["gh", "pr", "list", "--repo", slug, "--head", BRANCH, "--state", "open",
-            "--json", "number,body,url"], cwd=wt)
+        sh(
+            [
+                "gh",
+                "pr",
+                "list",
+                "--repo",
+                slug,
+                "--head",
+                BRANCH,
+                "--state",
+                "open",
+                "--json",
+                "number,body,url",
+            ],
+            cwd=wt,
+        )
         or "[]"
     )
 
@@ -673,7 +822,9 @@ def upsert_pr(wt: Path, block: str, dry: bool) -> None:
             new_body = head + block + tail
             note = f"refreshed the measured block in PR #{pr['number']}, kept the rest"
         else:
-            new_body = (body.rstrip() + "\n\n" + block + "\n") if body.strip() else block
+            new_body = (
+                (body.rstrip() + "\n\n" + block + "\n") if body.strip() else block
+            )
             note = f"added a measured block to PR #{pr['number']}"
         if dry:
             print(f"dry run: would have {note}", flush=True)
@@ -681,21 +832,57 @@ def upsert_pr(wt: Path, block: str, dry: bool) -> None:
             return
         f = Path(wt) / ".pr-body.md"
         f.write_text(new_body)
-        sh(["gh", "pr", "edit", str(pr["number"]), "--repo", slug, "--body-file", str(f)], cwd=wt)
+        sh(
+            [
+                "gh",
+                "pr",
+                "edit",
+                str(pr["number"]),
+                "--repo",
+                slug,
+                "--body-file",
+                str(f),
+            ],
+            cwd=wt,
+        )
         f.unlink(missing_ok=True)
         print(f"{note}: {pr['url']}", flush=True)
         print(f"delivered={pr['url']} (PR updated)", flush=True)
         return
 
-    body = PR_INTRO + "\n" + block + "\n\n🤖 Generated with [Claude Code](https://claude.com/claude-code)\n"
+    body = (
+        PR_INTRO
+        + "\n"
+        + block
+        + "\n\n🤖 Generated with [Claude Code](https://claude.com/claude-code)\n"
+    )
     if dry:
-        print(f"dry run: would open a PR on {slug} ({BRANCH} -> {base}) titled:\n  {TITLE}", flush=True)
+        print(
+            f"dry run: would open a PR on {slug} ({BRANCH} -> {base}) titled:\n  {TITLE}",
+            flush=True,
+        )
         print("--- body that would be written ---\n" + body, flush=True)
         return
     f = Path(wt) / ".pr-body.md"
     f.write_text(body)
-    url = sh(["gh", "pr", "create", "--repo", slug, "--base", base, "--head", BRANCH,
-              "--title", TITLE, "--body-file", str(f)], cwd=wt).splitlines()[-1]
+    url = sh(
+        [
+            "gh",
+            "pr",
+            "create",
+            "--repo",
+            slug,
+            "--base",
+            base,
+            "--head",
+            BRANCH,
+            "--title",
+            TITLE,
+            "--body-file",
+            str(f),
+        ],
+        cwd=wt,
+    ).splitlines()[-1]
     f.unlink(missing_ok=True)
     print(f"opened {url}", flush=True)
     print(f"delivered={url} (PR opened)", flush=True)
@@ -746,14 +933,20 @@ def main() -> int:
     duration = probe()["duration"]
 
     if a.dry_run:
-        print(f"\ndry run: would deliver mp4 {sha_video[:12]} / jpg {sha_poster[:12]}"
-              f" to {SITE_REPO} on {BRANCH}; nothing written.", flush=True)
+        print(
+            f"\ndry run: would deliver mp4 {sha_video[:12]} / jpg {sha_poster[:12]}"
+            f" to {SITE_REPO} on {BRANCH}; nothing written.",
+            flush=True,
+        )
         if a.pr:
             wt = WORKTREE if WORKTREE.exists() else SITE_REPO
             upsert_pr(wt, facts_block(measured, sha_video, True, a.signoff), dry=True)
         if a.upload or a.upload_dry_run:
-            print(f"dry run: would push {MEDIA_BRANCH} and dispatch {UPLOAD_WORKFLOW} "
-                  f"(prefix={R2_PREFIX}); nothing dispatched.", flush=True)
+            print(
+                f"dry run: would push {MEDIA_BRANCH} and dispatch {UPLOAD_WORKFLOW} "
+                f"(prefix={R2_PREFIX}); nothing dispatched.",
+                flush=True,
+            )
         return 0
 
     if not prefix_in_git():
@@ -766,14 +959,27 @@ def main() -> int:
                 live = live_digests()
                 stale = stale_cache(live_cache_headers())
                 if stale:
-                    print("\n" + ", ".join(stale) + " are served with an immutable year-long "
-                          "cache, which is wrong for files re-rendered in place. Re-uploading to "
-                          "correct the header.", flush=True)
-                if not stale and live[VIDEO.name] == sha_video and live[POSTER.name] == sha_poster:
-                    print("\nNothing to upload: the media host already serves exactly this render.",
-                          flush=True)
-                    print(f"delivered={R2_BASE}/{R2_PREFIX}/{VIDEO.name} (already live, verified by sha1)",
-                          flush=True)
+                    print(
+                        "\n"
+                        + ", ".join(stale)
+                        + " are served with an immutable year-long "
+                        "cache, which is wrong for files re-rendered in place. Re-uploading to "
+                        "correct the header.",
+                        flush=True,
+                    )
+                if (
+                    not stale
+                    and live[VIDEO.name] == sha_video
+                    and live[POSTER.name] == sha_poster
+                ):
+                    print(
+                        "\nNothing to upload: the media host already serves exactly this render.",
+                        flush=True,
+                    )
+                    print(
+                        f"delivered={R2_BASE}/{R2_PREFIX}/{VIDEO.name} (already live, verified by sha1)",
+                        flush=True,
+                    )
                     return 0
             return upload_to_media_host(sha_video, sha_poster, dry=a.upload_dry_run)
         return report_offloaded(sha_video, sha_poster)
@@ -830,8 +1036,15 @@ def main() -> int:
         raise SystemExit(
             "committed bytes differ from the QA'd render - refusing to continue"
         )
-    what = "video + poster + provenance" if video_changed else "provenance only (video unchanged)"
-    print(f"committed {head}: {what}; bytes verified identical to the QA'd render", flush=True)
+    what = (
+        "video + poster + provenance"
+        if video_changed
+        else "provenance only (video unchanged)"
+    )
+    print(
+        f"committed {head}: {what}; bytes verified identical to the QA'd render",
+        flush=True,
+    )
     print(
         f"  README provenance {'updated' if readme_changed else 'already current'}",
         flush=True,
@@ -843,11 +1056,21 @@ def main() -> int:
         sh(["git", "push", "--force-with-lease", "-u", "origin", BRANCH], cwd=wt)
         print(f"pushed {BRANCH}", flush=True)
         if a.pr:
-            upsert_pr(wt, facts_block(measured, sha_video, video_changed, a.signoff), dry=False)
-        print("Merging is a production deploy and this job never does it - merge yourself when "
-              "the Netlify deploy budget allows.", flush=True)
+            upsert_pr(
+                wt,
+                facts_block(measured, sha_video, video_changed, a.signoff),
+                dry=False,
+            )
+        print(
+            "Merging is a production deploy and this job never does it - merge yourself when "
+            "the Netlify deploy budget allows.",
+            flush=True,
+        )
     else:
-        print(f"\nNot pushed. To publish:  git -C {wt} push -u origin {BRANCH}", flush=True)
+        print(
+            f"\nNot pushed. To publish:  git -C {wt} push -u origin {BRANCH}",
+            flush=True,
+        )
         print("Merging is a production deploy; do that deliberately.", flush=True)
     return 0
 

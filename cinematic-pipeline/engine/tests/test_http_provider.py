@@ -5,6 +5,7 @@ poll and fetch cycle is exercised against a local server that imitates the
 shape Veo and its peers use: an operation id, a done flag that flips after a
 couple of polls, and a media url to download.
 """
+
 from __future__ import annotations
 
 import json
@@ -47,12 +48,19 @@ class Handler(BaseHTTPRequestHandler):
         POLLS["count"] += 1
         if POLLS["count"] < 3:
             return self._send({"name": "operations/abc123", "done": False})
-        self._send({
-            "name": "operations/abc123",
-            "done": True,
-            "response": {"generateVideoResponse": {"generatedSamples": [
-                {"video": {"uri": f"http://127.0.0.1:{PORT}/media/out.mp4"}}]}},
-        })
+        self._send(
+            {
+                "name": "operations/abc123",
+                "done": True,
+                "response": {
+                    "generateVideoResponse": {
+                        "generatedSamples": [
+                            {"video": {"uri": f"http://127.0.0.1:{PORT}/media/out.mp4"}}
+                        ]
+                    }
+                },
+            }
+        )
 
 
 srv = HTTPServer(("127.0.0.1", 0), Handler)
@@ -63,9 +71,15 @@ CONFIG = {
     "media": ["video"],
     "endpoint": f"http://127.0.0.1:{PORT}/v1/models/veo:predictLongRunning",
     "auth": {"type": "env_header", "var": "MOCK_KEY", "header": "x-goog-api-key"},
-    "submit": {"prompt": "instances[0].prompt", "seconds": "parameters.durationSeconds"},
-    "poll": {"operation": "name", "done": "done",
-             "url": f"http://127.0.0.1:{PORT}/v1/{{operation}}"},
+    "submit": {
+        "prompt": "instances[0].prompt",
+        "seconds": "parameters.durationSeconds",
+    },
+    "poll": {
+        "operation": "name",
+        "done": "done",
+        "url": f"http://127.0.0.1:{PORT}/v1/{{operation}}",
+    },
     "fetch": {"url": "response.generateVideoResponse.generatedSamples[0].video.uri"},
 }
 
@@ -77,6 +91,7 @@ failures = []
 
 # 1. a missing credential is reported before any request goes out
 import os  # noqa: E402
+
 os.environ.pop("MOCK_KEY", None)
 try:
     HTTPProvider("veo", CONFIG).generate(spec, out_dir, wait=lambda j: None)
@@ -102,7 +117,8 @@ if not path.exists() or path.stat().st_size == 0:
 # 3. a provider refuses work it does not do
 try:
     HTTPProvider("veo", CONFIG).generate(
-        media.MediaSpec(id="s", kind="audio"), out_dir, wait=lambda j: None)
+        media.MediaSpec(id="s", kind="audio"), out_dir, wait=lambda j: None
+    )
     failures.append("accepted an unsupported media kind")
 except ProviderError:
     pass

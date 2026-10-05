@@ -32,7 +32,7 @@ class CurveAnimationScene(Scene):
 
         # CURVE 1: Exponential (in teal/cyan)
         def exp_func(x):
-            return (1.5 ** x) - 1
+            return (1.5**x) - 1
 
         curve1 = axes.plot(
             exp_func,

@@ -12,7 +12,6 @@ Output: frames/<title>/scene_<N>.png
 from __future__ import annotations
 import logging
 import time
-from pathlib import Path
 
 from config import PipelineConfig
 from draw_things_client import DrawThingsClient, DrawThingsError
@@ -41,13 +40,13 @@ class StoryboardStage:
                 continue
 
             scene_id = f"scene_{i+1:03d}"
-            out_path  = out_dir / f"{scene_id}.png"
+            out_path = out_dir / f"{scene_id}.png"
 
             if out_path.exists():
                 self.log.info(f"  [{scene_id}] ✓ already exists — skipping")
                 continue
 
-            prompt   = self._build_prompt(scene, global_style)
+            prompt = self._build_prompt(scene, global_style)
             negative = self._build_negative(scene)
 
             self.log.info(f"  [{scene_id}] Generating storyboard…")

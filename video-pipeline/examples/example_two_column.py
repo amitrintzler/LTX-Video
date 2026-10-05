@@ -36,18 +36,18 @@ class TwoColumnComparisonScene(Scene):
         left_label = Text("CALL", font_size=20, color="#00D9FF", weight="bold")
         left_label.next_to(left_rect, UP, buff=0.2)
 
-        left_bullet1 = Text(
-            "Right to buy", font_size=14, color="#F1F5F9"
-        ).next_to(left_rect.get_left(), RIGHT, buff=0.3)
+        left_bullet1 = Text("Right to buy", font_size=14, color="#F1F5F9").next_to(
+            left_rect.get_left(), RIGHT, buff=0.3
+        )
         left_bullet1.to_edge(LEFT, buff=2.0)
 
-        left_bullet2 = Text(
-            "Profit if price ↑", font_size=14, color="#F1F5F9"
-        ).next_to(left_bullet1, DOWN, buff=0.3)
+        left_bullet2 = Text("Profit if price ↑", font_size=14, color="#F1F5F9").next_to(
+            left_bullet1, DOWN, buff=0.3
+        )
 
-        left_bullet3 = Text(
-            "Loss if price ↓", font_size=14, color="#F1F5F9"
-        ).next_to(left_bullet2, DOWN, buff=0.3)
+        left_bullet3 = Text("Loss if price ↓", font_size=14, color="#F1F5F9").next_to(
+            left_bullet2, DOWN, buff=0.3
+        )
 
         # RIGHT COLUMN: Put Option
         right_rect = Rectangle(
@@ -63,18 +63,18 @@ class TwoColumnComparisonScene(Scene):
         right_label = Text("PUT", font_size=20, color="#FFD700", weight="bold")
         right_label.next_to(right_rect, UP, buff=0.2)
 
-        right_bullet1 = Text(
-            "Right to sell", font_size=14, color="#F1F5F9"
-        ).next_to(right_rect.get_right(), LEFT, buff=0.3)
+        right_bullet1 = Text("Right to sell", font_size=14, color="#F1F5F9").next_to(
+            right_rect.get_right(), LEFT, buff=0.3
+        )
         right_bullet1.to_edge(RIGHT, buff=2.0)
 
         right_bullet2 = Text(
             "Profit if price ↓", font_size=14, color="#F1F5F9"
         ).next_to(right_bullet1, DOWN, buff=0.3)
 
-        right_bullet3 = Text(
-            "Loss if price ↑", font_size=14, color="#F1F5F9"
-        ).next_to(right_bullet2, DOWN, buff=0.3)
+        right_bullet3 = Text("Loss if price ↑", font_size=14, color="#F1F5F9").next_to(
+            right_bullet2, DOWN, buff=0.3
+        )
 
         # Animate left column
         self.play(Create(left_rect), run_time=0.5)

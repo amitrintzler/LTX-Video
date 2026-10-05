@@ -5,6 +5,7 @@ for the best part of an hour and hands back a path. Hosted services return a
 long-running operation and expect polling. So generation is split into submit,
 poll and fetch, and a synchronous provider simply collapses them.
 """
+
 from __future__ import annotations
 
 from dataclasses import dataclass

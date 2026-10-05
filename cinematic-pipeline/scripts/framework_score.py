@@ -330,7 +330,11 @@ def choir_chord(notes, dur):
     out = None
     for i, m in enumerate(notes):
         v = voice_ah(m + 0.07 * (i - len(notes) / 2), dur)
-        out = v if out is None else out[: min(len(out), len(v))] + v[: min(len(out), len(v))]
+        out = (
+            v
+            if out is None
+            else out[: min(len(out), len(v))] + v[: min(len(out), len(v))]
+        )
     return out / (len(notes) ** 0.6)
 
 
@@ -380,7 +384,18 @@ class Score:
         self.ev = ev
         self.n = int((t_end + 1.5) * SR)
         self.bus = {
-            k: np.zeros((self.n, 2)) for k in ("drums", "kick", "bass", "pad", "keys", "fx", "brass", "choir", "taiko")
+            k: np.zeros((self.n, 2))
+            for k in (
+                "drums",
+                "kick",
+                "bass",
+                "pad",
+                "keys",
+                "fx",
+                "brass",
+                "choir",
+                "taiko",
+            )
         }
         self.kicks: list[float] = []
 
@@ -741,22 +756,46 @@ class Score:
         for bar, g in ((0, 0.4), (1, 0.5), (2, 0.65), (3, 0.8)):
             chord = [m + 12 for m in pad_of(bar)[1:]] + [pad_of(bar)[3] + 12]
             self.add("choir", choir_chord(chord, 4 * B), bt(bar * 4), g)
-        for bar, g in ((0, 0.22), (1, 0.28), (2, 0.38), (3, 0.5)):  # strings, eighths then sixteenths
+        for bar, g in (
+            (0, 0.22),
+            (1, 0.28),
+            (2, 0.38),
+            (3, 0.5),
+        ):  # strings, eighths then sixteenths
             _, root, _ = self.chord(bar)
             steps = 16 if bar == 3 else 8
             for i in range(steps):
                 m = root + 24 + (7 if i % 4 == 2 else 0)
-                self.add("keys", string_stac(m, 0.11), bt(bar * 4 + i * 4 / steps), g * (0.7 + 0.3 * i / steps), -0.1)
-        for bar, g in ((0, 0.55), (1, 0.65), (2, 0.8), (3, 0.9)):  # an arpeggio pulse from beat one
+                self.add(
+                    "keys",
+                    string_stac(m, 0.11),
+                    bt(bar * 4 + i * 4 / steps),
+                    g * (0.7 + 0.3 * i / steps),
+                    -0.1,
+                )
+        for bar, g in (
+            (0, 0.55),
+            (1, 0.65),
+            (2, 0.8),
+            (3, 0.9),
+        ):  # an arpeggio pulse from beat one
             _, _, arp = self.chord(bar)
             for i, idx in enumerate([0, 1, 2, 3, 2, 3, 4, 3]):
-                self.add("keys", marimba(arp[idx], 0.3), bt(bar * 4 + i * 0.5), g * 0.5, -0.35 + 0.1 * i)
+                self.add(
+                    "keys",
+                    marimba(arp[idx], 0.3),
+                    bt(bar * 4 + i * 0.5),
+                    g * 0.5,
+                    -0.35 + 0.1 * i,
+                )
         for bar, g in ((1, 0.5), (2, 0.8), (3, 1.0)):  # horns swell in
             _, root, _ = self.chord(bar)
             for m in (root + 12, root + 19, root + 24):
                 self.add("brass", horn_swell(m, 4 * B), bt(bar * 4), g)
         for beat, m, d in THEMES[1]:  # the staircase theme, announced on horns
-            self.add("brass", brass_chord([m, m + 7], d * B * 0.95, 0.3), bt(8 + beat), 0.55)
+            self.add(
+                "brass", brass_chord([m, m + 7], d * B * 0.95, 0.3), bt(8 + beat), 0.55
+            )
 
         # choir: enters with the drop, thickens as the moves close, carries the portal
         for bar in range(ev["drop"] // 4, ev["struct"] // 4):
@@ -779,7 +818,12 @@ class Score:
         # drum rolls into each new act: sixteenths crescendoing over the last beat
         for boundary in (ev["drop"], ev["struct"], ev["examples"], portal, cta):
             for k in range(8):
-                self.add("taiko", taiko(0.35, 60 + 2 * k), bt(boundary - 2 + k * 0.25), 0.25 + 0.09 * k)
+                self.add(
+                    "taiko",
+                    taiko(0.35, 60 + 2 * k),
+                    bt(boundary - 2 + k * 0.25),
+                    0.25 + 0.09 * k,
+                )
             self.add("taiko", taiko(2.0, 44), bt(boundary), 1.0)
             self.add("fx", boom(3.0), bt(boundary), 0.7)
 
@@ -788,29 +832,77 @@ class Score:
             _, root, _ = self.chord(bar)
             for i in range(16):
                 m = root + 24 + (7 if i % 4 == 2 else 0)
-                self.add("keys", string_stac(m, 0.11), bt(bar * 4 + i * 0.25), 0.2, -0.15 + 0.02 * (i % 4))
+                self.add(
+                    "keys",
+                    string_stac(m, 0.11),
+                    bt(bar * 4 + i * 0.25),
+                    0.2,
+                    -0.15 + 0.02 * (i % 4),
+                )
         for bar in range(ev["examples"] // 4 + 1, ev["examples"] // 4 + 4):
             _, root, _ = self.chord(bar)
             for i in range(16):
                 m = root + 24 + (7 if i % 4 == 2 else 0)
-                self.add("keys", string_stac(m, 0.11), bt(bar * 4 + i * 0.25), 0.2 + 0.03 * (bar - ev["examples"] // 4), 0.1)
+                self.add(
+                    "keys",
+                    string_stac(m, 0.11),
+                    bt(bar * 4 + i * 0.25),
+                    0.2 + 0.03 * (bar - ev["examples"] // 4),
+                    0.1,
+                )
 
         # brass: fanfare chords at each act, and the staircase theme carried by horns
         for boundary, bars in ((ev["struct"], 2), (portal, 6), (cta, 1)):
             for bar in range(boundary // 4, boundary // 4 + bars):
-                self.add("brass", brass_chord(fifth_stack(bar), 4 * B), bt(bar * 4), 0.6 if bars > 1 else 0.85)
+                self.add(
+                    "brass",
+                    brass_chord(fifth_stack(bar), 4 * B),
+                    bt(bar * 4),
+                    0.6 if bars > 1 else 0.85,
+                )
         for u0, unit in ((portal + 8, THEMES[0]), (portal + 16, THEMES[1])):
             for beat, m, d in unit:
                 mm = m + LIFT
-                self.add("brass", brass_chord([mm, mm + 7], d * B * 0.95, 0.3), bt(u0 + beat), 0.42)
+                self.add(
+                    "brass",
+                    brass_chord([mm, mm + 7], d * B * 0.95, 0.3),
+                    bt(u0 + beat),
+                    0.42,
+                )
 
         # the finale: everything at once, then one long tonic
         c0 = bt(cta)
-        self.add("choir", choir_chord([64 + LIFT + 12, 68 + LIFT + 12, 71 + LIFT + 12, 76 + LIFT], 3.6), c0, 0.6)
-        self.add("brass", brass_chord([52 + LIFT, 59 + LIFT, 64 + LIFT, 68 + LIFT], 2.8), bt(ev["finale"]), 0.9)
+        self.add(
+            "choir",
+            choir_chord(
+                [64 + LIFT + 12, 68 + LIFT + 12, 71 + LIFT + 12, 76 + LIFT], 3.6
+            ),
+            c0,
+            0.6,
+        )
+        self.add(
+            "brass",
+            brass_chord([52 + LIFT, 59 + LIFT, 64 + LIFT, 68 + LIFT], 2.8),
+            bt(ev["finale"]),
+            0.9,
+        )
         self.add("taiko", taiko(2.4, 44), bt(ev["finale"]), 1.0)
-        self.add("choir", choir_chord([64 + LIFT + 12, 68 + LIFT + 12, 71 + LIFT + 12, 76 + LIFT + 12], 6.0), bt(end_bar), 0.62)
-        self.add("brass", brass_chord([40 + LIFT + 12, 47 + LIFT + 12, 52 + LIFT + 12, 56 + LIFT + 12], 5.0), bt(end_bar), 0.6)
+        self.add(
+            "choir",
+            choir_chord(
+                [64 + LIFT + 12, 68 + LIFT + 12, 71 + LIFT + 12, 76 + LIFT + 12], 6.0
+            ),
+            bt(end_bar),
+            0.62,
+        )
+        self.add(
+            "brass",
+            brass_chord(
+                [40 + LIFT + 12, 47 + LIFT + 12, 52 + LIFT + 12, 56 + LIFT + 12], 5.0
+            ),
+            bt(end_bar),
+            0.6,
+        )
         self.add("taiko", taiko(3.0, 42), bt(end_bar), 1.0)
 
     def render(self, voice=()):
@@ -823,7 +915,17 @@ class Score:
             i0, i1 = int(tk * SR), min(self.n, int((tk + 0.32) * SR))
             if i0 < self.n:
                 duck[i0:i1] *= 1 - 0.38 * np.exp(-(t[i0:i1] - tk) / 0.085)
-        levels = {"drums": 1.0, "kick": 0.32, "bass": 0.26, "pad": 1.4, "keys": 2.2, "fx": 0.55, "brass": 1.35, "choir": 1.35, "taiko": 0.6}
+        levels = {
+            "drums": 1.0,
+            "kick": 0.32,
+            "bass": 0.26,
+            "pad": 1.4,
+            "keys": 2.2,
+            "fx": 0.55,
+            "brass": 1.35,
+            "choir": 1.35,
+            "taiko": 0.6,
+        }
         ducked = {"pad": 1.0, "bass": 0.7, "keys": 0.5}
         big = reverb_ir(2.4, 100)
         hall = reverb_ir(3.8, 300, 4500)
@@ -835,7 +937,9 @@ class Score:
             if name in ("pad", "keys", "fx"):
                 x = apply_reverb(x, big, {"pad": 0.55, "keys": 0.45, "fx": 0.35}[name])
             elif name in ("brass", "choir", "taiko"):
-                x = apply_reverb(x, hall, {"brass": 0.55, "choir": 0.8, "taiko": 0.4}[name])
+                x = apply_reverb(
+                    x, hall, {"brass": 0.55, "choir": 0.8, "taiko": 0.4}[name]
+                )
             elif name == "drums":
                 x = apply_reverb(x, room, 0.18)
             out += x * levels[name]
@@ -845,17 +949,33 @@ class Score:
         ev = self.ev
         kb, kg = zip(
             *[
-                (0, 2.1), (10, 2.1), (ev["drop"] - 0.01, 1.6), (ev["drop"], 2.6),
-                (ev["moves"] + 16, 2.0), (ev["struct"], 2.05),
-                (ev["examples"] - 0.1, 2.05), (ev["examples"], 1.5), (ev["examples"] + 4, 1.9),
-                (portal := ev["portal"], 2.1), (portal + 8, 2.25), (portal + 23, 2.3),
-                (portal + 23.5, 0.8), (ev["cta"] - 0.3, 0.8), (ev["cta"], 2.7), (ev["end"], 2.1),
+                (0, 2.1),
+                (10, 2.1),
+                (ev["drop"] - 0.01, 1.6),
+                (ev["drop"], 2.6),
+                (ev["moves"] + 16, 2.0),
+                (ev["struct"], 2.05),
+                (ev["examples"] - 0.1, 2.05),
+                (ev["examples"], 1.5),
+                (ev["examples"] + 4, 1.9),
+                (portal := ev["portal"], 2.1),
+                (portal + 8, 2.25),
+                (portal + 23, 2.3),
+                (portal + 23.5, 0.8),
+                (ev["cta"] - 0.3, 0.8),
+                (ev["cta"], 2.7),
+                (ev["end"], 2.1),
             ]
         )
         out = out * np.interp(t / self.beat, kb, kg)[:, None]
         # a breath of silence just before the drop, so it hits instead of arriving
         d0 = ev["drop"] * self.beat
-        out = out * np.interp(t, [d0 - 0.13, d0 - 0.115, d0 - 0.01, d0], [1, 0.05, 0.05, 1])[:, None]
+        out = (
+            out
+            * np.interp(t, [d0 - 0.13, d0 - 0.115, d0 - 0.01, d0], [1, 0.05, 0.05, 1])[
+                :, None
+            ]
+        )
         # no global saturation: dynamics are the point. Peak-normalise only.
         out = out / (np.max(np.abs(out)) + 1e-9) * 0.9
         # narration on top; the music ducks under it
@@ -866,8 +986,15 @@ class Score:
                 i0 = int(at * SR)
                 if i0 >= self.n:
                     continue
-                depth = 0.8 if at < ev0 else 0.3  # the hook keeps its music under the voice
-                pts_t = [at - 0.35, at - 0.05, at + len(v) / SR + 0.05, at + len(v) / SR + 0.55]
+                depth = (
+                    0.8 if at < ev0 else 0.3
+                )  # the hook keeps its music under the voice
+                pts_t = [
+                    at - 0.35,
+                    at - 0.05,
+                    at + len(v) / SR + 0.05,
+                    at + len(v) / SR + 0.55,
+                ]
                 seg = np.interp(t, pts_t, [1, depth, depth, 1])
                 g = np.minimum(g, seg)
             out = out * g[:, None]

@@ -1,4 +1,5 @@
 """Tests for multi-renderer dispatcher and Manim renderer — Sub-project 1."""
+
 import logging
 import sys
 from pathlib import Path
@@ -57,7 +58,10 @@ def test_render_llm_model_name_uses_render_backend_only():
 
 
 def test_script_provider_sequence_dedupes_and_keeps_primary_first():
-    cfg = PipelineConfig(llm_provider="claude", script_backup_providers=["claude", "codex", "lmstudio", "codex"])
+    cfg = PipelineConfig(
+        llm_provider="claude",
+        script_backup_providers=["claude", "codex", "lmstudio", "codex"],
+    )
 
     assert cfg.script_provider_sequence() == ["claude", "codex", "lmstudio"]
 
@@ -112,10 +116,13 @@ def test_run_claude_json_repairs_invalid_lmstudio_output():
         "additionalProperties": False,
     }
 
-    with patch("stages.claude_client._run_llm", side_effect=[
-        "Here is your answer: title = basics-flow",
-        '{"title":"basics-flow"}',
-    ]) as mock_run:
+    with patch(
+        "stages.claude_client._run_llm",
+        side_effect=[
+            "Here is your answer: title = basics-flow",
+            '{"title":"basics-flow"}',
+        ],
+    ) as mock_run:
         payload = run_claude_json(
             prompt="Generate JSON only",
             model="google/gemma-4-26b-a4b",
@@ -177,7 +184,9 @@ def test_run_claude_json_supports_codex_backend():
         "additionalProperties": False,
     }
 
-    with patch("stages.claude_client._run_codex", return_value='{"title":"basics-flow"}') as codex_call:
+    with patch(
+        "stages.claude_client._run_codex", return_value='{"title":"basics-flow"}'
+    ) as codex_call:
         payload = run_claude_json(
             prompt="Generate JSON only",
             model="gpt-5.4",
@@ -195,13 +204,33 @@ def test_script_suggests_renderer_from_topic_and_research():
     from stages.script import ScriptStage
 
     stage = ScriptStage(PipelineConfig(), logging.getLogger("test"))
-    assert stage._suggest_renderer("option pricing", "This topic uses formulas and diagrams.", "") == "manim"
-    assert stage._suggest_renderer("quarterly earnings deck", "summary comparison table and bullet list", "") == "d3"
-    assert stage._suggest_renderer("market data trends", "chart and histogram analysis", "") == "d3"
+    assert (
+        stage._suggest_renderer(
+            "option pricing", "This topic uses formulas and diagrams.", ""
+        )
+        == "manim"
+    )
+    assert (
+        stage._suggest_renderer(
+            "quarterly earnings deck", "summary comparison table and bullet list", ""
+        )
+        == "d3"
+    )
+    assert (
+        stage._suggest_renderer(
+            "market data trends", "chart and histogram analysis", ""
+        )
+        == "d3"
+    )
     # "slides", not "motion-canvas": there is no Motion Canvas renderer, the
     # name was aliased to the static slides renderer, and a walkthrough asking
     # for motion silently got frozen frames.
-    assert stage._suggest_renderer("product walkthrough", "browser UI click interaction", "") == "slides"
+    assert (
+        stage._suggest_renderer(
+            "product walkthrough", "browser UI click interaction", ""
+        )
+        == "slides"
+    )
 
 
 def test_suggest_renderer_ignores_a_brief_that_says_it_has_no_content():
@@ -219,7 +248,10 @@ def test_suggest_renderer_ignores_a_brief_that_says_it_has_no_content():
         "No live evidence was collected for this seed, so this draft preserves "
         "the broad lesson context for downstream script generation."
     )
-    assert stage._suggest_renderer("What is implied volatility", placeholder, "") == "manim"
+    assert (
+        stage._suggest_renderer("What is implied volatility", placeholder, "")
+        == "manim"
+    )
 
 
 def test_script_ensure_primary_renderer_sets_root_and_scene_defaults():
@@ -251,49 +283,71 @@ def test_script_schema_is_strict_for_codex():
     schema = stage._schema(3, strict_items=True)
 
     item = schema["properties"]["scenes"]["items"]
-    assert item["required"] == ["id", "renderer", "title", "duration_sec", "narration", "description", "style"]
+    assert item["required"] == [
+        "id",
+        "renderer",
+        "title",
+        "duration_sec",
+        "narration",
+        "description",
+        "style",
+    ]
 
 
 # ── Registry ──────────────────────────────────────────────────────
 
+
 def test_get_renderer_unknown_raises_valueerror():
     from stages.renderers import get_renderer
+
     with pytest.raises(ValueError, match="unknown_xyz"):
         get_renderer("unknown_xyz")
 
 
 def test_get_renderer_manim_returns_module_with_render():
     from stages.renderers import get_renderer
+
     mod = get_renderer("manim")
     assert callable(getattr(mod, "render", None)), "manim renderer must expose render()"
 
 
 def test_get_renderer_slides_returns_module_with_render():
     from stages.renderers import get_renderer
+
     mod = get_renderer("slides")
-    assert callable(getattr(mod, "render", None)), "slides renderer must expose render()"
+    assert callable(
+        getattr(mod, "render", None)
+    ), "slides renderer must expose render()"
 
 
 def test_get_renderer_html_anim_returns_module_with_render():
     from stages.renderers import get_renderer
+
     mod = get_renderer("html_anim")
-    assert callable(getattr(mod, "render", None)), "html_anim renderer must expose render()"
+    assert callable(
+        getattr(mod, "render", None)
+    ), "html_anim renderer must expose render()"
 
 
 def test_get_renderer_d3_returns_module_with_render():
     from stages.renderers import get_renderer
+
     mod = get_renderer("d3")
     assert callable(getattr(mod, "render", None)), "d3 renderer must expose render()"
 
 
 def test_get_renderer_animatediff_returns_module_with_render():
     from stages.renderers import get_renderer
+
     mod = get_renderer("animatediff")
-    assert callable(getattr(mod, "render", None)), "animatediff renderer must expose render()"
+    assert callable(
+        getattr(mod, "render", None)
+    ), "animatediff renderer must expose render()"
 
 
 def test_get_renderer_error_message_lists_valid_renderers():
     from stages.renderers import get_renderer
+
     with pytest.raises(ValueError) as exc_info:
         get_renderer("bad")
     assert "manim" in str(exc_info.value)
@@ -349,12 +403,16 @@ def test_render_stage_sanitizes_manim_scene_description(tmp_path):
             return fake_renderer
         raise AssertionError(f"Unexpected renderer request: {name}")
 
-    with patch("stages.render.shutil.which", return_value="/usr/bin/latex"), \
-         patch("stages.render.get_renderer", side_effect=fake_get_renderer):
+    with (
+        patch("shutil.which", return_value="/usr/bin/latex"),
+        patch("stages.render.get_renderer", side_effect=fake_get_renderer),
+    ):
         stage._render_scene(0, scene, tmp_path, default_renderer="manim")
 
     sanitized_scene = fake_renderer.render.call_args.args[0]
-    assert sanitized_scene["description"].startswith("Show payoff S T - K with strike 100 and x 2.")
+    assert sanitized_scene["description"].startswith(
+        "Show payoff S T - K with strike 100 and x 2."
+    )
     assert "plain-text labels only" in sanitized_scene["description"]
 
 
@@ -379,8 +437,10 @@ def test_render_stage_appends_layout_hint_for_manim(tmp_path):
             return fake_renderer
         raise AssertionError(f"Unexpected renderer request: {name}")
 
-    with patch("stages.render.shutil.which", return_value="/usr/bin/latex"), \
-         patch("stages.render.get_renderer", side_effect=fake_get_renderer):
+    with (
+        patch("shutil.which", return_value="/usr/bin/latex"),
+        patch("stages.render.get_renderer", side_effect=fake_get_renderer),
+    ):
         stage._render_scene(0, scene, tmp_path, default_renderer="manim")
 
     sanitized_scene = fake_renderer.render.call_args.args[0]
@@ -434,8 +494,10 @@ def test_render_stage_keeps_manim_when_latex_is_absent(tmp_path):
     fake_renderer = MagicMock()
     fake_renderer.render = MagicMock(return_value=tmp_path / "scene_001.mp4")
 
-    with patch("stages.render.shutil.which", return_value=None), \
-         patch("stages.render.get_renderer", return_value=fake_renderer) as mock_get:
+    with (
+        patch("shutil.which", return_value=None),
+        patch("stages.render.get_renderer", return_value=fake_renderer) as mock_get,
+    ):
         stage._render_scene(0, scene, tmp_path, default_renderer="manim")
 
     assert mock_get.call_args_list[0].args[0] == "manim"
@@ -457,7 +519,9 @@ def test_slides_render_success(tmp_path):
     }
     out_path = tmp_path / "slide.mp4"
 
-    with patch("stages.renderers.slides._encode_slide_video", return_value=out_path) as encode_call:
+    with patch(
+        "stages.renderers.slides._encode_slide_video", return_value=out_path
+    ) as encode_call:
         result = slides_mod.render(scene, _manim_cfg(), out_path)
 
     assert result == out_path
@@ -549,8 +613,12 @@ def test_html_anim_render_success(tmp_path):
     }
     out_path = tmp_path / "html.mp4"
 
-    with patch("stages.renderers.html_anim._capture_html_frame") as capture_call, \
-         patch("stages.renderers.html_anim._encode_frame_video", return_value=out_path) as encode_call:
+    with (
+        patch("stages.renderers.html_anim._capture_html_frame") as capture_call,
+        patch(
+            "stages.renderers.html_anim._encode_frame_video", return_value=out_path
+        ) as encode_call,
+    ):
         result = html_mod.render(scene, _manim_cfg(), out_path)
 
     assert result == out_path
@@ -572,8 +640,12 @@ def test_d3_render_success(tmp_path):
     }
     out_path = tmp_path / "d3.mp4"
 
-    with patch("stages.renderers.d3._capture_html_frame") as capture_call, \
-         patch("stages.renderers.d3._encode_frame_video", return_value=out_path) as encode_call:
+    with (
+        patch("stages.renderers.d3._capture_html_frame") as capture_call,
+        patch(
+            "stages.renderers.d3._encode_frame_video", return_value=out_path
+        ) as encode_call,
+    ):
         result = d3_mod.render(scene, _manim_cfg(), out_path)
 
     assert result == out_path
@@ -600,8 +672,14 @@ def test_animatediff_render_success(tmp_path):
     fake_client.txt2img.return_value = [b"frame0"]
     fake_client.img2video.return_value = [b"frame1", b"frame2"]
 
-    with patch("stages.renderers.animatediff.DrawThingsClient", return_value=fake_client) as client_call, \
-         patch("stages.renderers.animatediff._encode_frames_to_mp4", return_value=out_path) as encode_call:
+    with (
+        patch(
+            "stages.renderers.animatediff.DrawThingsClient", return_value=fake_client
+        ) as client_call,
+        patch(
+            "stages.renderers.animatediff._encode_frames_to_mp4", return_value=out_path
+        ) as encode_call,
+    ):
         result = ad_mod.render(scene, _manim_cfg(), out_path)
 
     assert result == out_path
@@ -640,16 +718,19 @@ def _manim_cfg():
 def test_manim_render_success(tmp_path):
     """On success: Claude CLI called once, _run_manim called once, out_path returned."""
     from stages.renderers import manim as manim_mod
+
     out_path = tmp_path / "scene_001.mp4"
 
-    mock_call = MagicMock(return_value=(
-        "from manim import *\nclass VideoScene(Scene): pass"
-    ))
+    mock_call = MagicMock(
+        return_value=("from manim import *\nclass VideoScene(Scene): pass")
+    )
 
-    with patch("stages.renderers.manim._check_imports"), \
-         patch("stages.renderers.manim._call_claude_cli", mock_call), \
-         patch("stages.renderers.manim._audit_rendered_video"), \
-         patch("stages.renderers.manim._run_manim", return_value=out_path):
+    with (
+        patch("stages.renderers.manim._check_imports"),
+        patch("stages.renderers.manim._call_claude_cli", mock_call),
+        patch("stages.renderers.manim._audit_rendered_video"),
+        patch("stages.renderers.manim._run_manim", return_value=out_path),
+    ):
         result = manim_mod.render(_manim_scene(), _manim_cfg(), out_path)
 
     assert result == out_path
@@ -665,6 +746,7 @@ def test_code_renderers_default_to_delivery_size_not_diffusion_size():
 
 def test_pin_render_settings_overrides_what_the_model_wrote():
     from stages.renderers.manim import pin_render_settings
+
     code = (
         "from manim import *\nconfig.pixel_width = 1024\nconfig.pixel_height = 576\n"
         "config.frame_rate = 8\nconfig.background_color = '#0F172A'\nclass VideoScene(Scene): pass\n"
@@ -678,6 +760,7 @@ def test_pin_render_settings_overrides_what_the_model_wrote():
 
 def test_render_timeout_grows_with_pixels_drawn():
     from stages.renderers.manim import render_timeout
+
     assert render_timeout(10, 1024, 576, 8) == 300
     assert render_timeout(20, 1920, 1080, 30) > 300
 
@@ -686,12 +769,17 @@ def test_manim_render_saves_shipped_code_beside_clip(tmp_path):
     """The shipped source is kept, so the clip can be re-rendered at another
     size without asking a model to write it again."""
     from stages.renderers import manim as manim_mod
+
     out_path = tmp_path / "scene_001.mp4"
-    mock_call = MagicMock(return_value="from manim import *\nclass VideoScene(Scene): pass")
-    with patch("stages.renderers.manim._check_imports"), \
-         patch("stages.renderers.manim._call_claude_cli", mock_call), \
-         patch("stages.renderers.manim._audit_rendered_video"), \
-         patch("stages.renderers.manim._run_manim", return_value=out_path) as run:
+    mock_call = MagicMock(
+        return_value="from manim import *\nclass VideoScene(Scene): pass"
+    )
+    with (
+        patch("stages.renderers.manim._check_imports"),
+        patch("stages.renderers.manim._call_claude_cli", mock_call),
+        patch("stages.renderers.manim._audit_rendered_video"),
+        patch("stages.renderers.manim._run_manim", return_value=out_path) as run,
+    ):
         manim_mod.render(_manim_scene(), _manim_cfg(), out_path)
     saved = (tmp_path / "scene_001.py").read_text()
     assert saved == run.call_args.args[0]
@@ -701,6 +789,7 @@ def test_manim_render_saves_shipped_code_beside_clip(tmp_path):
 def test_edge_content_flags_a_box_cut_by_the_frame(tmp_path):
     from PIL import ImageDraw
     from stages.renderers.manim import _find_edge_content
+
     img = Image.new("RGB", (1920, 1080), "#0F1923")
     ImageDraw.Draw(img).rectangle([-40, 300, 400, 500], outline="#2A4A6B", width=6)
     ImageDraw.Draw(img).rectangle([1700, 500, 1960, 620], outline="#F5C842", width=6)
@@ -712,9 +801,12 @@ def test_edge_content_flags_a_box_cut_by_the_frame(tmp_path):
 def test_edge_content_passes_a_frame_with_margins(tmp_path):
     from PIL import ImageDraw
     from stages.renderers.manim import _find_edge_content
+
     img = Image.new("RGB", (1920, 1080), "#0F1923")
     ImageDraw.Draw(img).rectangle([90, 200, 600, 400], outline="#2A4A6B", width=6)
-    ImageDraw.Draw(img).line([(0, 1079), (0, 1079)], fill="#FFFFFF")  # single stray pixel
+    ImageDraw.Draw(img).line(
+        [(0, 1079), (0, 1079)], fill="#FFFFFF"
+    )  # single stray pixel
     path = tmp_path / "frame.png"
     img.save(path)
     assert _find_edge_content(path) == []
@@ -729,11 +821,18 @@ def test_manim_render_retries_on_failure(tmp_path):
     cfg = _manim_cfg()
     cfg.renderer_max_retries = 3
 
-    mock_call = MagicMock(return_value="from manim import *\nclass VideoScene(Scene): pass")
+    mock_call = MagicMock(
+        return_value="from manim import *\nclass VideoScene(Scene): pass"
+    )
 
-    with patch("stages.renderers.manim._check_imports"), \
-         patch("stages.renderers.manim._call_claude_cli", mock_call), \
-         patch("stages.renderers.manim._run_manim", side_effect=ManimRenderError("bad syntax")):
+    with (
+        patch("stages.renderers.manim._check_imports"),
+        patch("stages.renderers.manim._call_claude_cli", mock_call),
+        patch(
+            "stages.renderers.manim._run_manim",
+            side_effect=ManimRenderError("bad syntax"),
+        ),
+    ):
         with pytest.raises(ManimRenderError):
             manim_mod.render(_manim_scene(), cfg, out_path)
 
@@ -755,9 +854,14 @@ def test_manim_retry_passes_error_to_claude(tmp_path):
         seen_errors.append(error)
         return "from manim import *\nclass VideoScene(Scene): pass"
 
-    with patch("stages.renderers.manim._check_imports"), \
-         patch("stages.renderers.manim._call_claude_cli", side_effect=fake_call), \
-         patch("stages.renderers.manim._run_manim", side_effect=ManimRenderError("NameError: foo")):
+    with (
+        patch("stages.renderers.manim._check_imports"),
+        patch("stages.renderers.manim._call_claude_cli", side_effect=fake_call),
+        patch(
+            "stages.renderers.manim._run_manim",
+            side_effect=ManimRenderError("NameError: foo"),
+        ),
+    ):
         with pytest.raises(ManimRenderError):
             manim_mod.render(_manim_scene(), cfg, out_path)
 
@@ -770,10 +874,14 @@ def test_manim_claude_cli_invocation_uses_print_and_system_prompt():
 
     fake_result = MagicMock()
     fake_result.returncode = 0
-    fake_result.stdout = "```python\nfrom manim import *\nclass VideoScene(Scene): pass\n```"
+    fake_result.stdout = (
+        "```python\nfrom manim import *\nclass VideoScene(Scene): pass\n```"
+    )
     fake_result.stderr = ""
 
-    with patch("stages.renderers.manim.subprocess.run", return_value=fake_result) as mock_run:
+    with patch(
+        "stages.renderers.manim.subprocess.run", return_value=fake_result
+    ) as mock_run:
         code = _call_claude_cli("claude-sonnet-4-6", "SYSTEM", "DRAW A CURVE", None)
 
     assert "from manim import *" in code
@@ -793,11 +901,16 @@ def test_manim_uses_lmstudio_when_configured(tmp_path):
     cfg.render_llm_model = "local-model"
     out_path = tmp_path / "scene_001.mp4"
 
-    with patch("stages.renderers.manim._check_imports"), \
-         patch("stages.renderers.manim._call_lmstudio_api", return_value="from manim import *\nclass VideoScene(Scene): pass") as lm_call, \
-         patch("stages.renderers.manim._audit_rendered_video"), \
-         patch("stages.renderers.manim._run_manim", return_value=out_path), \
-         patch("stages.renderers.manim._call_claude_cli") as claude_call:
+    with (
+        patch("stages.renderers.manim._check_imports"),
+        patch(
+            "stages.renderers.manim._call_lmstudio_api",
+            return_value="from manim import *\nclass VideoScene(Scene): pass",
+        ) as lm_call,
+        patch("stages.renderers.manim._audit_rendered_video"),
+        patch("stages.renderers.manim._run_manim", return_value=out_path),
+        patch("stages.renderers.manim._call_claude_cli") as claude_call,
+    ):
         result = manim_mod.render(_manim_scene(), cfg, out_path)
 
     assert result == out_path
@@ -821,9 +934,13 @@ class VideoScene(Scene):
         label = MathTex("x^2")
 """
 
-    with patch("stages.renderers.manim._check_imports"), \
-         patch("stages.renderers.manim._call_lmstudio_api", return_value=bad_code) as lm_call, \
-         patch("stages.renderers.manim._run_manim") as run_call:
+    with (
+        patch("stages.renderers.manim._check_imports"),
+        patch(
+            "stages.renderers.manim._call_lmstudio_api", return_value=bad_code
+        ) as lm_call,
+        patch("stages.renderers.manim._run_manim") as run_call,
+    ):
         with pytest.raises(ManimRenderError, match="MathTex/Tex"):
             manim_mod.render(_manim_scene(), cfg, out_path)
 
@@ -847,9 +964,13 @@ class VideoScene(Scene):
         dot = Dot(color=CYAN)
 """
 
-    with patch("stages.renderers.manim._check_imports"), \
-         patch("stages.renderers.manim._call_lmstudio_api", return_value=bad_code) as lm_call, \
-         patch("stages.renderers.manim._run_manim") as run_call:
+    with (
+        patch("stages.renderers.manim._check_imports"),
+        patch(
+            "stages.renderers.manim._call_lmstudio_api", return_value=bad_code
+        ) as lm_call,
+        patch("stages.renderers.manim._run_manim") as run_call,
+    ):
         with pytest.raises(ManimRenderError, match="named color constants"):
             manim_mod.render(_manim_scene(), cfg, out_path)
 
@@ -879,13 +1000,19 @@ class VideoScene(Scene):
         line.set_stroke(color="#00C896", stroke_width=8)
 """
 
-    with patch("stages.renderers.manim._check_imports"), \
-         patch("stages.renderers.manim._call_lmstudio_api", return_value=bad_code) as lm_call, \
-         patch("stages.renderers.manim._run_manim", return_value=out_path) as run_call, \
-         patch("stages.renderers.manim._audit_rendered_video"):
+    with (
+        patch("stages.renderers.manim._check_imports"),
+        patch(
+            "stages.renderers.manim._call_lmstudio_api", return_value=bad_code
+        ) as lm_call,
+        patch("stages.renderers.manim._run_manim", return_value=out_path) as run_call,
+        patch("stages.renderers.manim._audit_rendered_video"),
+    ):
         manim_mod.render(_manim_scene(), cfg, out_path)
 
-    assert lm_call.call_count == 1, "one generation is enough once the keyword is repaired"
+    assert (
+        lm_call.call_count == 1
+    ), "one generation is enough once the keyword is repaired"
     run_call.assert_called_once()
     rendered_code = run_call.call_args.args[0]
     assert "width=8" in rendered_code and "stroke_width=" not in rendered_code
@@ -971,19 +1098,25 @@ def test_layout_audit_catches_text_cut_off_at_the_frame_edge(tmp_path):
     try:
         font = ImageFont.truetype("/System/Library/Fonts/Helvetica.ttc", 40)
     except OSError:
-        font = ImageFont.load_default()
+        # Linux CI has no Helvetica. The unsized default is an 11px bitmap
+        # font, too small to read as text; Pillow >= 10.1 scales it.
+        font = ImageFont.load_default(size=40)
 
     def frame(name, placements):
         im = Image.new("RGB", (1024, 576), (10, 10, 10))
         d = ImageDraw.Draw(im)
         for text, xy in placements:
             d.text(xy, text, fill=(255, 255, 255), font=font)
-        d.line([(0, 520), (1023, 520)], fill=(229, 231, 235), width=4)  # full-width axis
+        d.line(
+            [(0, 520), (1023, 520)], fill=(229, 231, 235), width=4
+        )  # full-width axis
         path = tmp_path / name
         im.save(path)
         return path
 
-    inside = frame("inside.png", [("Stock Price", (60, 200)), ("Breakeven", (780, 200))])
+    inside = frame(
+        "inside.png", [("Stock Price", (60, 200)), ("Breakeven", (780, 200))]
+    )
     right = frame("right.png", [("Market Price", (930, 300))])
     left = frame("left.png", [("Stock Price", (-70, 200))])
     top = frame("top.png", [("Implied Volatility", (380, -18))])
@@ -1001,26 +1134,44 @@ def test_geometric_layout_audit_allows_labels_and_rejects_real_defects():
     from stages.renderers.manim import _audit_layout
 
     def text(s, x, y, width, height=0.35, font_size=24, lines=1):
-        return {"text": s, "lines": lines, "font_size": font_size,
-                "x0": x - width / 2, "x1": x + width / 2,
-                "y0": y - height / 2, "y1": y + height / 2}
+        return {
+            "text": s,
+            "lines": lines,
+            "font_size": font_size,
+            "x0": x - width / 2,
+            "x1": x + width / 2,
+            "y0": y - height / 2,
+            "y1": y + height / 2,
+        }
 
     def layout(*texts):
-        return {"frame_width": 14.222, "frame_height": 8.0,
-                "snapshots": [{"t": 1.0, "texts": list(texts)}]}
+        return {
+            "frame_width": 14.222,
+            "frame_height": 8.0,
+            "snapshots": [{"t": 1.0, "texts": list(texts)}],
+        }
 
     title = text("Implied Volatility", 0, 3.2, 2.90, font_size=32)
     # A labelled diagram: short labels in the centre band are fine.
-    assert _audit_layout(layout(title,
-                                text("Options Model", 0, 0, 1.98),
-                                text("IV", 0, -1.2, 0.45, font_size=40),
-                                text("Stock Price", -5.3, 1.5, 1.70))) == []
+    assert (
+        _audit_layout(
+            layout(
+                title,
+                text("Options Model", 0, 0, 1.98),
+                text("IV", 0, -1.2, 0.45, font_size=40),
+                text("Stock Price", -5.3, 1.5, 1.70),
+            )
+        )
+        == []
+    )
 
     sentence = text("The market is secretly telling you something", 0, -1.2, 5.95)
     assert "title or sentence in the centre band" in _audit_layout(layout(sentence))[0]
     centre_title = text("Implied Volatility", 0, -1.2, 2.90, font_size=32)
     assert "title or sentence" in _audit_layout(layout(centre_title))[0]
-    paragraph = text("Line one" + chr(10) + "Line two", 0, -1.0, 1.5, height=0.8, lines=2)
+    paragraph = text(
+        "Line one" + chr(10) + "Line two", 0, -1.0, 1.5, height=0.8, lines=2
+    )
     assert "title or sentence" in _audit_layout(layout(paragraph))[0]
 
     caption = text("Solving for the unknown volatility", 0, -3.2, 3.61, font_size=18)
@@ -1031,8 +1182,11 @@ def test_geometric_layout_audit_allows_labels_and_rejects_real_defects():
     assert "leaves the frame" in _audit_layout(layout(off_left))[0]
 
     # The same text breaking the same rule in every snapshot is reported once.
-    repeated = {"frame_width": 14.222, "frame_height": 8.0,
-                "snapshots": [{"t": t, "texts": [off_left]} for t in (1.0, 2.0, 3.0)]}
+    repeated = {
+        "frame_width": 14.222,
+        "frame_height": 8.0,
+        "snapshots": [{"t": t, "texts": [off_left]} for t in (1.0, 2.0, 3.0)],
+    }
     assert len(_audit_layout(repeated)) == 1
 
 
@@ -1042,35 +1196,81 @@ def test_layout_audit_catches_text_under_shapes_but_not_backgrounds():
     opaque box between it and the text is not visible - both are fine."""
     from stages.renderers.manim import _audit_layout
 
-    label = {"text": "Market Consensus", "order": 5, "lines": 1, "font_size": 22,
-             "x0": -1.0, "x1": 1.0, "y0": -0.17, "y1": 0.17}
+    label = {
+        "text": "Market Consensus",
+        "order": 5,
+        "lines": 1,
+        "font_size": 22,
+        "x0": -1.0,
+        "x1": 1.0,
+        "y0": -0.17,
+        "y1": 0.17,
+    }
 
     def run(*shapes):
-        return _audit_layout({"frame_width": 14.222, "frame_height": 8.0,
-                              "snapshots": [{"t": 1.0, "texts": [label], "shapes": list(shapes)}]})
+        return _audit_layout(
+            {
+                "frame_width": 14.222,
+                "frame_height": 8.0,
+                "snapshots": [{"t": 1.0, "texts": [label], "shapes": list(shapes)}],
+            }
+        )
 
     def stroke(name, order, pts):
         return {"kind": "stroke", "name": name, "order": order, "pts": pts}
 
     def fill(name, order, x0, y0, x1, y1):
-        return {"kind": "fill", "name": name, "order": order, "x0": x0, "y0": y0, "x1": x1, "y1": y1}
+        return {
+            "kind": "fill",
+            "name": name,
+            "order": order,
+            "x0": x0,
+            "y0": y0,
+            "x1": x1,
+            "y1": y1,
+        }
 
-    through = stroke("Line", 2, [[-3.0, 0.0], [3.0, 0.0]])  # 2 points spanning the label
+    through = stroke(
+        "Line", 2, [[-3.0, 0.0], [3.0, 0.0]]
+    )  # 2 points spanning the label
     assert "crossed by the stroke of a Line" in run(through)[0]
     # an arrow that stops at the label's edge
     assert run(stroke("Arrow", 2, [[-3.0, 0.0], [-1.02, 0.0]])) == []
     # a box outline snug around the label
-    assert run(stroke("Rectangle", 2, [[-1.1, -0.25], [1.1, -0.25], [1.1, 0.25], [-1.1, 0.25], [-1.1, -0.25]])) == []
+    assert (
+        run(
+            stroke(
+                "Rectangle",
+                2,
+                [[-1.1, -0.25], [1.1, -0.25], [1.1, 0.25], [-1.1, 0.25], [-1.1, -0.25]],
+            )
+        )
+        == []
+    )
     # the same line hidden by an opaque background box drawn between it and the text
     assert run(through, fill("Rectangle", 3, -1.2, -0.3, 1.2, 0.3)) == []
 
-    assert run(fill("Rectangle", 1, -1.5, -0.4, 1.5, 0.4)) == []  # background, drawn first
-    assert "covered by a Rectangle" in run(fill("Rectangle", 9, -0.8, -0.4, 1.5, 0.4))[0]
-    assert "covered by a Dot" in run(fill("Dot", 9, 0.2, -0.08, 0.36, 0.08))[0]  # marker on a word
+    assert (
+        run(fill("Rectangle", 1, -1.5, -0.4, 1.5, 0.4)) == []
+    )  # background, drawn first
+    assert (
+        "covered by a Rectangle" in run(fill("Rectangle", 9, -0.8, -0.4, 1.5, 0.4))[0]
+    )
+    assert (
+        "covered by a Dot" in run(fill("Dot", 9, 0.2, -0.08, 0.36, 0.08))[0]
+    )  # marker on a word
 
     # records made before shapes were probed carry none, and must still audit
-    assert _audit_layout({"frame_width": 14.222, "frame_height": 8.0,
-                          "snapshots": [{"t": 1.0, "texts": [label]}]}) == []
+    assert (
+        _audit_layout(
+            {
+                "frame_width": 14.222,
+                "frame_height": 8.0,
+                "snapshots": [{"t": 1.0, "texts": [label]}],
+            }
+        )
+        == []
+    )
 
 
 def test_scene_durations_are_fitted_to_their_narration(tmp_path):
@@ -1092,15 +1292,23 @@ def test_scene_durations_are_fitted_to_their_narration(tmp_path):
     clips = cfg.clips_dir / safe_slug(title)
     clips.mkdir(parents=True)
     sr = 24000
-    sf.write(clips / "scene_001_audio.wav", np.zeros(int(12.35 * sr)), sr)  # longer than scripted
-    sf.write(clips / "scene_002_audio.wav", np.zeros(int(4.0 * sr)), sr)    # shorter than scripted
-    scenes = [{"duration_sec": 10}, {"duration_sec": 10}, {"duration_sec": 8}]  # scene 3: no narration
+    sf.write(
+        clips / "scene_001_audio.wav", np.zeros(int(12.35 * sr)), sr
+    )  # longer than scripted
+    sf.write(
+        clips / "scene_002_audio.wav", np.zeros(int(4.0 * sr)), sr
+    )  # shorter than scripted
+    scenes = [
+        {"duration_sec": 10},
+        {"duration_sec": 10},
+        {"duration_sec": 8},
+    ]  # scene 3: no narration
 
     _fit_scene_durations_to_narration(logging.getLogger("t"), cfg, scenes, title)
 
     assert scenes[0]["duration_sec"] == 13  # ceil(12.35 + 0.6)
     assert scenes[1]["duration_sec"] == 10  # never shorter than scripted
-    assert scenes[2]["duration_sec"] == 8   # untouched
+    assert scenes[2]["duration_sec"] == 8  # untouched
     assert NARRATION_TAIL_SEC < 1.0
 
 
@@ -1125,23 +1333,31 @@ def test_failed_scene_ships_its_least_defective_attempt_not_a_slide(tmp_path):
         out.write_bytes(b"render-%d" % fake_run.n)
         fake_run.n += 1
         return out
+
     fake_run.n = 1
 
-    verdicts = iter([
-        ["text 'A' leaves the frame at t=1.0s"],                              # score 3
-        ["text 'B' is crossed by the stroke of a Line at t=1.0s"],            # score 1 - best
-        ["text 'C' overlaps text 'D' at t=1.0s", "text 'E' is covered by a Dot"],  # score 6
-    ])
+    verdicts = iter(
+        [
+            ["text 'A' leaves the frame at t=1.0s"],  # score 3
+            ["text 'B' is crossed by the stroke of a Line at t=1.0s"],  # score 1 - best
+            [
+                "text 'C' overlaps text 'D' at t=1.0s",
+                "text 'E' is covered by a Dot",
+            ],  # score 6
+        ]
+    )
 
     def fake_audit(video, duration_sec):
         problems = next(verdicts)
         raise LayoutAuditError("Layout audit: " + "; ".join(problems), problems)
 
-    with patch("stages.renderers.manim._check_imports"), \
-         patch("stages.renderers.manim._call_lmstudio_api", return_value=code), \
-         patch("stages.renderers.manim._call_claude_cli", return_value=code), \
-         patch("stages.renderers.manim._run_manim", side_effect=fake_run), \
-         patch("stages.renderers.manim._audit_rendered_video", side_effect=fake_audit):
+    with (
+        patch("stages.renderers.manim._check_imports"),
+        patch("stages.renderers.manim._call_lmstudio_api", return_value=code),
+        patch("stages.renderers.manim._call_claude_cli", return_value=code),
+        patch("stages.renderers.manim._run_manim", side_effect=fake_run),
+        patch("stages.renderers.manim._audit_rendered_video", side_effect=fake_audit),
+    ):
         result = manim_mod.render(_manim_scene(), cfg, out_path)
 
     assert result == out_path
@@ -1150,10 +1366,15 @@ def test_failed_scene_ships_its_least_defective_attempt_not_a_slide(tmp_path):
     assert defects["attempt"] == 2 and "crossed by" in defects["problems"][0]
 
     # Nothing rendered at all: the scene still fails, so render.py can fall back.
-    with patch("stages.renderers.manim._check_imports"), \
-         patch("stages.renderers.manim._call_lmstudio_api", return_value=code), \
-         patch("stages.renderers.manim._call_claude_cli", return_value=code), \
-         patch("stages.renderers.manim._run_manim", side_effect=ManimRenderError("TypeError: boom")):
+    with (
+        patch("stages.renderers.manim._check_imports"),
+        patch("stages.renderers.manim._call_lmstudio_api", return_value=code),
+        patch("stages.renderers.manim._call_claude_cli", return_value=code),
+        patch(
+            "stages.renderers.manim._run_manim",
+            side_effect=ManimRenderError("TypeError: boom"),
+        ),
+    ):
         with pytest.raises(ManimRenderError):
             manim_mod.render(_manim_scene(), cfg, tmp_path / "scene_002.mp4")
 
@@ -1234,10 +1455,14 @@ class VideoScene(Scene):
         label = Text("Hello", alignment="center")
 """
 
-    with patch("stages.renderers.manim._check_imports"), \
-         patch("stages.renderers.manim._call_lmstudio_api", return_value=bad_code) as lm_call, \
-         patch("stages.renderers.manim._audit_rendered_video"), \
-         patch("stages.renderers.manim._run_manim", return_value=out_path) as run_call:
+    with (
+        patch("stages.renderers.manim._check_imports"),
+        patch(
+            "stages.renderers.manim._call_lmstudio_api", return_value=bad_code
+        ) as lm_call,
+        patch("stages.renderers.manim._audit_rendered_video"),
+        patch("stages.renderers.manim._run_manim", return_value=out_path) as run_call,
+    ):
         result = manim_mod.render(_manim_scene(), cfg, out_path)
 
     assert result == out_path
@@ -1261,10 +1486,14 @@ class VideoScene(Scene):
         label = Text("Hello", width=3)
 """
 
-    with patch("stages.renderers.manim._check_imports"), \
-         patch("stages.renderers.manim._call_lmstudio_api", return_value=bad_code) as lm_call, \
-         patch("stages.renderers.manim._audit_rendered_video"), \
-         patch("stages.renderers.manim._run_manim", return_value=out_path) as run_call:
+    with (
+        patch("stages.renderers.manim._check_imports"),
+        patch(
+            "stages.renderers.manim._call_lmstudio_api", return_value=bad_code
+        ) as lm_call,
+        patch("stages.renderers.manim._audit_rendered_video"),
+        patch("stages.renderers.manim._run_manim", return_value=out_path) as run_call,
+    ):
         result = manim_mod.render(_manim_scene(), cfg, out_path)
 
     assert result == out_path
@@ -1289,10 +1518,14 @@ class VideoScene(Scene):
         title.to_edge(UP).align_to(LEFT, edge=LEFT)
 """
 
-    with patch("stages.renderers.manim._check_imports"), \
-         patch("stages.renderers.manim._call_lmstudio_api", return_value=bad_code) as lm_call, \
-         patch("stages.renderers.manim._audit_rendered_video"), \
-         patch("stages.renderers.manim._run_manim", return_value=out_path) as run_call:
+    with (
+        patch("stages.renderers.manim._check_imports"),
+        patch(
+            "stages.renderers.manim._call_lmstudio_api", return_value=bad_code
+        ) as lm_call,
+        patch("stages.renderers.manim._audit_rendered_video"),
+        patch("stages.renderers.manim._run_manim", return_value=out_path) as run_call,
+    ):
         result = manim_mod.render(_manim_scene(), cfg, out_path)
 
     assert result == out_path
@@ -1316,10 +1549,14 @@ class VideoScene(Scene):
         y = 0.5 + 0.8 * sin(0.5)
 """
 
-    with patch("stages.renderers.manim._check_imports"), \
-         patch("stages.renderers.manim._call_lmstudio_api", return_value=bad_code) as lm_call, \
-         patch("stages.renderers.manim._audit_rendered_video"), \
-         patch("stages.renderers.manim._run_manim", return_value=out_path) as run_call:
+    with (
+        patch("stages.renderers.manim._check_imports"),
+        patch(
+            "stages.renderers.manim._call_lmstudio_api", return_value=bad_code
+        ) as lm_call,
+        patch("stages.renderers.manim._audit_rendered_video"),
+        patch("stages.renderers.manim._run_manim", return_value=out_path) as run_call,
+    ):
         result = manim_mod.render(_manim_scene(), cfg, out_path)
 
     assert result == out_path
@@ -1346,10 +1583,14 @@ class VideoScene(Scene):
         q = np.array((3, 4))
 """
 
-    with patch("stages.renderers.manim._check_imports"), \
-         patch("stages.renderers.manim._call_lmstudio_api", return_value=bad_code) as lm_call, \
-         patch("stages.renderers.manim._audit_rendered_video"), \
-         patch("stages.renderers.manim._run_manim", return_value=out_path) as run_call:
+    with (
+        patch("stages.renderers.manim._check_imports"),
+        patch(
+            "stages.renderers.manim._call_lmstudio_api", return_value=bad_code
+        ) as lm_call,
+        patch("stages.renderers.manim._audit_rendered_video"),
+        patch("stages.renderers.manim._run_manim", return_value=out_path) as run_call,
+    ):
         result = manim_mod.render(_manim_scene(), cfg, out_path)
 
     assert result == out_path
@@ -1374,10 +1615,14 @@ class VideoScene(Scene):
         line = Line(point1=np.array([0, 0]), point2=np.array([1, 1]))
 """
 
-    with patch("stages.renderers.manim._check_imports"), \
-         patch("stages.renderers.manim._call_lmstudio_api", return_value=bad_code) as lm_call, \
-         patch("stages.renderers.manim._audit_rendered_video"), \
-         patch("stages.renderers.manim._run_manim", return_value=out_path) as run_call:
+    with (
+        patch("stages.renderers.manim._check_imports"),
+        patch(
+            "stages.renderers.manim._call_lmstudio_api", return_value=bad_code
+        ) as lm_call,
+        patch("stages.renderers.manim._audit_rendered_video"),
+        patch("stages.renderers.manim._run_manim", return_value=out_path) as run_call,
+    ):
         result = manim_mod.render(_manim_scene(), cfg, out_path)
 
     assert result == out_path
@@ -1405,10 +1650,14 @@ class VideoScene(Scene):
         path.set_points_as_corners([np.array([0, 0]), np.array([1, 1])])
 """
 
-    with patch("stages.renderers.manim._check_imports"), \
-         patch("stages.renderers.manim._call_lmstudio_api", return_value=bad_code) as lm_call, \
-         patch("stages.renderers.manim._audit_rendered_video"), \
-         patch("stages.renderers.manim._run_manim", return_value=out_path) as run_call:
+    with (
+        patch("stages.renderers.manim._check_imports"),
+        patch(
+            "stages.renderers.manim._call_lmstudio_api", return_value=bad_code
+        ) as lm_call,
+        patch("stages.renderers.manim._audit_rendered_video"),
+        patch("stages.renderers.manim._run_manim", return_value=out_path) as run_call,
+    ):
         result = manim_mod.render(_manim_scene(), cfg, out_path)
 
     assert result == out_path
@@ -1433,10 +1682,14 @@ class VideoScene(Scene):
         self.play(Create(Line(LEFT, RIGHT)))
 """
 
-    with patch("stages.renderers.manim._check_imports"), \
-         patch("stages.renderers.manim._call_lmstudio_api", return_value=bad_code) as lm_call, \
-         patch("stages.renderers.manim._audit_rendered_video"), \
-         patch("stages.renderers.manim._run_manim", return_value=out_path) as run_call:
+    with (
+        patch("stages.renderers.manim._check_imports"),
+        patch(
+            "stages.renderers.manim._call_lmstudio_api", return_value=bad_code
+        ) as lm_call,
+        patch("stages.renderers.manim._audit_rendered_video"),
+        patch("stages.renderers.manim._run_manim", return_value=out_path) as run_call,
+    ):
         result = manim_mod.render(_manim_scene(), cfg, out_path)
 
     assert result == out_path
@@ -1468,9 +1721,13 @@ class VideoScene(Scene):
         )
 """
 
-    with patch("stages.renderers.manim._check_imports"), \
-         patch("stages.renderers.manim._call_lmstudio_api", return_value=bad_code) as lm_call, \
-         patch("stages.renderers.manim._run_manim") as run_call:
+    with (
+        patch("stages.renderers.manim._check_imports"),
+        patch(
+            "stages.renderers.manim._call_lmstudio_api", return_value=bad_code
+        ) as lm_call,
+        patch("stages.renderers.manim._run_manim") as run_call,
+    ):
         with pytest.raises(ManimRenderError, match="coordinate-axis helpers"):
             manim_mod.render(_manim_scene(), cfg, out_path)
 
@@ -1492,10 +1749,14 @@ def test_manim_layout_audit_detects_center_text_like_regions(tmp_path):
     ]
     edge_component = {"area": 600, "x0": 20, "x1": 140, "y0": 20, "y1": 100}
 
-    with patch("stages.renderers.manim._connected_components", return_value=center_components):
+    with patch(
+        "stages.renderers.manim._connected_components", return_value=center_components
+    ):
         assert manim_mod._find_center_text_like_regions(image_path)
 
-    with patch("stages.renderers.manim._connected_components", return_value=[edge_component]):
+    with patch(
+        "stages.renderers.manim._connected_components", return_value=[edge_component]
+    ):
         assert not manim_mod._find_center_text_like_regions(image_path)
 
 
@@ -1508,7 +1769,9 @@ def test_manim_layout_audit_ignores_top_band_title(tmp_path):
 
     top_component = {"area": 500, "x0": 120, "x1": 160, "y0": 20, "y1": 55}
 
-    with patch("stages.renderers.manim._connected_components", return_value=[top_component]):
+    with patch(
+        "stages.renderers.manim._connected_components", return_value=[top_component]
+    ):
         assert not manim_mod._find_center_text_like_regions(image_path)
 
 
@@ -1518,9 +1781,13 @@ def test_manim_layout_audit_skips_missing_frames_without_failing(tmp_path):
     video_path = tmp_path / "clip.mp4"
     video_path.touch()
 
-    with patch("stages.renderers.manim._probe_video_duration", return_value=4.0), \
-         patch("stages.renderers.manim._extract_frame", side_effect=[False, False, False]), \
-         patch("stages.renderers.manim._find_center_text_like_regions") as find_call:
+    with (
+        patch("stages.renderers.manim._probe_video_duration", return_value=4.0),
+        patch(
+            "stages.renderers.manim._extract_frame", side_effect=[False, False, False]
+        ),
+        patch("stages.renderers.manim._find_center_text_like_regions") as find_call,
+    ):
         manim_mod._audit_rendered_video(video_path, duration_sec=4)
 
     find_call.assert_not_called()
@@ -1534,10 +1801,15 @@ def test_manim_render_calls_layout_audit_after_success(tmp_path):
     cfg.render_llm_model = "local-model"
     out_path = tmp_path / "scene_001.mp4"
 
-    with patch("stages.renderers.manim._check_imports"), \
-         patch("stages.renderers.manim._call_lmstudio_api", return_value="from manim import *\nclass VideoScene(Scene): pass"), \
-         patch("stages.renderers.manim._run_manim", return_value=out_path), \
-         patch("stages.renderers.manim._audit_rendered_video") as audit_call:
+    with (
+        patch("stages.renderers.manim._check_imports"),
+        patch(
+            "stages.renderers.manim._call_lmstudio_api",
+            return_value="from manim import *\nclass VideoScene(Scene): pass",
+        ),
+        patch("stages.renderers.manim._run_manim", return_value=out_path),
+        patch("stages.renderers.manim._audit_rendered_video") as audit_call,
+    ):
         result = manim_mod.render(_manim_scene(), cfg, out_path)
 
     assert result == out_path
@@ -1554,8 +1826,10 @@ def test_manim_run_uses_timeout(tmp_path):
     fake_mp4 = tmp_path / "fake.mp4"
     fake_mp4.touch()
 
-    with patch("subprocess.run") as mock_sub, \
-         patch("pathlib.Path.rglob", return_value=iter([fake_mp4])):
+    with (
+        patch("subprocess.run") as mock_sub,
+        patch("pathlib.Path.rglob", return_value=iter([fake_mp4])),
+    ):
         mock_sub.return_value.returncode = 0
         _run_manim(code, out_path, timeout=120)
 
@@ -1572,7 +1846,10 @@ def test_manim_run_raises_on_timeout(tmp_path):
     out_path = tmp_path / "out.mp4"
     code = "from manim import *\nclass VideoScene(Scene): pass"
 
-    with patch("subprocess.run", side_effect=subprocess.TimeoutExpired(cmd="manim", timeout=120)):
+    with patch(
+        "subprocess.run",
+        side_effect=subprocess.TimeoutExpired(cmd="manim", timeout=120),
+    ):
         with pytest.raises(ManimRenderError, match="timed out"):
             _run_manim(code, out_path, timeout=120)
 
@@ -1595,6 +1872,7 @@ def test_manim_run_surfaces_repeated_keyword_error(tmp_path):
 
 def test_extract_bg_color():
     from stages.renderers.manim import _extract_bg_color
+
     assert _extract_bg_color("dark background #0a0a0a, white axes") == "#0a0a0a"
     assert _extract_bg_color("no hex here") == "#0a0a0a"  # default fallback
     assert _extract_bg_color("background #1B2B4B, accent yellow") == "#1B2B4B"
@@ -1602,6 +1880,7 @@ def test_extract_bg_color():
 
 def test_build_system_prompt_contains_dimensions():
     from stages.renderers.manim import _build_system_prompt
+
     prompt = _build_system_prompt(
         width=1024, height=576, fps=24, duration_sec=8, bg_color="#0a0a0a"
     )
@@ -1616,15 +1895,19 @@ def test_manim_missing_claude_cli_raises_helpful_error(tmp_path):
     from stages.renderers.manim import ManimRenderError
     import stages.renderers.manim as m
 
-    with patch("stages.renderers.manim._check_imports"), \
-         patch("stages.renderers.manim.subprocess.run", side_effect=FileNotFoundError()):
+    with (
+        patch("stages.renderers.manim._check_imports"),
+        patch("stages.renderers.manim.subprocess.run", side_effect=FileNotFoundError()),
+    ):
         with pytest.raises(ManimRenderError, match="Claude Code CLI not found"):
             m.render(_manim_scene(), _manim_cfg(), tmp_path / "out.mp4")
 
 
 def test_manim_missing_manim_package_raises_helpful_error(tmp_path):
     """If manim is not installed, render() raises ImportError with install instructions."""
-    import builtins, importlib
+    import builtins
+    import importlib
+
     real_import = builtins.__import__
 
     def mock_import(name, *args, **kwargs):
@@ -1634,6 +1917,7 @@ def test_manim_missing_manim_package_raises_helpful_error(tmp_path):
 
     with patch("builtins.__import__", side_effect=mock_import):
         import stages.renderers.manim as m
+
         importlib.reload(m)
         with pytest.raises(ImportError, match="pip install manim"):
             m.render(_manim_scene(), _manim_cfg(), tmp_path / "out.mp4")
@@ -1671,13 +1955,15 @@ def test_storyboard_processes_ltx_scene(tmp_path):
         mock_instance.txt2img.return_value = [b"fake_png"]
         stage = StoryboardStage(cfg, log)
         stage.run(
-            [{
-                "id": "s01",
-                "renderer": "ltx",
-                "storyboard_prompt": "A mountain",
-                "style": "cinematic",
-                "negative": "blurry",
-            }],
+            [
+                {
+                    "id": "s01",
+                    "renderer": "ltx",
+                    "storyboard_prompt": "A mountain",
+                    "style": "cinematic",
+                    "negative": "blurry",
+                }
+            ],
             "test-title",
         )
         mock_instance.txt2img.assert_called_once()
@@ -1695,12 +1981,14 @@ def test_storyboard_processes_scene_with_no_renderer_field(tmp_path):
         mock_instance.txt2img.return_value = [b"fake_png"]
         stage = StoryboardStage(cfg, log)
         stage.run(
-            [{
-                "id": "s01",
-                "storyboard_prompt": "A mountain",
-                "style": "cinematic",
-                "negative": "blurry",
-            }],
+            [
+                {
+                    "id": "s01",
+                    "storyboard_prompt": "A mountain",
+                    "style": "cinematic",
+                    "negative": "blurry",
+                }
+            ],
             "test-title",
         )
         mock_instance.txt2img.assert_called_once()
@@ -1741,20 +2029,24 @@ def test_video_processes_ltx_scene(tmp_path):
     frame_dir.mkdir(parents=True)
     (frame_dir / "scene_001.png").write_bytes(b"fake_png")
 
-    with patch("stages.video.DrawThingsClient") as MockClient, \
-         patch("stages.video.VideoStage._frames_to_mp4"):
+    with (
+        patch("stages.video.DrawThingsClient") as MockClient,
+        patch("stages.video.VideoStage._frames_to_mp4"),
+    ):
         mock_instance = MockClient.return_value
         mock_instance.img2video.return_value = [b"frame1", b"frame2"]
         stage = VideoStage(cfg, log)
         stage.run(
-            [{
-                "id": "s01",
-                "renderer": "ltx",
-                "storyboard_prompt": "A mountain",
-                "video_prompt": "slow drift",
-                "style": "cinematic",
-                "negative": "blurry",
-            }],
+            [
+                {
+                    "id": "s01",
+                    "renderer": "ltx",
+                    "storyboard_prompt": "A mountain",
+                    "video_prompt": "slow drift",
+                    "style": "cinematic",
+                    "negative": "blurry",
+                }
+            ],
             "test-title",
         )
         mock_instance.img2video.assert_called_once()
@@ -1768,7 +2060,8 @@ def test_pipeline_dispatches_manim_scene(tmp_path):
     import pipeline as pl
 
     script_path = tmp_path / "test.json"
-    script_path.write_text("""{
+    script_path.write_text(
+        """{
         "title": "test-mixed",
         "global_style": "cinematic",
         "scenes": [
@@ -1779,16 +2072,19 @@ def test_pipeline_dispatches_manim_scene(tmp_path):
                 "duration_sec": 4
             }
         ]
-    }""")
+    }"""
+    )
 
     cfg = PipelineConfig(work_dir=str(tmp_path), min_scenes=1)
     mock_render = MagicMock(return_value=tmp_path / "clips/test_mixed/scene_001.mp4")
 
-    with patch("stages.render.shutil.which", return_value="/usr/bin/latex"), \
-         patch("stages.renderers.manim.render", mock_render), \
-         patch("stages.video.DrawThingsClient"), \
-         patch("stages.storyboard.DrawThingsClient"), \
-         patch("stages.stitch.StitchStage.run"):
+    with (
+        patch("shutil.which", return_value="/usr/bin/latex"),
+        patch("stages.renderers.manim.render", mock_render),
+        patch("stages.video.DrawThingsClient"),
+        patch("stages.storyboard.DrawThingsClient"),
+        patch("stages.stitch.StitchStage.run"),
+    ):
         pl.run(str(script_path), "video", cfg, skip_validation=True)
 
     mock_render.assert_called_once()
@@ -1801,7 +2097,8 @@ def test_pipeline_skips_existing_clip(tmp_path):
     import pipeline as pl
 
     script_path = tmp_path / "test.json"
-    script_path.write_text("""{
+    script_path.write_text(
+        """{
         "title": "test-skip",
         "global_style": "cinematic",
         "scenes": [
@@ -1812,7 +2109,8 @@ def test_pipeline_skips_existing_clip(tmp_path):
                 "duration_sec": 4
             }
         ]
-    }""")
+    }"""
+    )
 
     cfg = PipelineConfig(work_dir=str(tmp_path), min_scenes=1)
 
@@ -1823,10 +2121,12 @@ def test_pipeline_skips_existing_clip(tmp_path):
     (clips_dir / "scene_001.mp4").touch()
 
     mock_render = MagicMock()
-    with patch("stages.renderers.manim.render", mock_render), \
-         patch("stages.video.DrawThingsClient"), \
-         patch("stages.storyboard.DrawThingsClient"), \
-         patch("stages.stitch.StitchStage.run"):
+    with (
+        patch("stages.renderers.manim.render", mock_render),
+        patch("stages.video.DrawThingsClient"),
+        patch("stages.storyboard.DrawThingsClient"),
+        patch("stages.stitch.StitchStage.run"),
+    ):
         pl.run(str(script_path), "video", cfg, skip_validation=True)
 
     mock_render.assert_not_called()
@@ -1836,7 +2136,8 @@ def test_pipeline_max_scenes_limits_runtime_render(tmp_path):
     import pipeline as pl
 
     script_path = tmp_path / "test.json"
-    script_path.write_text("""{
+    script_path.write_text(
+        """{
         "title": "test-limit",
         "global_style": "cinematic",
         "scenes": [
@@ -1844,7 +2145,8 @@ def test_pipeline_max_scenes_limits_runtime_render(tmp_path):
             {"id": "s02", "renderer": "manim", "description": "Scene 2", "duration_sec": 4},
             {"id": "s03", "renderer": "manim", "description": "Scene 3", "duration_sec": 4}
         ]
-    }""")
+    }"""
+    )
 
     cfg = PipelineConfig(work_dir=str(tmp_path), min_scenes=1)
     render_calls = []
@@ -1852,10 +2154,12 @@ def test_pipeline_max_scenes_limits_runtime_render(tmp_path):
     def fake_render_run(self, script, scenes, title):
         render_calls.append((title, [scene["id"] for scene in scenes]))
 
-    with patch("stages.render.RenderStage.run", fake_render_run), \
-         patch("stages.video.DrawThingsClient"), \
-         patch("stages.storyboard.DrawThingsClient"), \
-         patch("stages.stitch.StitchStage.run"):
+    with (
+        patch("stages.render.RenderStage.run", fake_render_run),
+        patch("stages.video.DrawThingsClient"),
+        patch("stages.storyboard.DrawThingsClient"),
+        patch("stages.stitch.StitchStage.run"),
+    ):
         pl.run(str(script_path), "render", cfg, skip_validation=True, max_scenes=2)
 
     assert render_calls == [("test-limit-smoke-02", ["s01", "s02"])]

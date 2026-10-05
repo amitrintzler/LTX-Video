@@ -113,11 +113,17 @@ def _encode_frames_to_mp4(frame_bytes: list[bytes], out_path: Path, fps: int) ->
         try:
             result = subprocess.run(cmd, capture_output=True, text=True)
         except FileNotFoundError as e:
-            raise AnimateDiffRenderError("FFmpeg not found. Install it with: brew install ffmpeg") from e
+            raise AnimateDiffRenderError(
+                "FFmpeg not found. Install it with: brew install ffmpeg"
+            ) from e
 
         if result.returncode != 0:
-            raise AnimateDiffRenderError((result.stderr or result.stdout or "FFmpeg failed")[-2000:])
+            raise AnimateDiffRenderError(
+                (result.stderr or result.stdout or "FFmpeg failed")[-2000:]
+            )
 
     if not out_path.exists():
-        raise AnimateDiffRenderError("FFmpeg reported success but the output file was not created")
+        raise AnimateDiffRenderError(
+            "FFmpeg reported success but the output file was not created"
+        )
     return out_path

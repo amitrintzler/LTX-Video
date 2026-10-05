@@ -7,14 +7,12 @@ multimodal LLM (Claude vision).
 
 from __future__ import annotations
 
-import base64
 import json
 import logging
 import subprocess
 import tempfile
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Optional
 
 from config import PipelineConfig
 
@@ -26,6 +24,7 @@ class CriticError(RuntimeError):
 @dataclass
 class CriticResult:
     """Result of visual criticism evaluation."""
+
     passed: bool
     score: float  # 0.0 - 1.0
     violations: list[str]  # list of failed checklist items
@@ -94,18 +93,24 @@ RETURN ONLY JSON. No markdown, no prose."""
         validation_checklist = planner_spec.get("validation_checklist", [])
         if not validation_checklist:
             # No checklist = automatic pass (fallback)
-            return CriticResult(passed=True, score=1.0, violations=[], fix_instructions="")
+            return CriticResult(
+                passed=True, score=1.0, violations=[], fix_instructions=""
+            )
 
         # Extract frames at 15%, 50%, 85%
         try:
             frames = self._extract_frames(mp4_path, [0.15, 0.50, 0.85])
         except CriticError as e:
             self.log.warning(f"Frame extraction failed: {e}; skipping critic")
-            return CriticResult(passed=True, score=1.0, violations=[], fix_instructions="")
+            return CriticResult(
+                passed=True, score=1.0, violations=[], fix_instructions=""
+            )
 
         if not frames:
             self.log.warning("No frames extracted; skipping critic")
-            return CriticResult(passed=True, score=1.0, violations=[], fix_instructions="")
+            return CriticResult(
+                passed=True, score=1.0, violations=[], fix_instructions=""
+            )
 
         # Build prompt with checklist and frames
         prompt = f"""Validation checklist:
@@ -118,8 +123,12 @@ Evaluate whether these requirements are met in the provided frames."""
             result = self._call_claude_vision(prompt, frames)
             return result
         except CriticError as e:
-            self.log.warning(f"Critic evaluation failed: {e}; proceeding without critic")
-            return CriticResult(passed=True, score=1.0, violations=[], fix_instructions="")
+            self.log.warning(
+                f"Critic evaluation failed: {e}; proceeding without critic"
+            )
+            return CriticResult(
+                passed=True, score=1.0, violations=[], fix_instructions=""
+            )
 
     def _extract_frames(self, mp4_path: Path, timestamps: list[float]) -> list[bytes]:
         """Extract PNG frames at given timestamp fractions (0.0-1.0)."""
@@ -178,7 +187,9 @@ Evaluate whether these requirements are met in the provided frames."""
                     timeout=10,
                 )
                 if result.returncode != 0:
-                    self.log.warning(f"ffmpeg frame extraction failed at {frac*100:.0f}%")
+                    self.log.warning(
+                        f"ffmpeg frame extraction failed at {frac*100:.0f}%"
+                    )
                     continue
 
                 frame_data = Path(tmp_path).read_bytes()
@@ -188,9 +199,10 @@ Evaluate whether these requirements are met in the provided frames."""
 
         return frames
 
-    def _call_claude_vision(self, prompt: str, frame_images: list[bytes]) -> CriticResult:
+    def _call_claude_vision(
+        self, prompt: str, frame_images: list[bytes]
+    ) -> CriticResult:
         """Call Claude API with vision to evaluate frames."""
-        import base64
         import subprocess
 
         # Build multi-line prompt with images
@@ -250,7 +262,9 @@ Evaluate whether these requirements are met in the provided frames."""
                 try:
                     critic_json = json.loads(match.group())
                 except json.JSONDecodeError:
-                    raise CriticError(f"Failed to parse JSON from critic response: {output[:200]}")
+                    raise CriticError(
+                        f"Failed to parse JSON from critic response: {output[:200]}"
+                    )
             else:
                 raise CriticError(f"No JSON in critic response: {output[:200]}")
 

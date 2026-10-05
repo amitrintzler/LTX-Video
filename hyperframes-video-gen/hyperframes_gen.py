@@ -1,15 +1,15 @@
 #!/usr/bin/env python3
 """Hyperframes video generator wrapper - HTML-native video composition."""
 
-import json
 import subprocess
 from pathlib import Path
-from dataclasses import dataclass, asdict
+from dataclasses import dataclass
 
 
 @dataclass
 class HyperScene:
     """Hyperframe scene definition."""
+
     id: str
     start: float
     duration: float
@@ -19,7 +19,13 @@ class HyperScene:
 class HyperframesGenerator:
     """Generate videos using Hyperframes (HTML-native rendering)."""
 
-    def __init__(self, project_name: str = "video-project", width: int = 1920, height: int = 1080, fps: int = 60):
+    def __init__(
+        self,
+        project_name: str = "video-project",
+        width: int = 1920,
+        height: int = 1080,
+        fps: int = 60,
+    ):
         self.project_name = project_name
         self.width = width
         self.height = height
@@ -47,7 +53,11 @@ class HyperframesGenerator:
             HTML string ready to render
         """
         # Calculate total duration: last scene start + duration
-        total_duration = max((s.get('start', 0) + s.get('duration', 5)) for s in scenes) if scenes else 10
+        total_duration = (
+            max((s.get("start", 0) + s.get("duration", 5)) for s in scenes)
+            if scenes
+            else 10
+        )
 
         scenes_html = ""
         for scene in scenes:
@@ -205,7 +215,9 @@ class HyperframesGenerator:
 
         cmd = ["npx", "hyperframes", "render", "-o", output_path]
 
-        result = subprocess.run(cmd, cwd=self.project_dir, capture_output=True, text=True)
+        result = subprocess.run(
+            cmd, cwd=self.project_dir, capture_output=True, text=True
+        )
 
         if result.returncode != 0:
             raise RuntimeError(f"Hyperframes render failed: {result.stderr}")
@@ -221,7 +233,9 @@ class HyperframesGenerator:
         subprocess.run(cmd, cwd=self.project_dir)
 
 
-def create_hyperframes_video(project_name: str, scenes: list[dict], output_path: str = None) -> str:
+def create_hyperframes_video(
+    project_name: str, scenes: list[dict], output_path: str = None
+) -> str:
     """High-level API: Create video from scene descriptions.
 
     Args:
@@ -254,15 +268,17 @@ if __name__ == "__main__":
             "id": "s01",
             "start": 0,
             "duration": 3,
-            "content": '<div class="flex-center"><div class="text-large text-gold">Hyperframes Video</div></div>'
+            "content": '<div class="flex-center"><div class="text-large text-gold">Hyperframes Video</div></div>',
         },
         {
             "id": "s02",
             "start": 3,
             "duration": 4,
-            "content": '<div class="flex-center"><div class="text-subtitle">HTML-native rendering</div></div>'
-        }
+            "content": '<div class="flex-center"><div class="text-subtitle">HTML-native rendering</div></div>',
+        },
     ]
 
-    output = create_hyperframes_video("test-hyperframes", scenes, output_path="test.mp4")
+    output = create_hyperframes_video(
+        "test-hyperframes", scenes, output_path="test.mp4"
+    )
     print(f"✓ Video created: {output}")

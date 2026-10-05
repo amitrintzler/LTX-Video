@@ -52,7 +52,16 @@ def render(scene: dict, config: PipelineConfig, out_path: Path) -> Path:
             encoding="utf-8",
         )
         if content and _content_has_frame_renderer(content):
-            return _render_animation_video(html_path, frames_dir, out_path, duration_sec, fps, width, height, config)
+            return _render_animation_video(
+                html_path,
+                frames_dir,
+                out_path,
+                duration_sec,
+                fps,
+                width,
+                height,
+                config,
+            )
 
         _capture_html_frame(html_path, png_path, width, height)
         return _encode_frame_video(png_path, out_path, duration_sec, fps)
@@ -69,11 +78,16 @@ def _build_html(
     height: int,
 ) -> str:
     if content:
-        return _build_custom_content_html(content=content, style=style, width=width, height=height)
+        return _build_custom_content_html(
+            content=content, style=style, width=width, height=height
+        )
 
     bg_color, primary_color, text_color, muted_color = _theme_from_style(style)
     bullets = _description_bullets(description)
-    bullet_html = "".join(f"<li>{html.escape(item)}</li>" for item in bullets) or "<li>Visual direction not specified.</li>"
+    bullet_html = (
+        "".join(f"<li>{html.escape(item)}</li>" for item in bullets)
+        or "<li>Visual direction not specified.</li>"
+    )
     n_lines = html.escape(narration).replace("\n", "<br>")
 
     return f"""<!DOCTYPE html>
@@ -274,7 +288,9 @@ def _build_html(
 </html>"""
 
 
-def _build_custom_content_html(*, content: str, style: str, width: int, height: int) -> str:
+def _build_custom_content_html(
+    *, content: str, style: str, width: int, height: int
+) -> str:
     if re.search(r"<\s*(?:!doctype|html)\b", content, flags=re.I):
         return content
 
@@ -316,7 +332,9 @@ def _build_custom_content_html(*, content: str, style: str, width: int, height: 
 </html>"""
 
 
-def _capture_html_frame(html_path: Path, png_path: Path, width: int, height: int) -> None:
+def _capture_html_frame(
+    html_path: Path, png_path: Path, width: int, height: int
+) -> None:
     try:
         from playwright.sync_api import sync_playwright
     except ImportError as e:
@@ -327,7 +345,9 @@ def _capture_html_frame(html_path: Path, png_path: Path, width: int, height: int
     try:
         with sync_playwright() as p:
             browser = p.chromium.launch(headless=True)
-            page = browser.new_page(viewport={"width": width, "height": height}, device_scale_factor=1)
+            page = browser.new_page(
+                viewport={"width": width, "height": height}, device_scale_factor=1
+            )
             page.goto(html_path.as_uri(), wait_until="load")
             page.wait_for_timeout(1200)
             page.screenshot(path=str(png_path))
@@ -337,7 +357,10 @@ def _capture_html_frame(html_path: Path, png_path: Path, width: int, height: int
 
 
 def _content_has_frame_renderer(content: str) -> bool:
-    return bool(re.search(r"\brenderFrame\s*=", content) or re.search(r"\bfunction\s+renderFrame\b", content))
+    return bool(
+        re.search(r"\brenderFrame\s*=", content)
+        or re.search(r"\bfunction\s+renderFrame\b", content)
+    )
 
 
 def _render_animation_video(
@@ -364,7 +387,9 @@ def _render_animation_video(
     try:
         with sync_playwright() as p:
             browser = p.chromium.launch(headless=True)
-            page = browser.new_page(viewport={"width": width, "height": height}, device_scale_factor=1)
+            page = browser.new_page(
+                viewport={"width": width, "height": height}, device_scale_factor=1
+            )
             page.goto(html_path.as_uri(), wait_until="load")
             page.wait_for_timeout(100)
             for index in range(frame_count):
@@ -381,7 +406,9 @@ def _render_animation_video(
     return _encode_frame_sequence(frames_dir, out_path, capture_fps, config)
 
 
-def _encode_frame_sequence(frames_dir: Path, out_path: Path, fps: int, config: PipelineConfig) -> Path:
+def _encode_frame_sequence(
+    frames_dir: Path, out_path: Path, fps: int, config: PipelineConfig
+) -> Path:
     out_path.parent.mkdir(parents=True, exist_ok=True)
     cmd = [
         "ffmpeg",
@@ -405,17 +432,25 @@ def _encode_frame_sequence(frames_dir: Path, out_path: Path, fps: int, config: P
     try:
         result = subprocess.run(cmd, capture_output=True, text=True)
     except FileNotFoundError as e:
-        raise HTMLAnimRenderError("FFmpeg not found. Install it with: brew install ffmpeg") from e
+        raise HTMLAnimRenderError(
+            "FFmpeg not found. Install it with: brew install ffmpeg"
+        ) from e
 
     if result.returncode != 0:
-        raise HTMLAnimRenderError((result.stderr or result.stdout or "FFmpeg failed")[-2000:])
+        raise HTMLAnimRenderError(
+            (result.stderr or result.stdout or "FFmpeg failed")[-2000:]
+        )
 
     if not out_path.exists():
-        raise HTMLAnimRenderError("FFmpeg reported success but the animation output file was not created")
+        raise HTMLAnimRenderError(
+            "FFmpeg reported success but the animation output file was not created"
+        )
     return out_path
 
 
-def _encode_frame_video(frame_path: Path, out_path: Path, duration_sec: int, fps: int) -> Path:
+def _encode_frame_video(
+    frame_path: Path, out_path: Path, duration_sec: int, fps: int
+) -> Path:
     out_path.parent.mkdir(parents=True, exist_ok=True)
     cmd = [
         "ffmpeg",
@@ -441,23 +476,35 @@ def _encode_frame_video(frame_path: Path, out_path: Path, duration_sec: int, fps
     try:
         result = subprocess.run(cmd, capture_output=True, text=True)
     except FileNotFoundError as e:
-        raise HTMLAnimRenderError("FFmpeg not found. Install it with: brew install ffmpeg") from e
+        raise HTMLAnimRenderError(
+            "FFmpeg not found. Install it with: brew install ffmpeg"
+        ) from e
 
     if result.returncode != 0:
-        raise HTMLAnimRenderError((result.stderr or result.stdout or "FFmpeg failed")[-2000:])
+        raise HTMLAnimRenderError(
+            (result.stderr or result.stdout or "FFmpeg failed")[-2000:]
+        )
 
     if not out_path.exists():
-        raise HTMLAnimRenderError("FFmpeg reported success but the output file was not created")
+        raise HTMLAnimRenderError(
+            "FFmpeg reported success but the output file was not created"
+        )
     return out_path
 
 
 def _description_bullets(description: str) -> list[str]:
     if not description.strip():
         return []
-    parts = [item.strip() for item in re.split(r"(?<=[.!?])\s+", description) if item.strip()]
+    parts = [
+        item.strip() for item in re.split(r"(?<=[.!?])\s+", description) if item.strip()
+    ]
     if len(parts) <= 1:
-        parts = [item.strip() for item in re.split(r",\s*", description) if item.strip()]
-    return [item[:140].rstrip() + ("..." if len(item) > 140 else "") for item in parts[:5]]
+        parts = [
+            item.strip() for item in re.split(r",\s*", description) if item.strip()
+        ]
+    return [
+        item[:140].rstrip() + ("..." if len(item) > 140 else "") for item in parts[:5]
+    ]
 
 
 def _theme_from_style(style: str) -> tuple[str, str, str, str]:

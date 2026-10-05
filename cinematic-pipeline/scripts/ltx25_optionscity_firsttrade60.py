@@ -15,12 +15,9 @@ from __future__ import annotations
 
 import argparse
 import json
-import re
 import subprocess
 import sys
 import time
-import urllib.error
-import urllib.request
 from pathlib import Path
 
 from PIL import Image, ImageDraw, ImageFont
@@ -205,19 +202,34 @@ def atempo_chain(source_seconds: int, target_seconds: int) -> str:
 auth_token = ltx_desktop.auth_token
 
 
-def request(method: str, url: str, token: str, payload: dict | None = None,
-            timeout: int = 30) -> dict:
+def request(
+    method: str, url: str, token: str, payload: dict | None = None, timeout: int = 30
+) -> dict:
     return ltx_desktop.request(method, url, token, payload, timeout)
 
 
 def ensure_ready(base_url: str, token: str) -> None:
     versions = request("GET", f"{base_url}/api/models/ltx-versions", token)
-    model = next((x for x in versions.get("versions", []) if x.get("model_id") == "ltx-2.5-22b-distilled"), None)
+    model = next(
+        (
+            x
+            for x in versions.get("versions", [])
+            if x.get("model_id") == "ltx-2.5-22b-distilled"
+        ),
+        None,
+    )
     if not model or not model.get("installed"):
         raise SystemExit("LTX 2.5 Fast is not fully installed in LTX Desktop.")
     if not model.get("active"):
-        request("POST", f"{base_url}/api/models/active-ltx-model", token, {"model_id": "ltx-2.5-22b-distilled"})
-    encoder = request("GET", f"{base_url}/api/models/text-encoder-recommendation", token)
+        request(
+            "POST",
+            f"{base_url}/api/models/active-ltx-model",
+            token,
+            {"model_id": "ltx-2.5-22b-distilled"},
+        )
+    encoder = request(
+        "GET", f"{base_url}/api/models/text-encoder-recommendation", token
+    )
     if encoder.get("cp_to_download"):
         raise SystemExit(
             "The LTX 2.5 local text encoder is missing. Install it from LTX Desktop Settings before rendering."
@@ -248,9 +260,15 @@ def make_keyframe(act: dict, args: argparse.Namespace, token: str) -> Path:
         "imagePath": str(args.reference_image),
         "strength": 0.84,
     }
-    (args.output_dir / f"{act['id']}_keyframe_payload.json").write_text(json.dumps(payload, indent=2) + "\n")
-    result = request("POST", f"{args.base_url}/api/generate-image", token, payload, args.timeout)
-    (args.output_dir / f"{act['id']}_keyframe_result.json").write_text(json.dumps(result, indent=2) + "\n")
+    (args.output_dir / f"{act['id']}_keyframe_payload.json").write_text(
+        json.dumps(payload, indent=2) + "\n"
+    )
+    result = request(
+        "POST", f"{args.base_url}/api/generate-image", token, payload, args.timeout
+    )
+    (args.output_dir / f"{act['id']}_keyframe_result.json").write_text(
+        json.dumps(result, indent=2) + "\n"
+    )
     paths = result.get("image_paths") or []
     if result.get("status") != "complete" or not paths:
         raise SystemExit(f"Keyframe failed for {act['id']}: {json.dumps(result)}")
@@ -270,7 +288,9 @@ def cached_keyframe(act: dict, cache_dir: Path) -> Path | None:
     resolved = recorded if recorded.is_absolute() else cached_file.parent / recorded
     resolved = resolved.resolve()
     if not resolved.is_file():
-        raise SystemExit(f"Cached keyframe for {act['id']} is missing on disk: {resolved}")
+        raise SystemExit(
+            f"Cached keyframe for {act['id']} is missing on disk: {resolved}"
+        )
     return resolved
 
 
@@ -294,14 +314,26 @@ def video_payload(act: dict, args: argparse.Namespace, keyframe: Path | None) ->
     }
 
 
-def make_clip(act: dict, args: argparse.Namespace, token: str, keyframe: Path | None) -> Path:
+def make_clip(
+    act: dict, args: argparse.Namespace, token: str, keyframe: Path | None
+) -> Path:
     payload = video_payload(act, args, keyframe)
-    (args.output_dir / f"{act['id']}_payload.json").write_text(json.dumps(payload, indent=2) + "\n")
+    (args.output_dir / f"{act['id']}_payload.json").write_text(
+        json.dumps(payload, indent=2) + "\n"
+    )
     print(f"Generating {act['id']}...", flush=True)
     started = time.time()
-    result = request("POST", f"{args.base_url}/api/generate", token, payload, args.timeout)
-    print(f"Completed {act['id']} in {time.time() - started:.1f}s", file=sys.stderr, flush=True)
-    (args.output_dir / f"{act['id']}_result.json").write_text(json.dumps(result, indent=2) + "\n")
+    result = request(
+        "POST", f"{args.base_url}/api/generate", token, payload, args.timeout
+    )
+    print(
+        f"Completed {act['id']} in {time.time() - started:.1f}s",
+        file=sys.stderr,
+        flush=True,
+    )
+    (args.output_dir / f"{act['id']}_result.json").write_text(
+        json.dumps(result, indent=2) + "\n"
+    )
     path = result.get("video_path")
     if result.get("status") != "complete" or not path:
         raise SystemExit(f"Video failed for {act['id']}: {json.dumps(result)}")
@@ -327,10 +359,20 @@ def make_overlays(out_dir: Path) -> list[tuple[Path, float, float]]:
         width = max(heading_box[2], sub_box[2]) + 112
         left = 64
         top = 474
-        draw.rounded_rectangle((left, top, left + width, 646), radius=7, fill=(3, 11, 18, 224), outline=(90, 218, 209, 230), width=2)
+        draw.rounded_rectangle(
+            (left, top, left + width, 646),
+            radius=7,
+            fill=(3, 11, 18, 224),
+            outline=(90, 218, 209, 230),
+            width=2,
+        )
         draw.rectangle((left, top, left + 9, 646), fill=(247, 187, 74, 255))
-        draw.text((left + 52, top + 31), heading, font=heading_font, fill=(255, 255, 255, 255))
-        draw.text((left + 54, top + 106), subheading, font=sub_font, fill=(169, 235, 226, 255))
+        draw.text(
+            (left + 52, top + 31), heading, font=heading_font, fill=(255, 255, 255, 255)
+        )
+        draw.text(
+            (left + 54, top + 106), subheading, font=sub_font, fill=(169, 235, 226, 255)
+        )
         path = target / f"{index:02d}.png"
         canvas.save(path)
         outputs.append((path, start, end))
@@ -339,13 +381,32 @@ def make_overlays(out_dir: Path) -> list[tuple[Path, float, float]]:
 
 def make_audio(clips: list[Path], out_dir: Path, args: argparse.Namespace) -> Path:
     voice_aiff = out_dir / "voiceover.aiff"
-    run(["say", "-v", "Reed (English (US))", "-r", "150", "-o", str(voice_aiff), NARRATION])
+    run(
+        [
+            "say",
+            "-v",
+            "Reed (English (US))",
+            "-r",
+            "150",
+            "-o",
+            str(voice_aiff),
+            NARRATION,
+        ]
+    )
     voice_wav = out_dir / "voiceover.wav"
-    run([
-        "ffmpeg", "-y", "-loglevel", "error", "-i", str(voice_aiff),
-        "-af", "highpass=f=90,lowpass=f=9500,acompressor=threshold=-22dB:ratio=3:attack=8:release=160,volume=1.45",
-        str(voice_wav),
-    ])
+    run(
+        [
+            "ffmpeg",
+            "-y",
+            "-loglevel",
+            "error",
+            "-i",
+            str(voice_aiff),
+            "-af",
+            "highpass=f=90,lowpass=f=9500,acompressor=threshold=-22dB:ratio=3:attack=8:release=160,volume=1.45",
+            str(voice_wav),
+        ]
+    )
 
     ambience_inputs: list[str] = []
     ambience_filters: list[str] = []
@@ -357,27 +418,55 @@ def make_audio(clips: list[Path], out_dir: Path, args: argparse.Namespace) -> Pa
             f"afade=t=in:d=0.35,afade=t=out:st=11.3:d=0.7[a{index}]"
         )
     ambience = out_dir / "scene_ambience.wav"
-    run([
-        "ffmpeg", "-y", "-loglevel", "error", *ambience_inputs,
-        "-filter_complex", ";".join(ambience_filters) + ";" + "".join(f"[a{i}]" for i in range(len(clips))) + f"concat=n={len(clips)}:v=0:a=1[a]",
-        "-map", "[a]", "-t", "60", str(ambience),
-    ])
+    run(
+        [
+            "ffmpeg",
+            "-y",
+            "-loglevel",
+            "error",
+            *ambience_inputs,
+            "-filter_complex",
+            ";".join(ambience_filters)
+            + ";"
+            + "".join(f"[a{i}]" for i in range(len(clips)))
+            + f"concat=n={len(clips)}:v=0:a=1[a]",
+            "-map",
+            "[a]",
+            "-t",
+            "60",
+            str(ambience),
+        ]
+    )
 
     if not PROJECT_MUSIC.is_file():
         raise SystemExit(f"Project music is missing: {PROJECT_MUSIC}")
     final_audio = out_dir / "trailer_audio.wav"
-    run([
-        "ffmpeg", "-y", "-loglevel", "error",
-        "-i", str(PROJECT_MUSIC), "-i", str(ambience), "-i", str(voice_wav),
-        "-filter_complex",
-        "[0:a]atrim=0:60,afade=t=in:d=1.2,afade=t=out:st=57:d=3,volume=0.38[music];"
-        "[1:a]highpass=f=80,lowpass=f=8000,volume=0.18[amb];"
-        "[2:a]adelay=650|650,volume=1.1[voice];"
-        "[music][amb]amix=inputs=2:duration=longest[bed];"
-        "[bed][voice]sidechaincompress=threshold=0.012:ratio=12:attack=8:release=450[ducked];"
-        "[ducked][voice]amix=inputs=2:duration=longest,loudnorm=I=-15.5:TP=-1.5:LRA=7[a]",
-        "-map", "[a]", "-t", "60", str(final_audio),
-    ])
+    run(
+        [
+            "ffmpeg",
+            "-y",
+            "-loglevel",
+            "error",
+            "-i",
+            str(PROJECT_MUSIC),
+            "-i",
+            str(ambience),
+            "-i",
+            str(voice_wav),
+            "-filter_complex",
+            "[0:a]atrim=0:60,afade=t=in:d=1.2,afade=t=out:st=57:d=3,volume=0.38[music];"
+            "[1:a]highpass=f=80,lowpass=f=8000,volume=0.18[amb];"
+            "[2:a]adelay=650|650,volume=1.1[voice];"
+            "[music][amb]amix=inputs=2:duration=longest[bed];"
+            "[bed][voice]sidechaincompress=threshold=0.012:ratio=12:attack=8:release=450[ducked];"
+            "[ducked][voice]amix=inputs=2:duration=longest,loudnorm=I=-15.5:TP=-1.5:LRA=7[a]",
+            "-map",
+            "[a]",
+            "-t",
+            "60",
+            str(final_audio),
+        ]
+    )
     return final_audio
 
 
@@ -393,7 +482,10 @@ def assemble(clips: list[Path], audio: Path, args: argparse.Namespace) -> Path:
             "eq=contrast=1.04:saturation=1.08,format=yuv420p"
             f"[v{index}]"
         )
-    filters.append("".join(f"[v{i}]" for i in range(len(clips))) + f"concat=n={len(clips)}:v=1:a=0[base]")
+    filters.append(
+        "".join(f"[v{i}]" for i in range(len(clips)))
+        + f"concat=n={len(clips)}:v=1:a=0[base]"
+    )
     audio_index = len(inputs) // 2
     inputs += ["-i", str(audio)]
     previous = "base"
@@ -401,17 +493,42 @@ def assemble(clips: list[Path], audio: Path, args: argparse.Namespace) -> Path:
         inputs += ["-loop", "1", "-i", str(overlay)]
         overlay_input = audio_index + 1 + index
         output = f"o{index}"
-        filters.append(f"[{previous}][{overlay_input}:v]overlay=0:0:enable='between(t,{start},{end})'[{output}]")
+        filters.append(
+            f"[{previous}][{overlay_input}:v]overlay=0:0:enable='between(t,{start},{end})'[{output}]"
+        )
         previous = output
     filters.append(f"[{previous}]fade=t=in:st=0:d=0.7,fade=t=out:st=59.1:d=0.9[vout]")
     final = args.output_dir / args.final_name
-    run([
-        "ffmpeg", "-y", "-loglevel", "error", *inputs,
-        "-filter_complex", ";".join(filters),
-        "-map", "[vout]", "-map", f"{audio_index}:a", "-t", "60",
-        "-c:v", "libx264", "-crf", "16", "-preset", "medium",
-        "-c:a", "aac", "-b:a", "256k", "-movflags", "+faststart", str(final),
-    ])
+    run(
+        [
+            "ffmpeg",
+            "-y",
+            "-loglevel",
+            "error",
+            *inputs,
+            "-filter_complex",
+            ";".join(filters),
+            "-map",
+            "[vout]",
+            "-map",
+            f"{audio_index}:a",
+            "-t",
+            "60",
+            "-c:v",
+            "libx264",
+            "-crf",
+            "16",
+            "-preset",
+            "medium",
+            "-c:a",
+            "aac",
+            "-b:a",
+            "256k",
+            "-movflags",
+            "+faststart",
+            str(final),
+        ]
+    )
     return final
 
 
@@ -420,22 +537,36 @@ def main() -> int:
     parser.add_argument("--profile", choices=["preview", "final"], default="final")
     parser.add_argument("--base-url", default=BASE_URL)
     parser.add_argument("--output-dir", type=Path)
-    parser.add_argument("--keyframe-cache-dir", type=Path, default=DEFAULT_KEYFRAME_CACHE_DIR)
+    parser.add_argument(
+        "--keyframe-cache-dir", type=Path, default=DEFAULT_KEYFRAME_CACHE_DIR
+    )
     parser.add_argument("--reference-image", type=Path, default=REFERENCE_IMAGE)
-    parser.add_argument("--resolution", choices=["540p", "720p", "1080p"], default="540p")
+    parser.add_argument(
+        "--resolution", choices=["540p", "720p", "1080p"], default="540p"
+    )
     parser.add_argument("--fps", type=int, default=24)
-    parser.add_argument("--source-seconds", type=int, choices=[5, 6, 8, 10, 12, 14, 16, 18, 20])
+    parser.add_argument(
+        "--source-seconds", type=int, choices=[5, 6, 8, 10, 12, 14, 16, 18, 20]
+    )
     parser.add_argument("--keyframe-steps", type=int)
     parser.add_argument("--final-name")
     parser.add_argument("--timeout", type=int, default=7200)
     parser.add_argument("--reuse-existing", action="store_true")
     parser.add_argument("--dry-run", action="store_true")
     args = parser.parse_args()
-    args.source_seconds = args.source_seconds or (5 if args.profile == "preview" else 10)
-    args.keyframe_steps = args.keyframe_steps or (4 if args.profile == "preview" else 10)
+    args.source_seconds = args.source_seconds or (
+        5 if args.profile == "preview" else 10
+    )
+    args.keyframe_steps = args.keyframe_steps or (
+        4 if args.profile == "preview" else 10
+    )
     args.act_seconds = ACT_SECONDS
-    args.output_dir = args.output_dir or (PREVIEW_DIR if args.profile == "preview" else OUTPUT_DIR)
-    args.final_name = args.final_name or (PREVIEW_NAME if args.profile == "preview" else FINAL_NAME)
+    args.output_dir = args.output_dir or (
+        PREVIEW_DIR if args.profile == "preview" else OUTPUT_DIR
+    )
+    args.final_name = args.final_name or (
+        PREVIEW_NAME if args.profile == "preview" else FINAL_NAME
+    )
     args.output_dir.mkdir(parents=True, exist_ok=True)
     (args.output_dir / "storyboard.json").write_text(
         json.dumps(
@@ -454,7 +585,11 @@ def main() -> int:
     )
     if args.dry_run:
         for act in ACTS:
-            keyframe = cached_keyframe(act, args.keyframe_cache_dir) if act["use_keyframe"] else None
+            keyframe = (
+                cached_keyframe(act, args.keyframe_cache_dir)
+                if act["use_keyframe"]
+                else None
+            )
             print(json.dumps(video_payload(act, args, keyframe), indent=2))
         return 0
 
@@ -468,16 +603,25 @@ def main() -> int:
             old_payload = json.loads(payload_file.read_text())
             old_result = json.loads(result_file.read_text())
             old_clip = Path(old_result.get("video_path", ""))
-            if old_payload.get("duration") == args.source_seconds and old_clip.is_file():
+            if (
+                old_payload.get("duration") == args.source_seconds
+                and old_clip.is_file()
+            ):
                 clips.append(old_clip)
                 continue
         keyframe = None
         if act["use_keyframe"]:
-            keyframe = cached_keyframe(act, args.keyframe_cache_dir) if args.keyframe_cache_dir else None
+            keyframe = (
+                cached_keyframe(act, args.keyframe_cache_dir)
+                if args.keyframe_cache_dir
+                else None
+            )
             if keyframe is None:
                 keyframe_file = args.output_dir / f"{act['id']}_keyframe_result.json"
                 if args.reuse_existing and keyframe_file.exists():
-                    keyframe = Path(json.loads(keyframe_file.read_text())["image_paths"][0])
+                    keyframe = Path(
+                        json.loads(keyframe_file.read_text())["image_paths"][0]
+                    )
                 else:
                     keyframe = make_keyframe(act, args, token)
         clips.append(make_clip(act, args, token, keyframe))

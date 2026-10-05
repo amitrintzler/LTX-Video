@@ -370,8 +370,8 @@ _TIMELINE_CALL_RE = re.compile(
 _REGISTRY_RE = re.compile(
     r"(?:window\s*\.\s*)?__timelines\b(?:\s*\[[^\]]*\]|\s*\.\s*\w+)?\s*=[^;\n]*;?"
 )
-_TL_CONTROL_RE = re.compile(
-    r"\btl\s*\.\s*(?:play|resume|restart|reverse|pause|seek|progress|time)\s*\([^)]*\)\s*;?"
+_TL_CONTROL = (
+    r"\s*\.\s*(?:play|resume|restart|reverse|pause|seek|progress|time)\s*\([^)]*\)\s*;?"
 )
 
 
@@ -407,7 +407,8 @@ def _strip_timeline_setup(script: str, notes: list[str], aliases: list[str]) -> 
         pos = end
     script = "".join(out)
     script, n_reg = _REGISTRY_RE.subn("", script)
-    script, n_ctl = _TL_CONTROL_RE.subn("", script)
+    names = "|".join(re.escape(n) for n in ["tl", *aliases])
+    script, n_ctl = re.subn(rf"\b(?:{names}){_TL_CONTROL}", "", script)
     if n_reg:
         notes.append("removed __timelines registration")
     if n_ctl:

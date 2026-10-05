@@ -182,12 +182,17 @@ tl.seek(0);
 
 
 def test_sanitize_aliases_a_renamed_timeline_to_the_host_timeline():
+    sanitized_controls = hf.sanitize_fragment(
+        '<div id="a">x</div><script>const master = gsap.timeline();'
+        'master.to("#a",{x:1},0); master.play(); master.pause(2);</script>'
+    )
     raw = """<div id="a">x</div><script>
 const master = gsap.timeline({ paused: true });
 master.to("#a", {opacity: 1, duration: 1}, 0);
 </script>"""
     parts = hf.sanitize_fragment(raw)
     assert "const master = tl;" in parts.script
+    assert "master.play" not in sanitized_controls.script
     assert "gsap.timeline" not in parts.script
     assert hf.fragment_findings(parts) == []
 

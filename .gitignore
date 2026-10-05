@@ -189,3 +189,6 @@ runs/
 # Local caches: Remotion downloads headless Chrome here; Manim caches rendered text
 .remotion/
 **/media/texts/
+
+# Node toolchain for the hyperframes renderer
+video-pipeline/hyperframes/node_modules/

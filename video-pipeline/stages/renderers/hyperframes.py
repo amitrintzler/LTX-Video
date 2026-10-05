@@ -248,6 +248,25 @@ def render(scene: dict, config: PipelineConfig, out_path: Path) -> Path:
                     )
                     raise HyperframesCheckError(build_feedback(gating), gating)
                 _render_and_verify(cli, project, out_path, config, duration_sec)
+                edge = scan_edges(out_path, duration_sec)
+                if edge:
+                    # check measures DOM boxes, so an SVG path drawn past the
+                    # canvas (a price path running off the bottom) passes it.
+                    # The rendered pixels do not lie.
+                    candidates.append(
+                        _keep_rejected(
+                            out_path,
+                            attempt + 1,
+                            document,
+                            sidecar,
+                            report,
+                            edge,
+                            [describe_finding(f) for f in edge],
+                            shippable=True,
+                        )
+                    )
+                    out_path.unlink(missing_ok=True)
+                    raise HyperframesCheckError(build_feedback(edge), edge)
             _publish_sources(out_path, document, sidecar)
             _defects_path(out_path).unlink(missing_ok=True)
             return out_path
@@ -940,6 +959,53 @@ def _publish_sources(out_path: Path, document: str, sidecar: dict) -> None:
     out_path.parent.mkdir(parents=True, exist_ok=True)
     _html_path(out_path).write_text(document, encoding="utf-8")
     _motion_path(out_path).write_text(json.dumps(sidecar, indent=1), encoding="utf-8")
+
+
+def scan_edges(video: Path, duration_sec: float, step_sec: float = 1.0) -> list[dict]:
+    """Findings for drawn content touching the frame edge in the rendered
+    video, sampled every `step_sec`. Reuses the Manim audit's pixel test."""
+    from stages.renderers.manim import _find_edge_content
+
+    hits: dict[str, list[float]] = {}
+    with tempfile.TemporaryDirectory(prefix="hyperframes_edges_") as tmp:
+        t = min(0.5, duration_sec / 2)
+        while t < duration_sec:
+            frame = Path(tmp) / f"f_{t:.1f}.png"
+            subprocess.run(
+                [
+                    "ffmpeg",
+                    "-v",
+                    "error",
+                    "-y",
+                    "-ss",
+                    f"{t:.2f}",
+                    "-i",
+                    str(video),
+                    "-frames:v",
+                    "1",
+                    str(frame),
+                ],
+                capture_output=True,
+            )
+            if frame.exists():
+                for side in _find_edge_content(frame):
+                    hits.setdefault(side, []).append(round(t, 1))
+            t += step_sec
+    return [
+        {
+            "section": "layout",
+            "code": "edge_contact",
+            "severity": "error",
+            "selector": f"{side} edge",
+            "time": times[0],
+            "message": f"drawn content touches the {side} edge of the frame "
+            f"from {times[0]:g}s ({len(times)} of the sampled frames)",
+            "fixHint": "keep every shape, SVG path and label inside the safe area "
+            "(96px from each edge) for the whole shot, including paths that "
+            "extend toward the edge of a chart",
+        }
+        for side, times in hits.items()
+    ]
 
 
 def _render_and_verify(

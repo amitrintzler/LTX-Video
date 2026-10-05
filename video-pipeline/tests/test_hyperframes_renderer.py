@@ -76,6 +76,8 @@ class FakeTools:
         self.rendered_html = []
 
     def __call__(self, cmd, **kwargs):
+        if cmd[0] == "ffmpeg":  # post-render edge scan: no frame, so no findings
+            return subprocess.CompletedProcess(cmd, 0, "", "")
         self.commands.append(cmd)
         sub = cmd[1]
         if sub == "check":
@@ -690,3 +692,30 @@ def test_a_long_freeze_outweighs_two_overlapping_labels():
         {"section": "layout", "code": "content_overlap", "severity": "error"}
     ] * 2 + [frozen(2.1)]
     assert defect_score(claude) < defect_score(shipped)
+
+
+def test_scan_edges_reports_drawn_content_at_the_frame_edge(tmp_path):
+    """check measures DOM boxes, so an SVG path drawn off the canvas passed it.
+    The post-render scan reads pixels; frames come from a stubbed ffmpeg."""
+    from unittest.mock import patch
+
+    from PIL import Image, ImageDraw
+
+    from stages.renderers.hyperframes import scan_edges
+
+    def fake_ffmpeg(cmd, **kwargs):
+        t = float(cmd[cmd.index("-ss") + 1])
+        im = Image.new("RGB", (1920, 1080), "#0F172A")
+        d = ImageDraw.Draw(im)
+        d.rectangle([400, 300, 900, 600], outline="#38BDF8", width=6)
+        if t >= 2:  # a price path escapes through the bottom edge
+            d.line([(1200, 700), (1500, 1080)], fill="#F5B942", width=6)
+        im.save(cmd[-1])
+
+    with patch("stages.renderers.hyperframes.subprocess.run", side_effect=fake_ffmpeg):
+        findings = scan_edges(tmp_path / "clip.mp4", 4.0)
+
+    assert [f["selector"] for f in findings] == ["bottom edge"]
+    assert findings[0]["code"] == "edge_contact"
+    assert findings[0]["severity"] == "error"
+    assert findings[0]["time"] == 2.5

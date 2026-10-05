@@ -19,7 +19,7 @@ import tempfile
 import urllib.error
 import urllib.request
 from pathlib import Path
-from typing import Optional
+from typing import Callable, Optional
 
 import numpy as np
 from PIL import Image, ImageFilter, ImageOps
@@ -268,15 +268,13 @@ def render_timeout(duration_sec: float, width: int, height: int, fps: int) -> in
     return int(max(300, 120 + frames * (width * height) / (1920 * 1080) * 1.5))
 
 
-def _ship_best_attempt(candidates: list[dict], out_path: Path, log) -> Path:
-    """No attempt passed, but some played. A flawed animation beats a static
-    slide, so the least-defective render ships - lowest weighted score, later
-    attempt on a tie since it had the most feedback - and its defects are
-    written beside the clip so they are recorded rather than hidden."""
-    best = min(candidates, key=lambda c: (c["score"], -c["attempt"]))
-    shutil.copy2(best["video"], out_path)
-    if best.get("code") and Path(best["code"]).exists():
-        shutil.copy2(best["code"], _code_path(out_path))
+def _pick_best_attempt(candidates: list[dict]) -> dict:
+    """Lowest weighted defect score wins; the later attempt on a tie, since it
+    had the most feedback."""
+    return min(candidates, key=lambda c: (c["score"], -c["attempt"]))
+
+
+def _write_defects(best: dict, out_path: Path) -> None:
     _defects_path(out_path).write_text(
         json.dumps(
             {
@@ -287,6 +285,18 @@ def _ship_best_attempt(candidates: list[dict], out_path: Path, log) -> Path:
             indent=1,
         )
     )
+
+
+def _ship_best_attempt(candidates: list[dict], out_path: Path, log) -> Path:
+    """No attempt passed, but some played. A flawed animation beats a static
+    slide, so the least-defective render ships - lowest weighted score, later
+    attempt on a tie since it had the most feedback - and its defects are
+    written beside the clip so they are recorded rather than hidden."""
+    best = _pick_best_attempt(candidates)
+    shutil.copy2(best["video"], out_path)
+    if best.get("code") and Path(best["code"]).exists():
+        shutil.copy2(best["code"], _code_path(out_path))
+    _write_defects(best, out_path)
     log.warning(
         f"SHIPPED WITH LAYOUT DEFECTS: {out_path.name} is attempt {best['attempt']} of "
         f"{len(candidates)} that rendered (defect score {best['score']}): "
@@ -443,7 +453,11 @@ Output only valid Python code. No markdown fences, no explanation."""
 
 
 def _call_claude_cli(
-    model: str, system: str, description: str, error: Optional[str]
+    model: str,
+    system: str,
+    description: str,
+    error: Optional[str],
+    extract: Optional[Callable[[str], str]] = None,
 ) -> str:
     user_content = description
     if error:
@@ -489,7 +503,7 @@ def _call_claude_cli(
             stderr[-2000:] or "Claude Code CLI failed without output"
         )
 
-    code = _extract_python_code(result.stdout)
+    code = (extract or _extract_python_code)(result.stdout)
     if not code.strip():
         raise ManimRenderError("Claude Code CLI returned empty code")
     return code
@@ -503,6 +517,7 @@ def _call_lmstudio_api(
     error: Optional[str],
     base_url: str,
     api_key: str,
+    extract: Optional[Callable[[str], str]] = None,
 ) -> str:
     user_content = description
     if error:
@@ -557,7 +572,7 @@ def _call_lmstudio_api(
     if not isinstance(content, str):
         content = str(content)
 
-    code = _extract_python_code(content)
+    code = (extract or _extract_python_code)(content)
     if not code.strip():
         raise ManimRenderError("LM Studio returned empty code")
     return code

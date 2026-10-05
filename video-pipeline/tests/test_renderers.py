@@ -1098,7 +1098,9 @@ def test_layout_audit_catches_text_cut_off_at_the_frame_edge(tmp_path):
     try:
         font = ImageFont.truetype("/System/Library/Fonts/Helvetica.ttc", 40)
     except OSError:
-        font = ImageFont.load_default()
+        # Linux CI has no Helvetica. The unsized default is an 11px bitmap
+        # font, too small to read as text; Pillow >= 10.1 scales it.
+        font = ImageFont.load_default(size=40)
 
     def frame(name, placements):
         im = Image.new("RGB", (1024, 576), (10, 10, 10))

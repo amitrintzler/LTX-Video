@@ -17,6 +17,9 @@ RENDERERS: dict[str, str] = {
     "html_anim": "stages.renderers.html_anim",
     "animatediff": "stages.renderers.animatediff",
     "slides": "stages.renderers.slides",
+    # Opt-in only (scenes set "renderer": "hyperframes"); not offered by the
+    # script stage. Needs `npm ci` in video-pipeline/hyperframes.
+    "hyperframes": "stages.renderers.hyperframes",
 }
 
 

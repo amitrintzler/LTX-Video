@@ -1,0 +1,11 @@
+{
+  "name": "ltx-video-pipeline-hyperframes",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Pinned HyperFrames CLI and GSAP for the video-pipeline hyperframes renderer",
+  "license": "UNLICENSED",
+  "dependencies": {
+    "gsap": "3.14.2",
+    "hyperframes": "0.8.134"
+  }
+}

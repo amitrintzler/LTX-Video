@@ -1,6 +1,7 @@
 """Tests for multi-renderer dispatcher and Manim renderer — Sub-project 1."""
 
 import logging
+import subprocess
 import sys
 from pathlib import Path
 from unittest.mock import MagicMock, patch
@@ -879,9 +880,12 @@ def test_manim_claude_cli_invocation_uses_print_and_system_prompt():
     )
     fake_result.stderr = ""
 
-    with patch(
-        "stages.renderers.manim.subprocess.run", return_value=fake_result
-    ) as mock_run:
+    with (
+        patch(
+            "stages.renderers.manim.subprocess.run", return_value=fake_result
+        ) as mock_run,
+        patch.dict("os.environ", {"CLAUDE_EFFORT": "high"}),
+    ):
         code = _call_claude_cli("claude-sonnet-4-6", "SYSTEM", "DRAW A CURVE", None)
 
     assert "from manim import *" in code
@@ -891,6 +895,11 @@ def test_manim_claude_cli_invocation_uses_print_and_system_prompt():
     assert "--system-prompt" in cmd
     assert "--tools" in cmd
     assert "DRAW A CURVE" in cmd
+    # A shell-wide CLAUDE_EFFORT=high made codegen time out; effort is explicit.
+    assert cmd[cmd.index("--effort") + 1] == "low"
+    kwargs = mock_run.call_args.kwargs
+    assert "CLAUDE_EFFORT" not in kwargs["env"]
+    assert kwargs["stdin"] is subprocess.DEVNULL
 
 
 def test_manim_uses_lmstudio_when_configured(tmp_path):

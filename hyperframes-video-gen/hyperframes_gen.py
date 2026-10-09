@@ -1,9 +1,55 @@
 #!/usr/bin/env python3
 """Hyperframes video generator wrapper - HTML-native video composition."""
 
+import html as html_lib
+import os
+import re
+import shutil
 import subprocess
 from pathlib import Path
 from dataclasses import dataclass
+
+# The CLI and GSAP are pinned by `npm ci` in video-pipeline/hyperframes. Using
+# them keeps this wrapper on the same HyperFrames version as the pipeline's
+# hyperframes renderer instead of whatever `npx` resolves that day.
+PINNED_DIR = Path(__file__).resolve().parents[1] / "video-pipeline" / "hyperframes"
+PINNED_CLI = PINNED_DIR / "node_modules" / ".bin" / "hyperframes"
+PINNED_GSAP = PINNED_DIR / "node_modules" / "gsap" / "dist" / "gsap.min.js"
+
+_SCENE_ID_RE = re.compile(r"^[A-Za-z][\w-]*$")
+ENTRANCE_SEC = 0.6
+
+
+def _tool_env() -> dict:
+    return {**os.environ, "HYPERFRAMES_SKIP_SKILLS": "1", "NO_COLOR": "1"}
+
+
+def _cli_command() -> list[str]:
+    return [str(PINNED_CLI)] if PINNED_CLI.exists() else ["npx", "hyperframes"]
+
+
+def _fmt(value: float) -> str:
+    value = float(value)
+    return str(int(value)) if value == int(value) else f"{value:g}"
+
+
+def _assign_tracks(scenes: list[dict]) -> list[int]:
+    """Lowest track index per scene such that clips on one track never overlap
+    in time (HyperFrames lints overlapping clips on a shared track)."""
+    track_end: list[float] = []
+    tracks = []
+    for scene in scenes:
+        start = float(scene.get("start", 0))
+        end = start + float(scene.get("duration", 5))
+        for index, busy_until in enumerate(track_end):
+            if start >= busy_until:
+                track_end[index] = end
+                tracks.append(index)
+                break
+        else:
+            track_end.append(end)
+            tracks.append(len(track_end) - 1)
+    return tracks
 
 
 @dataclass
@@ -52,40 +98,63 @@ class HyperframesGenerator:
         Returns:
             HTML string ready to render
         """
+        for scene in scenes:
+            if not _SCENE_ID_RE.match(str(scene["id"])):
+                raise ValueError(
+                    f"scene id {scene['id']!r} must start with a letter and use "
+                    "only letters, digits, '_' or '-' (it is used as a CSS selector)"
+                )
+        ids = [scene["id"] for scene in scenes]
+        if len(ids) != len(set(ids)):
+            raise ValueError("scene ids must be unique")
+
         # Calculate total duration: last scene start + duration
         total_duration = (
             max((s.get("start", 0) + s.get("duration", 5)) for s in scenes)
             if scenes
             else 10
         )
+        total = _fmt(total_duration)
+        resolution = {
+            (1920, 1080): "landscape",
+            (1080, 1920): "portrait",
+            (1080, 1080): "square",
+        }.get((self.width, self.height))
+        resolution_attr = f' data-resolution="{resolution}"' if resolution else ""
 
+        # Every scene is a clip on the timeline; the runtime shows it only
+        # inside [start, start + duration). Each one enters with a fade and a
+        # short slide, as a real tween on a paused timeline that the renderer
+        # seeks frame by frame.
         scenes_html = ""
-        for scene in scenes:
+        tweens = ""
+        for scene, track in zip(scenes, _assign_tracks(scenes)):
+            start = _fmt(scene["start"])
+            duration = _fmt(scene["duration"])
             scenes_html += f"""
     <div
       id="{scene['id']}"
-      data-start="{scene['start']}"
-      data-duration="{scene['duration']}"
-      style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; background: #0d1117; opacity: 1;"
+      class="clip scene"
+      data-start="{start}"
+      data-duration="{duration}"
+      data-track-index="{track}"
     >
       {scene['content']}
     </div>
 """
+            entrance = _fmt(min(ENTRANCE_SEC, float(scene["duration"])))
+            tweens += (
+                f'        tl.fromTo("#{scene["id"]}", {{ opacity: 0, y: 40 }}, '
+                f'{{ opacity: 1, y: 0, duration: {entrance}, ease: "power2.out" }}, {start});\n'
+            )
 
         html = f"""<!DOCTYPE html>
-<html lang="en">
+<html lang="en"{resolution_attr}>
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{title}</title>
-    <script>
-        window.__hf = {{
-            duration: {total_duration},
-            seek: function(t) {{
-                // Hyperframes will call this to seek to time t
-            }}
-        }};
-    </script>
+    <meta name="viewport" content="width={self.width}, height={self.height}">
+    <title>{html_lib.escape(title)}</title>
+    <script src="gsap.min.js"></script>
     <style>
         * {{
             margin: 0;
@@ -94,8 +163,8 @@ class HyperframesGenerator:
         }}
 
         html, body {{
-            width: 100%;
-            height: 100%;
+            width: {self.width}px;
+            height: {self.height}px;
             margin: 0;
             padding: 0;
             overflow: hidden;
@@ -107,13 +176,23 @@ class HyperframesGenerator:
             color: #c9d1d9;
         }}
 
-        .stage {{
-            position: fixed;
+        #root {{
+            position: relative;
+            width: {self.width}px;
+            height: {self.height}px;
+            overflow: hidden;
+            background: #0d1117;
+        }}
+
+        .scene {{
+            position: absolute;
             top: 0;
             left: 0;
-            width: 100%;
-            height: 100%;
-            overflow: hidden;
+            width: {self.width}px;
+            height: {self.height}px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
             background: #0d1117;
         }}
 
@@ -184,9 +263,23 @@ class HyperframesGenerator:
     </style>
 </head>
 <body>
-    <div class="stage">
+    <div
+      id="root"
+      data-composition-id="main"
+      data-start="0"
+      data-duration="{total}"
+      data-width="{self.width}"
+      data-height="{self.height}"
+      data-fps="{self.fps}"
+    >
 {scenes_html}
     </div>
+    <script>
+        const tl = gsap.timeline({{ paused: true }});
+{tweens}        window.__timelines = window.__timelines || {{}};
+        window.__timelines["main"] = tl;
+        tl.seek(0);
+    </script>
 </body>
 </html>
 """
@@ -195,6 +288,11 @@ class HyperframesGenerator:
     def write_composition(self, html: str, filename: str = "index.html") -> Path:
         """Write HTML composition to file."""
         self.init_project()
+        if not PINNED_GSAP.exists():
+            raise FileNotFoundError(
+                f"GSAP not found at {PINNED_GSAP}. Run `npm ci` in {PINNED_DIR}."
+            )
+        shutil.copy2(PINNED_GSAP, self.project_dir / "gsap.min.js")
         output_file = self.project_dir / filename
         output_file.write_text(html)
         return output_file
@@ -213,10 +311,22 @@ class HyperframesGenerator:
         if output_path is None:
             output_path = f"{self.project_name}.mp4"
 
-        cmd = ["npx", "hyperframes", "render", "-o", output_path]
+        cmd = [
+            *_cli_command(),
+            "render",
+            "-o",
+            output_path,
+            "--fps",
+            str(self.fps),
+            "--quiet",
+        ]
 
         result = subprocess.run(
-            cmd, cwd=self.project_dir, capture_output=True, text=True
+            cmd,
+            cwd=self.project_dir,
+            capture_output=True,
+            text=True,
+            env=_tool_env(),
         )
 
         if result.returncode != 0:
@@ -229,8 +339,8 @@ class HyperframesGenerator:
 
         Requires: npx hyperframes preview
         """
-        cmd = ["npx", "hyperframes", "preview"]
-        subprocess.run(cmd, cwd=self.project_dir)
+        cmd = [*_cli_command(), "preview"]
+        subprocess.run(cmd, cwd=self.project_dir, env=_tool_env())
 
 
 def create_hyperframes_video(

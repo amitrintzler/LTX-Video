@@ -19,7 +19,7 @@ import tempfile
 import urllib.error
 import urllib.request
 from pathlib import Path
-from typing import Optional
+from typing import Callable, Optional
 
 import numpy as np
 from PIL import Image, ImageFilter, ImageOps
@@ -70,6 +70,10 @@ def _defect_score(problems: list[str]) -> int:
 # runs. At 600s most scenes timed out and fell back to static slides, which is
 # why "animations" did not animate. Raised above the observed worst case.
 CLAUDE_CODEGEN_TIMEOUT = 1200
+# Codegen is a single well-specified answer, and the checker feedback loop
+# does the refining, so it does not need deep reasoning. Override with
+# LTX_CLAUDE_CODEGEN_EFFORT (low, medium, high, xhigh, max).
+CLAUDE_CODEGEN_EFFORT = os.environ.get("LTX_CLAUDE_CODEGEN_EFFORT", "low")
 NAMED_COLOR_NAMES = (
     "CYAN",
     "TEAL",
@@ -268,15 +272,13 @@ def render_timeout(duration_sec: float, width: int, height: int, fps: int) -> in
     return int(max(300, 120 + frames * (width * height) / (1920 * 1080) * 1.5))
 
 
-def _ship_best_attempt(candidates: list[dict], out_path: Path, log) -> Path:
-    """No attempt passed, but some played. A flawed animation beats a static
-    slide, so the least-defective render ships - lowest weighted score, later
-    attempt on a tie since it had the most feedback - and its defects are
-    written beside the clip so they are recorded rather than hidden."""
-    best = min(candidates, key=lambda c: (c["score"], -c["attempt"]))
-    shutil.copy2(best["video"], out_path)
-    if best.get("code") and Path(best["code"]).exists():
-        shutil.copy2(best["code"], _code_path(out_path))
+def _pick_best_attempt(candidates: list[dict]) -> dict:
+    """Lowest weighted defect score wins; the later attempt on a tie, since it
+    had the most feedback."""
+    return min(candidates, key=lambda c: (c["score"], -c["attempt"]))
+
+
+def _write_defects(best: dict, out_path: Path) -> None:
     _defects_path(out_path).write_text(
         json.dumps(
             {
@@ -287,6 +289,18 @@ def _ship_best_attempt(candidates: list[dict], out_path: Path, log) -> Path:
             indent=1,
         )
     )
+
+
+def _ship_best_attempt(candidates: list[dict], out_path: Path, log) -> Path:
+    """No attempt passed, but some played. A flawed animation beats a static
+    slide, so the least-defective render ships - lowest weighted score, later
+    attempt on a tie since it had the most feedback - and its defects are
+    written beside the clip so they are recorded rather than hidden."""
+    best = _pick_best_attempt(candidates)
+    shutil.copy2(best["video"], out_path)
+    if best.get("code") and Path(best["code"]).exists():
+        shutil.copy2(best["code"], _code_path(out_path))
+    _write_defects(best, out_path)
     log.warning(
         f"SHIPPED WITH LAYOUT DEFECTS: {out_path.name} is attempt {best['attempt']} of "
         f"{len(candidates)} that rendered (defect score {best['score']}): "
@@ -443,7 +457,11 @@ Output only valid Python code. No markdown fences, no explanation."""
 
 
 def _call_claude_cli(
-    model: str, system: str, description: str, error: Optional[str]
+    model: str,
+    system: str,
+    description: str,
+    error: Optional[str],
+    extract: Optional[Callable[[str], str]] = None,
 ) -> str:
     user_content = description
     if error:
@@ -461,18 +479,29 @@ def _call_claude_cli(
         model,
         "--system-prompt",
         system,
+        "--effort",
+        CLAUDE_CODEGEN_EFFORT,
         "--tools",
         "",
         "--dangerously-skip-permissions",
         user_content,
     ]
 
+    # The CLI is a full agent session. Run from the system temp dir
+    # so the repo's CLAUDE.md and project hooks do not load, close stdin so
+    # it never waits on an inherited pipe, and drop CLAUDE_EFFORT: a shell
+    # with CLAUDE_EFFORT=high made one scene take 20+ minutes (timing out)
+    # where --effort low answers in under a minute.
+    env = {k: v for k, v in os.environ.items() if k != "CLAUDE_EFFORT"}
     try:
         result = subprocess.run(
             cmd,
             capture_output=True,
             text=True,
             timeout=CLAUDE_CODEGEN_TIMEOUT,
+            stdin=subprocess.DEVNULL,
+            cwd=tempfile.gettempdir(),
+            env=env,
         )
     except FileNotFoundError as e:
         raise ManimRenderError(
@@ -489,7 +518,7 @@ def _call_claude_cli(
             stderr[-2000:] or "Claude Code CLI failed without output"
         )
 
-    code = _extract_python_code(result.stdout)
+    code = (extract or _extract_python_code)(result.stdout)
     if not code.strip():
         raise ManimRenderError("Claude Code CLI returned empty code")
     return code
@@ -503,6 +532,7 @@ def _call_lmstudio_api(
     error: Optional[str],
     base_url: str,
     api_key: str,
+    extract: Optional[Callable[[str], str]] = None,
 ) -> str:
     user_content = description
     if error:
@@ -557,7 +587,7 @@ def _call_lmstudio_api(
     if not isinstance(content, str):
         content = str(content)
 
-    code = _extract_python_code(content)
+    code = (extract or _extract_python_code)(content)
     if not code.strip():
         raise ManimRenderError("LM Studio returned empty code")
     return code
